@@ -1,0 +1,8 @@
+proam-league/
+  index.html
+  netlify.toml
+  netlify/
+    functions/
+      public.js
+      admin.js
+      proscore.js
