@@ -5,7 +5,14 @@ exports.handler = async (event) => {
 
     const path = (event.path || "")
       .replace(/^\/.netlify\/functions\/public\/?/, "")
-      .replace(/^\/+/, "");
+      .replace(/^\/+/, "");// Health check (must work even before Supabase is configured)
+if (path === "" || path === "health") {
+  return {
+    statusCode: 200,
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ ok: true })
+  };
+}
 
     const SUPABASE_URL = process.env.SUPABASE_URL;
     const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
