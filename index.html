@@ -1,12 +1,618 @@
 <!doctype html>
-<html>
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Pro-Am WGC</title>
-  </head>
-  <body style="font-family: Arial; padding: 40px;">
-    <h1>✅ Pro-Am WGC is deploying correctly</h1>
-    <p>If you can see this, Netlify is serving index.html properly.</p>
-  </body>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Pro-Am WGC</title>
+
+  <style>
+    :root{
+      --bg:#0b1220;
+      --panel:#0f1b33;
+      --panel2:#0c162b;
+      --text:#e8eefc;
+      --muted:#a9b7d6;
+      --brand:#47d7ac;
+      --brand2:#5aa7ff;
+      --danger:#ff5a7a;
+      --warn:#ffcf5a;
+      --ok:#49e28b;
+      --border:rgba(255,255,255,.10);
+      --shadow: 0 12px 40px rgba(0,0,0,.35);
+      --radius: 18px;
+    }
+    *{ box-sizing:border-box; }
+    body{
+      margin:0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+      background: radial-gradient(1200px 600px at 20% 0%, rgba(90,167,255,.22), transparent 55%),
+                  radial-gradient(900px 500px at 80% 10%, rgba(71,215,172,.18), transparent 55%),
+                  linear-gradient(180deg, var(--bg), #060b15);
+      color:var(--text);
+    }
+    a{ color:inherit; text-decoration:none; }
+    .wrap{ max-width:1100px; margin:0 auto; padding:28px 18px 60px; }
+    header{
+      display:flex; align-items:center; justify-content:space-between;
+      gap:16px; margin-bottom:18px;
+    }
+    .brand{
+      display:flex; align-items:center; gap:12px;
+    }
+    .logo{
+      width:44px; height:44px; border-radius:14px;
+      background: linear-gradient(135deg, var(--brand2), var(--brand));
+      box-shadow: var(--shadow);
+      display:grid; place-items:center;
+      font-weight:900; color:#04101e;
+    }
+    .titleblock h1{ margin:0; font-size:20px; letter-spacing:.2px; }
+    .titleblock p{ margin:2px 0 0; color:var(--muted); font-size:13px; }
+    .pillrow{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; justify-content:flex-end; }
+    .pill{
+      border:1px solid var(--border);
+      background: rgba(255,255,255,.06);
+      padding:8px 10px; border-radius:999px;
+      font-size:12px; color:var(--muted);
+      display:flex; gap:8px; align-items:center;
+    }
+    .dot{ width:8px; height:8px; border-radius:50%; background:var(--warn); }
+    .dot.ok{ background:var(--ok); }
+    .dot.bad{ background:var(--danger); }
+    .grid{
+      display:grid;
+      grid-template-columns: 1.1fr .9fr;
+      gap:16px;
+    }
+    @media (max-width: 980px){
+      .grid{ grid-template-columns:1fr; }
+      header{ flex-direction:column; align-items:flex-start; }
+      .pillrow{ justify-content:flex-start; }
+    }
+    .card{
+      background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
+      border:1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow:hidden;
+    }
+    .card .hd{
+      padding:14px 16px;
+      display:flex; align-items:center; justify-content:space-between; gap:12px;
+      background: rgba(0,0,0,.14);
+      border-bottom:1px solid var(--border);
+    }
+    .card .hd h2{
+      margin:0; font-size:14px; letter-spacing:.3px; text-transform:uppercase; color:var(--muted);
+    }
+    .card .bd{ padding:16px; }
+    .btn{
+      appearance:none; border:none; cursor:pointer;
+      background: linear-gradient(135deg, var(--brand2), var(--brand));
+      color:#04101e; font-weight:800;
+      padding:10px 12px; border-radius:12px;
+      box-shadow: 0 10px 24px rgba(0,0,0,.28);
+      transition: transform .08s ease;
+      font-size:13px;
+    }
+    .btn:active{ transform: translateY(1px); }
+    .btn.secondary{
+      background: rgba(255,255,255,.08);
+      color:var(--text);
+      border:1px solid var(--border);
+      box-shadow:none;
+      font-weight:700;
+    }
+    .btn.danger{
+      background: rgba(255,90,122,.16);
+      border:1px solid rgba(255,90,122,.35);
+      color:#ffd5dd;
+      box-shadow:none;
+    }
+    .row{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+    .field{
+      display:flex; flex-direction:column; gap:6px;
+      min-width: 180px;
+      flex: 1;
+    }
+    label{ font-size:12px; color:var(--muted); }
+    input, select{
+      width:100%;
+      padding:10px 12px;
+      border-radius:12px;
+      border:1px solid var(--border);
+      background: rgba(0,0,0,.25);
+      color:var(--text);
+      outline:none;
+    }
+    input::placeholder{ color: rgba(233,241,255,.35); }
+    .split{ display:grid; grid-template-columns: 1fr 1fr; gap:10px; }
+    @media(max-width:560px){ .split{ grid-template-columns:1fr; } }
+
+    table{
+      width:100%;
+      border-collapse:collapse;
+      overflow:hidden;
+      border-radius: 14px;
+      border:1px solid var(--border);
+      background: rgba(0,0,0,.18);
+    }
+    th, td{
+      padding:10px 10px;
+      border-bottom:1px solid rgba(255,255,255,.07);
+      text-align:left;
+      font-size:13px;
+    }
+    th{ color:var(--muted); font-weight:700; font-size:12px; text-transform:uppercase; letter-spacing:.3px; }
+    tr:last-child td{ border-bottom:none; }
+    .rank{ font-weight:900; color:#d9e6ff; width:56px; }
+    .mono{ font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    .badge{
+      display:inline-flex; align-items:center; gap:8px;
+      padding:6px 10px; border-radius:999px;
+      background: rgba(71,215,172,.12);
+      border:1px solid rgba(71,215,172,.28);
+      color:#c9fff0;
+      font-weight:700; font-size:12px;
+    }
+    .badge.gray{
+      background: rgba(255,255,255,.06);
+      border:1px solid var(--border);
+      color: var(--muted);
+      font-weight:700;
+    }
+    .msg{
+      margin-top:10px;
+      border:1px solid var(--border);
+      background: rgba(0,0,0,.22);
+      padding:10px 12px;
+      border-radius:12px;
+      color:var(--muted);
+      font-size:13px;
+    }
+    .msg.ok{ border-color: rgba(73,226,139,.3); color:#c9ffde; }
+    .msg.bad{ border-color: rgba(255,90,122,.35); color:#ffd0da; }
+    .footer{
+      margin-top:16px;
+      color:rgba(233,241,255,.45);
+      font-size:12px;
+      text-align:center;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+    <header>
+      <div class="brand">
+        <div class="logo">⛳</div>
+        <div class="titleblock">
+          <h1>Pro-Am WGC League</h1>
+          <p>Weekly combined scoring: your round + your drafted pro’s score</p>
+        </div>
+      </div>
+
+      <div class="pillrow">
+        <div class="pill" title="Netlify Functions health">
+          <span id="healthDot" class="dot"></span>
+          <span>API:</span>
+          <span id="healthText" class="mono">checking…</span>
+        </div>
+        <div class="pill" title="Current week">
+          <span class="mono">Week:</span>
+          <span id="weekLabel" class="mono">—</span>
+        </div>
+        <button class="btn secondary" id="refreshBtn">Refresh</button>
+      </div>
+    </header>
+
+    <div class="grid">
+      <!-- LEFT: Draft + Submit -->
+      <div class="card">
+        <div class="hd">
+          <h2>Submit your week</h2>
+          <span class="badge gray" id="lockBadge">Public</span>
+        </div>
+        <div class="bd">
+          <div class="split">
+            <div class="field">
+              <label for="playerSel">Player</label>
+              <select id="playerSel"></select>
+            </div>
+            <div class="field">
+              <label for="proSel">Drafted Pro</label>
+              <select id="proSel"></select>
+            </div>
+          </div>
+
+          <div class="split" style="margin-top:10px;">
+            <div class="field">
+              <label for="playerScore">Your score to par (example: +10)</label>
+              <input id="playerScore" placeholder="+10" />
+            </div>
+            <div class="field">
+              <label for="proScore">Pro score to par (optional if auto-pulled)</label>
+              <input id="proScore" placeholder="-22" />
+            </div>
+          </div>
+
+          <div class="row" style="margin-top:12px;">
+            <button class="btn" id="submitBtn">Submit</button>
+            <button class="btn secondary" id="autoProBtn">Auto-pull Pro Score</button>
+          </div>
+
+          <div id="submitMsg" class="msg" style="display:none;"></div>
+
+          <div class="msg" style="margin-top:12px;">
+            <div class="row" style="justify-content:space-between;">
+              <span><b>How it works:</b> Combined = (Your score to par) + (Pro score to par)</span>
+              <span class="badge" id="combinedBadge">Combined: —</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT: Leaderboard -->
+      <div class="card">
+        <div class="hd">
+          <h2>Leaderboard</h2>
+          <span class="badge" id="lastUpdated">Updated: —</span>
+        </div>
+        <div class="bd">
+          <table>
+            <thead>
+              <tr>
+                <th class="rank">Rank</th>
+                <th>Player</th>
+                <th class="mono">You</th>
+                <th class="mono">Pro</th>
+                <th class="mono">Combined</th>
+              </tr>
+            </thead>
+            <tbody id="lbBody">
+              <tr><td colspan="5" style="color:rgba(233,241,255,.45);">Loading…</td></tr>
+            </tbody>
+          </table>
+          <div id="lbMsg" class="msg" style="display:none;"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Admin -->
+    <div class="card" style="margin-top:16px;">
+      <div class="hd">
+        <h2>Admin</h2>
+        <div class="row">
+          <span class="badge gray" id="adminState">Not signed in</span>
+        </div>
+      </div>
+      <div class="bd">
+        <div class="split">
+          <div class="field">
+            <label for="adminToken">Admin token (from your Netlify env or manual)</label>
+            <input id="adminToken" placeholder="paste token here" />
+          </div>
+          <div class="row" style="align-items:flex-end;">
+            <button class="btn secondary" id="adminSaveBtn">Save token</button>
+            <button class="btn danger" id="adminClearBtn">Clear</button>
+          </div>
+        </div>
+
+        <div class="row" style="margin-top:12px;">
+          <button class="btn secondary" id="resetWeekBtn">Reset week (danger)</button>
+          <button class="btn secondary" id="recalcBtn">Recalculate leaderboard</button>
+        </div>
+
+        <div id="adminMsg" class="msg" style="display:none;"></div>
+      </div>
+    </div>
+
+    <div class="footer">Hosted on Netlify • Data via your Netlify Functions • DB via Supabase</div>
+  </div>
+
+  <script>
+    // =========================
+    // CONFIG: Function endpoints
+    // =========================
+    // If your function routes differ, change these 6 lines only.
+    const API = {
+      health:   "/.netlify/functions/public/health",
+      players:  "/.netlify/functions/public/players",
+      pros:     "/.netlify/functions/public/pros",
+      submit:   "/.netlify/functions/public/submit",
+      leaderboard: "/.netlify/functions/public/leaderboard",
+      proscore: "/.netlify/functions/proscore",
+      adminResetWeek: "/.netlify/functions/admin/reset-week",
+      adminRecalc:    "/.netlify/functions/admin/recalc"
+    };
+
+    // -------------------------
+    // Helpers
+    // -------------------------
+    const $ = (id) => document.getElementById(id);
+
+    function showMsg(el, text, type){
+      el.style.display = "block";
+      el.className = "msg" + (type ? " " + type : "");
+      el.textContent = text;
+    }
+    function hideMsg(el){ el.style.display="none"; }
+
+    function parseToPar(str){
+      if(!str) return null;
+      const s = String(str).trim();
+      // allow "+10", "10", "-22"
+      if(/^[-+]?\\d+$/.test(s)) return Number(s);
+      return null;
+    }
+    function fmtToPar(n){
+      if(n === null || n === undefined || Number.isNaN(n)) return "—";
+      return (n > 0 ? "+" : "") + String(n);
+    }
+
+    function authHeaders(){
+      const tok = localStorage.getItem("PROAM_ADMIN_TOKEN") || "";
+      return tok ? { "x-admin-token": tok } : {};
+    }
+
+    async function getJSON(url, opts={}){
+      const res = await fetch(url, { ...opts, headers: { "accept":"application/json", ...(opts.headers||{}) }});
+      const text = await res.text();
+      let data = null;
+      try { data = text ? JSON.parse(text) : null; } catch(e) {}
+      if(!res.ok){
+        const msg = (data && (data.error || data.message)) ? (data.error || data.message) : (text || res.statusText);
+        throw new Error(msg);
+      }
+      return data;
+    }
+
+    // -------------------------
+    // UI state
+    // -------------------------
+    let players = [];
+    let pros = [];
+
+    function populateSelect(sel, items, labelKey="name", valueKey="id"){
+      sel.innerHTML = "";
+      for(const it of items){
+        const opt = document.createElement("option");
+        opt.value = it[valueKey];
+        opt.textContent = it[labelKey];
+        sel.appendChild(opt);
+      }
+    }
+
+    function computeCombined(){
+      const you = parseToPar($("playerScore").value);
+      const pro = parseToPar($("proScore").value);
+      if(you === null || pro === null) return null;
+      return you + pro;
+    }
+
+    function renderCombined(){
+      const c = computeCombined();
+      $("combinedBadge").textContent = "Combined: " + fmtToPar(c);
+    }
+
+    // -------------------------
+    // Loaders
+    // -------------------------
+    async function checkHealth(){
+      try{
+        const data = await getJSON(API.health);
+        $("healthDot").className = "dot ok";
+        $("healthText").textContent = data && data.ok ? "ok" : "unknown";
+      }catch(e){
+        $("healthDot").className = "dot bad";
+        $("healthText").textContent = "down";
+      }
+    }
+
+    async function loadPlayersAndPros(){
+      // players + pros are expected from your public function
+      // Example response formats:
+      // players: [{id:"jon", name:"Jonathan"}]
+      // pros: [{id:"rory", name:"Rory McIlroy"}]
+      const [p, pr] = await Promise.all([
+        getJSON(API.players),
+        getJSON(API.pros)
+      ]);
+      players = Array.isArray(p) ? p : (p.players || []);
+      pros = Array.isArray(pr) ? pr : (pr.pros || []);
+
+      if(!players.length){
+        // fallback to demo list if your endpoint isn't ready yet
+        players = [
+          {id:"jon", name:"Jonathan"},
+          {id:"player2", name:"Player 2"},
+          {id:"player3", name:"Player 3"}
+        ];
+      }
+      if(!pros.length){
+        pros = [
+          {id:"rory", name:"Rory McIlroy"},
+          {id:"scottie", name:"Scottie Scheffler"},
+          {id:"rahm", name:"Jon Rahm"}
+        ];
+      }
+
+      populateSelect($("playerSel"), players);
+      populateSelect($("proSel"), pros);
+    }
+
+    async function loadLeaderboard(){
+      hideMsg($("lbMsg"));
+      $("lbBody").innerHTML = `<tr><td colspan="5" style="color:rgba(233,241,255,.45);">Loading…</td></tr>`;
+
+      try{
+        const data = await getJSON(API.leaderboard);
+        const week = data.week ?? data.current_week ?? "—";
+        const rows = data.rows ?? data.leaderboard ?? data ?? [];
+
+        $("weekLabel").textContent = String(week);
+
+        if(!Array.isArray(rows) || rows.length === 0){
+          $("lbBody").innerHTML = `<tr><td colspan="5" style="color:rgba(233,241,255,.45);">No scores yet.</td></tr>`;
+        }else{
+          $("lbBody").innerHTML = rows.map((r, idx) => `
+            <tr>
+              <td class="rank">#${idx+1}</td>
+              <td>${r.player_name || r.player || "—"}</td>
+              <td class="mono">${fmtToPar(r.player_to_par ?? r.you ?? r.playerScore)}</td>
+              <td class="mono">${fmtToPar(r.pro_to_par ?? r.pro ?? r.proScore)}</td>
+              <td class="mono"><b>${fmtToPar(r.combined_to_par ?? r.combined)}</b></td>
+            </tr>
+          `).join("");
+        }
+
+        $("lastUpdated").textContent = "Updated: " + new Date().toLocaleTimeString();
+      }catch(e){
+        $("lbBody").innerHTML = `<tr><td colspan="5" style="color:rgba(233,241,255,.45);">Couldn’t load leaderboard.</td></tr>`;
+        showMsg($("lbMsg"), "Leaderboard error: " + e.message, "bad");
+      }
+    }
+
+    // -------------------------
+    // Actions
+    // -------------------------
+    async function submitScore(){
+      hideMsg($("submitMsg"));
+
+      const playerId = $("playerSel").value;
+      const proId = $("proSel").value;
+      const you = parseToPar($("playerScore").value);
+      const pro = parseToPar($("proScore").value);
+
+      if(!playerId || !proId){
+        showMsg($("submitMsg"), "Pick a Player and a Pro.", "bad"); return;
+      }
+      if(you === null){
+        showMsg($("submitMsg"), "Enter your score to par (example: +10).", "bad"); return;
+      }
+
+      // pro score may be optional if your backend can compute/fetch it
+      const payload = { player_id: playerId, pro_id: proId, player_to_par: you };
+      if(pro !== null) payload.pro_to_par = pro;
+
+      try{
+        const data = await getJSON(API.submit, {
+          method:"POST",
+          headers: { "content-type":"application/json" },
+          body: JSON.stringify(payload)
+        });
+
+        const combined = data.combined_to_par ?? data.combined ?? computeCombined();
+        showMsg($("submitMsg"), "Saved! Combined score: " + fmtToPar(combined), "ok");
+        await loadLeaderboard();
+      }catch(e){
+        showMsg($("submitMsg"), "Submit error: " + e.message, "bad");
+      }
+    }
+
+    async function autoPullProScore(){
+      hideMsg($("submitMsg"));
+
+      const proId = $("proSel").value;
+      if(!proId){
+        showMsg($("submitMsg"), "Pick a Pro first.", "bad"); return;
+      }
+      try{
+        // Your proscore function can accept query params like ?pro_id=rory
+        const data = await getJSON(API.proscore + "?pro_id=" + encodeURIComponent(proId));
+        // Expect something like: { pro_to_par: -22, name: "Rory McIlroy" }
+        const val = data.pro_to_par ?? data.to_par ?? data.score_to_par ?? null;
+        if(val === null || val === undefined){
+          showMsg($("submitMsg"), "Auto-pull worked but didn’t return a score field.", "bad"); return;
+        }
+        $("proScore").value = fmtToPar(Number(val));
+        renderCombined();
+        showMsg($("submitMsg"), "Pulled pro score: " + fmtToPar(Number(val)), "ok");
+      }catch(e){
+        showMsg($("submitMsg"), "Auto-pull error: " + e.message, "bad");
+      }
+    }
+
+    async function adminResetWeek(){
+      hideMsg($("adminMsg"));
+      try{
+        await getJSON(API.adminResetWeek, { method:"POST", headers: { ...authHeaders() } });
+        showMsg($("adminMsg"), "Week reset complete.", "ok");
+        await loadLeaderboard();
+      }catch(e){
+        showMsg($("adminMsg"), "Admin reset error: " + e.message, "bad");
+      }
+    }
+
+    async function adminRecalc(){
+      hideMsg($("adminMsg"));
+      try{
+        await getJSON(API.adminRecalc, { method:"POST", headers: { ...authHeaders() } });
+        showMsg($("adminMsg"), "Recalculation complete.", "ok");
+        await loadLeaderboard();
+      }catch(e){
+        showMsg($("adminMsg"), "Admin recalc error: " + e.message, "bad");
+      }
+    }
+
+    function updateAdminUI(){
+      const tok = localStorage.getItem("PROAM_ADMIN_TOKEN");
+      if(tok){
+        $("adminState").textContent = "Token saved";
+        $("lockBadge").textContent = "Admin ready";
+        $("lockBadge").className = "badge";
+      }else{
+        $("adminState").textContent = "Not signed in";
+        $("lockBadge").textContent = "Public";
+        $("lockBadge").className = "badge gray";
+      }
+    }
+
+    // -------------------------
+    // Init
+    // -------------------------
+    $("playerScore").addEventListener("input", renderCombined);
+    $("proScore").addEventListener("input", renderCombined);
+
+    $("submitBtn").addEventListener("click", submitScore);
+    $("autoProBtn").addEventListener("click", autoPullProScore);
+    $("refreshBtn").addEventListener("click", async () => {
+      await checkHealth();
+      await loadPlayersAndPros();
+      await loadLeaderboard();
+    });
+
+    $("adminSaveBtn").addEventListener("click", () => {
+      const v = $("adminToken").value.trim();
+      if(v){
+        localStorage.setItem("PROAM_ADMIN_TOKEN", v);
+        showMsg($("adminMsg"), "Saved admin token in this browser.", "ok");
+      }else{
+        showMsg($("adminMsg"), "Paste a token first.", "bad");
+      }
+      updateAdminUI();
+    });
+    $("adminClearBtn").addEventListener("click", () => {
+      localStorage.removeItem("PROAM_ADMIN_TOKEN");
+      $("adminToken").value = "";
+      showMsg($("adminMsg"), "Cleared admin token.", "ok");
+      updateAdminUI();
+    });
+
+    $("resetWeekBtn").addEventListener("click", () => {
+      if(confirm("Reset the week? This can delete/clear current week scores.")){
+        adminResetWeek();
+      }
+    });
+    $("recalcBtn").addEventListener("click", adminRecalc);
+
+    (async function boot(){
+      updateAdminUI();
+      await checkHealth();
+      await loadPlayersAndPros();
+      await loadLeaderboard();
+      renderCombined();
+    })();
+  </script>
+</body>
 </html>
