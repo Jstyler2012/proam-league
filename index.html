@@ -339,12 +339,21 @@
     function hideMsg(el){ el.style.display="none"; }
 
     function parseToPar(str){
-      if(!str) return null;
-      const s = String(str).trim();
-      // allow "+10", "10", "-22"
-      if(/^[-+]?\\d+$/.test(s)) return Number(s);
-      return null;
-    }
+  if(!str) return null;
+
+  let s = String(str).trim();
+
+  // normalize unicode minus/plus symbols to standard ones
+  s = s.replace(/[−–—]/g, "-").replace(/[＋]/g, "+");
+
+  // remove non-breaking spaces
+  s = s.replace(/\u00A0/g, "");
+
+  // allow +15, 15, -19
+  if(/^[-+]?\d+$/.test(s)) return Number(s);
+
+  return null;
+}
     function fmtToPar(n){
       if(n === null || n === undefined || Number.isNaN(n)) return "—";
       return (n > 0 ? "+" : "") + String(n);
