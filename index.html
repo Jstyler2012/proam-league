@@ -505,12 +505,11 @@
       if(pro !== null) payload.pro_to_par = pro;
 
       try{
-        const data = await getJSON(API.submit, {
-          method:"POST",
-          headers: { "content-type":"application/json" },
-          body: JSON.stringify(payload)
-        });
-
+       const data = await getJSON(API.submit, {
+  method:"POST",
+  headers: { "content-type":"application/json", ...authHeaders() },
+  body: JSON.stringify(payload)
+});
         const combined = data.combined_to_par ?? data.combined ?? computeCombined();
         showMsg($("submitMsg"), "Saved! Combined score: " + fmtToPar(combined), "ok");
         await loadLeaderboard();
