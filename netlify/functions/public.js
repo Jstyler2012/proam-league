@@ -26,11 +26,16 @@ const PROAM_ADMIN_TOKEN = process.env.PROAM_ADMIN_TOKEN;
 
  const sb = async (method, restPath, bodyObj, extraHeaders = {}) => {
   const url = `${SUPABASE_URL}/rest/v1/${restPath}`;
-  const headers = {
-    apikey: SUPABASE_ANON_KEY,
-    Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-    ...extraHeaders,
-  };
+  const headers = {if (!SUPABASE_SERVICE_ROLE_KEY) {
+  return { statusCode: 500, body: "Missing SUPABASE_SERVICE_ROLE_KEY" };
+}
+
+headers: {
+  apikey: SUPABASE_SERVICE_ROLE_KEY,
+  Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+  "content-type": "application/json",
+  Prefer: "resolution=merge-duplicates,return=representation",
+},
   if (method !== "GET") headers["content-type"] = "application/json";
 
   const r = await fetch(url, {
