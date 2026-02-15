@@ -17,6 +17,8 @@ exports.handler = async (event) => {
 
     const SUPABASE_URL = process.env.SUPABASE_URL;
     const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
+    const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const PROAM_ADMIN_TOKEN = process.env.PROAM_ADMIN_TOKEN;
 
     if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
       return { statusCode: 500, body: "Missing SUPABASE_URL or SUPABASE_ANON_KEY" };
@@ -135,7 +137,14 @@ exports.handler = async (event) => {
     // Upsert on unique (week_id, player_id)
     // -----------------------
     if (path === "submit") {
-      if (event.httpMethod !== "POST") return { statusCode: 405, body: "Method not allowed" };
+      if (event.httpMethod !== "POST") return { statusCode: 405, body: "Method not allowed" };const incomingToken =
+  event.headers?.["x-admin-token"] ||
+  event.headers?.["X-Admin-Token"] ||
+  "";
+
+if (!PROAM_ADMIN_TOKEN || incomingToken !== PROAM_ADMIN_TOKEN) {
+  return { statusCode: 401, body: "Unauthorized" };
+}
 
       const cw = await getCurrentWeek();
       if (!cw.ok) return { statusCode: cw.status, body: cw.text };
