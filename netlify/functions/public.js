@@ -22,24 +22,25 @@ exports.handler = async (event) => {
       return { statusCode: 500, body: "Missing SUPABASE_URL or SUPABASE_ANON_KEY" };
     }
 
-    const sb = async (method, restPath, bodyObj) => {
-      const url = `${SUPABASE_URL}/rest/v1/${restPath}`;
-      const headers = {
-        apikey: SUPABASE_ANON_KEY,
-        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-      };
-      if (method !== "GET") headers["content-type"] = "application/json";
+ const sb = async (method, restPath, bodyObj, extraHeaders = {}) => {
+  const url = `${SUPABASE_URL}/rest/v1/${restPath}`;
+  const headers = {
+    apikey: SUPABASE_ANON_KEY,
+    Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+    ...extraHeaders,
+  };
+  if (method !== "GET") headers["content-type"] = "application/json";
 
-      const r = await fetch(url, {
-        method,
-        headers,
-        body: bodyObj ? JSON.stringify(bodyObj) : undefined,
-      });
+  const r = await fetch(url, {
+    method,
+    headers,
+    body: bodyObj ? JSON.stringify(bodyObj) : undefined,
+  });
 
-      const text = await r.text();
-      if (!r.ok) return { ok: false, status: r.status, text };
-      return { ok: true, json: text ? JSON.parse(text) : null };
-    };
+  const text = await r.text();
+  if (!r.ok) return { ok: false, status: r.status, text };
+  return { ok: true, json: text ? JSON.parse(text) : null };
+};
 
     // Helper: get "current week" as most recently created
     const getCurrentWeek = async () => {
