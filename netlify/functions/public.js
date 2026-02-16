@@ -140,30 +140,25 @@ if (path === '/schedule') {
 // LEADERBOARD (sorted by best combined)
 if (path === "leaderboard") {
 
-  // Check if a specific week_id was provided
   const params = event.queryStringParameters || {};
-  let weekId = params.week_id;
+  const weekIdParam = params.week_id;
+
   let week = null;
 
-  // If week_id provided, fetch that week
-  if (weekId) {
-
+  // If week_id is provided, fetch that week
+  if (weekIdParam) {
     const w = await sb(
       "GET",
-      `weeks?id=eq.${weekId}&select=*`
+      `weeks?id=eq.${weekIdParam}&select=id,label`
     );
 
     if (!w.ok) return { statusCode: w.status, body: w.text };
 
-    week = w.json?.[0] || null;
-
+    week = (w.json && w.json[0]) ? w.json[0] : null;
   } else {
-
-    // Otherwise use existing current week logic
+    // Otherwise keep existing behavior: current week
     const cw = await getCurrentWeek();
-
     if (!cw.ok) return { statusCode: cw.status, body: cw.text };
-
     week = cw.week;
   }
 
@@ -174,6 +169,31 @@ if (path === "leaderboard") {
       body: JSON.stringify({ week: null, rows: [] })
     };
   }
+
+  const out = await sb(
+    "GET",
+    `week_entries?select=your_score,pro_score,total,pga_golfer,players(name)` +
+    `&week_id=eq.${week.id}` +
+    `&order=total.asc.nullslast`
+  );
+
+  if (!out.ok) return { statusCode: out.status, body: out.text };
+
+  const rows = (out.json || []).map((r) => ({
+    player_name: r.players?.name || "—",
+    playerScore: r.your_score,
+    proScore: r.pro_score,
+    combined: r.total,
+    pga_golfer: r.pga_golfer
+  }));
+
+  return {
+    statusCode: 200,
+    headers: { "content-type": "application/json" },
+    // keep existing frontend compatibility: week is still the label string
+    body: JSON.stringify({ week: week.label, week_id: week.id, rows })
+  };
+}
 
   // Fetch leaderboard rows for the selected week
   const out = await sb(
