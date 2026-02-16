@@ -109,7 +109,34 @@ if (path === "" || path === "health") {
         body: JSON.stringify(pros)
       };
     }
+// PLAYERS
+if (path === "players") {
+   ...
+}
 
+// PROS
+if (path === "pros") {
+   ...
+}
+
+// CURRENT WEEK
+if (path === "current-week") {
+  const cw = await getCurrentWeek();
+
+  if (!cw.ok) {
+    return { statusCode: cw.status, body: cw.text };
+  }
+
+  return {
+    statusCode: 200,
+    body: JSON.stringify({ week: cw.week })
+  };
+}
+
+// LEADERBOARD
+if (path === "leaderboard") {
+   ...
+}
 
     // LEADERBOARD
     if (path === "leaderboard") {
