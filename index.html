@@ -319,18 +319,23 @@
       health:   "/.netlify/functions/public/health",
       players:  "/.netlify/functions/public/players",
       pros:     "/.netlify/functions/public/pros",
-      submit:   "/.netlify/functions/public/submit",
+      submit:   "/.netlify/functions/mutate/submit-score",
       leaderboard: "/.netlify/functions/public/leaderboard",
       proscore: "/.netlify/functions/proscore",
       adminResetWeek: "/.netlify/functions/admin/reset-week",
       adminRecalc:    "/.netlify/functions/admin/recalc"
     };
-
+let currentWeekId = null;
     // -------------------------
     // Helpers
     // -------------------------
     const $ = (id) => document.getElementById(id);
-
+async function loadCurrentWeek(){
+  const weeks = await getJSON("/.netlify/functions/public/weeks");
+  if (weeks && weeks.length) {
+    currentWeekId = weeks[weeks.length - 1].id;
+  }
+}
     function showMsg(el, text, type){
       el.style.display = "block";
       el.className = "msg" + (type ? " " + type : "");
@@ -359,10 +364,10 @@
       return (n > 0 ? "+" : "") + String(n);
     }
 
-    function authHeaders(){
-      const tok = localStorage.getItem("PROAM_ADMIN_TOKEN") || "";
-      return tok ? { "x-admin-token": tok } : {};
-    }
+   function authHeaders(){
+  const token = document.getElementById("adminToken").value.trim();
+  return token ? { "x-admin-token": token } : {};
+}
 
     async function getJSON(url, opts={}){
       const res = await fetch(url, { ...opts, headers: { "accept":"application/json", ...(opts.headers||{}) }});
@@ -501,8 +506,14 @@
       }
 
       // pro score may be optional if your backend can compute/fetch it
-      const payload = { player_id: playerId, pro_id: proId, player_to_par: you };
-      if(pro !== null) payload.pro_to_par = pro;
+      const payload = {
+  week_id: currentWeekId,
+  player_id: playerId,
+  pro_id: proId,
+  player_to_par: you
+};
+      
+if (pro !== null) payload.pro_to_par = pro;
 
       try{
        const data = await getJSON(API.submit, {
@@ -585,9 +596,10 @@
     $("submitBtn").addEventListener("click", submitScore);
     $("autoProBtn").addEventListener("click", autoPullProScore);
     $("refreshBtn").addEventListener("click", async () => {
-      await checkHealth();
-      await loadPlayersAndPros();
-      await loadLeaderboard();
+    await checkHealth();
+await loadPlayersAndPros();
+await loadLeaderboard();
+await loadCurrentWeek();
     });
 
     $("adminSaveBtn").addEventListener("click", () => {
