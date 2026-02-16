@@ -162,13 +162,12 @@ exports.handler = async (event) => {
         };
       }
 
-      const out = await sb(
-        "GET",
-        `week_entries?select=your_score,pro_score,total,pga_golfer,players(name)` +
-          `&week_id=eq.${week.id}` +
-          `&order=total.asc.nullslast`
-      );
-
+     const out = await sb(
+  "GET",
+  "weeks?select=id,week_number,tournament_name,start_date,end_date,logo_url,label" +
+    "&week_number=not.is.null" +
+    "&order=week_number.asc"
+);
       if (!out.ok) return { statusCode: out.status, body: out.text };
 
       const rows = (out.json || []).map((r) => ({
