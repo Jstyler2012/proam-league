@@ -129,7 +129,18 @@ exports.handler = async (event) => {
         body: JSON.stringify({ weeks: out.json || [] })
       };
     }
-
+if (path === "debug-week-entries") {
+  const out = await sb(
+    "GET",
+    "week_entries?select=*&limit=1"
+  );
+  if (!out.ok) return { statusCode: out.status, body: out.text };
+  return {
+    statusCode: 200,
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(out.json || [])
+  };
+}
     // LEADERBOARD (sorted by best combined) + optional ?week_id=
     if (path === "leaderboard") {
       const params = event.queryStringParameters || {};
