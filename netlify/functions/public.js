@@ -133,49 +133,49 @@ if (path === "current-week") {
     body: JSON.stringify({ week: cw.week })
   };
 }
-
 // LEADERBOARD
 if (path === "leaderboard") {
-   
+
+  const cw = await getCurrentWeek();
+
+  if (!cw.ok) {
+    return { statusCode: cw.status, body: cw.text };
+  }
+
+  if (!cw.week) {
+    return {
+      statusCode: 200,
+      body: JSON.stringify({ week: null, rows: [] })
+    };
+  }
+
+  const out = await sb(
+    "GET",
+    `week_entries?select=your_score,pro_score,total,pga_golfer,players(name)` +
+      `&week_id=eq.${cw.week.id}` +
+      `&order=total.asc.nullslast`
+  );
+
+  if (!out.ok) {
+    return { statusCode: out.status, body: out.text };
+  }
+
+  const rows = (out.json || []).map(r => ({
+    player_name: r.players?.name || "—",
+    playerScore: r.your_score,
+    proScore: r.pro_score,
+    combined: r.total,
+    pga_golfer: r.pga_golfer
+  }));
+
+  return {
+    statusCode: 200,
+    body: JSON.stringify({
+      week: cw.week.label,
+      rows
+    })
+  };
 }
-
-    // LEADERBOARD
-    if (path === "leaderboard") {
-
-      const cw = await getCurrentWeek();
-
-      if (!cw.ok) {
-        return { statusCode: cw.status, body: cw.text };
-      }
-
-      if (!cw.week) {
-
-        return {
-          statusCode: 200,
-          body: JSON.stringify({
-            week: null,
-            rows: []
-          })
-        };
-      }
-
-      const out = await sb(
-  "GET",
-  `week_entries?select=your_score,pro_score,total,pga_golfer,players(name)` +
-  `&week_id=eq.${cw.week.id}` +
-  `&order=total.asc.nullslast`
-);
-      if (!out.ok) {
-        return { statusCode: out.status, body: out.text };
-      }
-
-const rows = (out.json || []).map(r => ({
-  player_name: r.players?.name || "—",
-  playerScore: r.your_score,
-  proScore: r.pro_score,
-  combined: r.total,
-  pga_golfer: r.pga_golfer
-}));
 
 // rank: 1..N for rows with a combined score; null totals get no rank
 let rank = 1;
