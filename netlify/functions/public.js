@@ -3,6 +3,7 @@
 exports.handler = async (event) => {
   try {
     const path = (event.path || "")
+      .split("?")[0] // strip querystring so routing works with ?week_id=...
       .replace(/^\/.netlify\/functions\/public\/?/, "")
       .replace(/^\/+/, "");
 
@@ -25,7 +26,7 @@ exports.handler = async (event) => {
       };
     }
 
-    // helper
+    // helper: Supabase REST calls
     const sb = async (method, restPath, bodyObj, extraHeaders = {}) => {
       const url = `${SUPABASE_URL}/rest/v1/${restPath}`;
 
@@ -57,7 +58,7 @@ exports.handler = async (event) => {
       };
     };
 
-    // current week
+    // current week (existing behavior: most recently created week)
     const getCurrentWeek = async () => {
       const out = await sb(
         "GET",
@@ -68,7 +69,7 @@ exports.handler = async (event) => {
 
       return {
         ok: true,
-        week: out.json[0] || null
+        week: (out.json && out.json[0]) ? out.json[0] : null
       };
     };
 
@@ -111,109 +112,62 @@ exports.handler = async (event) => {
         body: JSON.stringify(pros)
       };
     }
-// GET full season schedule
-if (path === '/schedule') {
 
-  const { data, error } = await supabase
-    .from('weeks')
-    .select(`
-      id,
-      week_number,
-      tournament_name,
-      start_date,
-      end_date,
-      logo_url
-    `)
-    .order('week_number', { ascending: true })
+    // SCHEDULE (Phase 2) - full season schedule
+    // Uses sb() (Supabase REST), not a supabase client.
+    if (path === "schedule") {
+      const out = await sb(
+        "GET",
+        "weeks?select=id,week_number,tournament_name,start_date,end_date,logo_url,label&order=week_number.asc.nullslast"
+      );
 
-  if (error) {
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ error: error.message })
+      if (!out.ok) return { statusCode: out.status, body: out.text };
+
+      return {
+        statusCode: 200,
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ weeks: out.json || [] })
+      };
     }
-  }
 
-  return {
-    statusCode: 200,
-    body: JSON.stringify({ weeks: data })
-  }
-// LEADERBOARD (sorted by best combined)
-if (path === "leaderboard") {
+    // LEADERBOARD (sorted by best combined) + optional ?week_id=
+    if (path === "leaderboard") {
+      const params = event.queryStringParameters || {};
+      const weekIdParam = params.week_id;
 
-  const params = event.queryStringParameters || {};
-  const weekIdParam = params.week_id;
+      let week = null;
 
-  let week = null;
+      // If week_id is provided, fetch that week (id + label)
+      if (weekIdParam) {
+        const w = await sb(
+          "GET",
+          `weeks?id=eq.${weekIdParam}&select=id,label`
+        );
 
-  // If week_id is provided, fetch that week
-  if (weekIdParam) {
-    const w = await sb(
-      "GET",
-      `weeks?id=eq.${weekIdParam}&select=id,label`
-    );
+        if (!w.ok) return { statusCode: w.status, body: w.text };
 
-    if (!w.ok) return { statusCode: w.status, body: w.text };
+        week = (w.json && w.json[0]) ? w.json[0] : null;
+      } else {
+        // Otherwise keep existing behavior: current week
+        const cw = await getCurrentWeek();
+        if (!cw.ok) return { statusCode: cw.status, body: cw.text };
+        week = cw.week;
+      }
 
-    week = (w.json && w.json[0]) ? w.json[0] : null;
-  } else {
-    // Otherwise keep existing behavior: current week
-    const cw = await getCurrentWeek();
-    if (!cw.ok) return { statusCode: cw.status, body: cw.text };
-    week = cw.week;
-  }
+      if (!week) {
+        return {
+          statusCode: 200,
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ week: null, week_id: null, rows: [] })
+        };
+      }
 
-  if (!week) {
-    return {
-      statusCode: 200,
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ week: null, rows: [] })
-    };
-  }
-
-  const out = await sb(
-    "GET",
-    `week_entries?select=your_score,pro_score,total,pga_golfer,players(name)` +
-    `&week_id=eq.${week.id}` +
-    `&order=total.asc.nullslast`
-  );
-
-  if (!out.ok) return { statusCode: out.status, body: out.text };
-
-  const rows = (out.json || []).map((r) => ({
-    player_name: r.players?.name || "—",
-    playerScore: r.your_score,
-    proScore: r.pro_score,
-    combined: r.total,
-    pga_golfer: r.pga_golfer
-  }));
-
-  return {
-    statusCode: 200,
-    headers: { "content-type": "application/json" },
-    // keep existing frontend compatibility: week is still the label string
-    body: JSON.stringify({ week: week.label, week_id: week.id, rows })
-  };
-}
-
-  // Fetch leaderboard rows for the selected week
-  const out = await sb(
-    "GET",
-    `week_entries?select=your_score,pro_score,total,pga_golfer,players(name)` +
-    `&week_id=eq.${week.id}` +
-    `&order=total.asc.nullslast`
-  );
-
-  if (!out.ok) return { statusCode: out.status, body: out.text };
-
-  return {
-    statusCode: 200,
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({
-      week,
-      rows: out.json || []
-    })
-  };
-}
+      const out = await sb(
+        "GET",
+        `week_entries?select=your_score,pro_score,total,pga_golfer,players(name)` +
+          `&week_id=eq.${week.id}` +
+          `&order=total.asc.nullslast`
+      );
 
       if (!out.ok) return { statusCode: out.status, body: out.text };
 
@@ -228,20 +182,20 @@ if (path === "leaderboard") {
       return {
         statusCode: 200,
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          week: cw.week.label,
-          rows
-        })
+        // keep existing frontend compatibility: week remains label string
+        body: JSON.stringify({ week: week.label, week_id: week.id, rows })
       };
     }
 
     // Old submit endpoint disabled (you now use mutate/submit-score)
     if (path === "submit") {
-      return { statusCode: 410, body: "Moved to /.netlify/functions/mutate/submit-score" };
+      return {
+        statusCode: 410,
+        body: "Moved to /.netlify/functions/mutate/submit-score"
+      };
     }
 
     return { statusCode: 404, body: "Not found" };
-
   } catch (err) {
     return { statusCode: 500, body: err.message };
   }
