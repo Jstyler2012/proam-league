@@ -61,11 +61,12 @@ if (path === "" || path === "health") {
     // current week
     const getCurrentWeek = async () => {
 
-      const out = await sb(
-        "GET",
-        "weeks?select=id,label,created_at&order=created_at.desc&limit=1"
-      );
-
+const out = await sb(
+  "GET",
+  `week_entries?select=your_score,pro_score,total,pga_golfer,players(name)` +
+  `&week_id=eq.${cw.week.id}` +
+  `&order=total.asc.nullslast`
+);
       if (!out.ok) return out;
 
       return {
@@ -167,13 +168,23 @@ if (path === "leaderboard") {
         return { statusCode: out.status, body: out.text };
       }
 
-      const rows = (out.json || []).map(r => ({
-        player_name: r.players?.name || "—",
-        playerScore: r.your_score,
-        proScore: r.pro_score,
-        combined: r.total,
-        pga_golfer: r.pga_golfer
-      }));
+const rows = (out.json || []).map(r => ({
+  player_name: r.players?.name || "—",
+  playerScore: r.your_score,
+  proScore: r.pro_score,
+  combined: r.total,
+  pga_golfer: r.pga_golfer
+}));
+
+// rank: 1..N for rows with a combined score; null totals get no rank
+let rank = 1;
+for (const row of rows) {
+  if (row.combined == null) {
+    row.rank = null;
+  } else {
+    row.rank = rank++;
+  }
+}
 
       return {
         statusCode: 200,
