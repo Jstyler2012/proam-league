@@ -120,7 +120,7 @@ if (path === "pros") {
    
 }
 
-// CURRENT WEEK
+// CURRENT WEEK (returns id + label)
 if (path === "current-week") {
   const cw = await getCurrentWeek();
 
@@ -132,6 +132,7 @@ if (path === "current-week") {
     statusCode: 200,
     body: JSON.stringify({ week: cw.week })
   };
+}
 }
 // LEADERBOARD
 if (path === "leaderboard") {
