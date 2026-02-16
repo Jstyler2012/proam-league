@@ -32,7 +32,7 @@ if (path === "" || path === "health") {
       const headers = {
         apikey: SUPABASE_ANON_KEY,
         Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-        ...extraHeaders
+        extraHeaders
       };
 
       if (method !== "GET") {
@@ -111,12 +111,12 @@ if (path === "" || path === "health") {
     }
 // PLAYERS
 if (path === "players") {
-   ...
+   
 }
 
 // PROS
 if (path === "pros") {
-   ...
+   
 }
 
 // CURRENT WEEK
@@ -135,7 +135,7 @@ if (path === "current-week") {
 
 // LEADERBOARD
 if (path === "leaderboard") {
-   ...
+   
 }
 
     // LEADERBOARD
