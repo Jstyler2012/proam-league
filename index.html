@@ -592,12 +592,12 @@ if (pro !== null) payload.pro_to_par = pro;
 
     $("submitBtn").addEventListener("click", submitScore);
     $("autoProBtn").addEventListener("click", autoPullProScore);
-    $("refreshBtn").addEventListener("click", async () => {
-await checkHealth();
-await loadPlayersAndPros();
-await loadCurrentWeek();
-await loadLeaderboard();
-    });
+$("#refreshBtn").addEventListener("click", async () => {
+  await checkHealth();
+  await loadPlayersAndPros();
+  await loadCurrentWeek();
+  await loadLeaderboard();
+});
 
     $("adminSaveBtn").addEventListener("click", () => {
       const v = $("adminToken").value.trim();
