@@ -2,17 +2,18 @@
 
 exports.handler = async (event) => {
   try {
-
     const path = (event.path || "")
       .replace(/^\/.netlify\/functions\/public\/?/, "")
-      .replace(/^\/+/, "");// Health check (must work even before Supabase is configured)
-if (path === "" || path === "health") {
-  return {
-    statusCode: 200,
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ ok: true })
-  };
-}
+      .replace(/^\/+/, "");
+
+    // Health check (must work even before Supabase is configured)
+    if (path === "" || path === "health") {
+      return {
+        statusCode: 200,
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ ok: true })
+      };
+    }
 
     const SUPABASE_URL = process.env.SUPABASE_URL;
     const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
@@ -26,13 +27,12 @@ if (path === "" || path === "health") {
 
     // helper
     const sb = async (method, restPath, bodyObj, extraHeaders = {}) => {
-
       const url = `${SUPABASE_URL}/rest/v1/${restPath}`;
 
       const headers = {
         apikey: SUPABASE_ANON_KEY,
         Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-        extraHeaders
+        ...extraHeaders
       };
 
       if (method !== "GET") {
@@ -57,16 +57,13 @@ if (path === "" || path === "health") {
       };
     };
 
-
     // current week
     const getCurrentWeek = async () => {
+      const out = await sb(
+        "GET",
+        "weeks?select=id,label,created_at&order=created_at.desc&limit=1"
+      );
 
-const out = await sb(
-  "GET",
-  `week_entries?select=your_score,pro_score,total,pga_golfer,players(name)` +
-  `&week_id=eq.${cw.week.id}` +
-  `&order=total.asc.nullslast`
-);
       if (!out.ok) return out;
 
       return {
@@ -75,29 +72,32 @@ const out = await sb(
       };
     };
 
-
-    // PLAYERS
-    if (path === "players") {
-
-      const out = await sb(
-        "GET",
-        "players?select=id,name&order=name.asc"
-      );
-
-      if (!out.ok) {
-        return { statusCode: out.status, body: out.text };
-      }
+    // CURRENT WEEK (returns id + label)
+    if (path === "current-week") {
+      const cw = await getCurrentWeek();
+      if (!cw.ok) return { statusCode: cw.status, body: cw.text };
 
       return {
         statusCode: 200,
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ week: cw.week })
+      };
+    }
+
+    // PLAYERS
+    if (path === "players") {
+      const out = await sb("GET", "players?select=id,name&order=name.asc");
+      if (!out.ok) return { statusCode: out.status, body: out.text };
+
+      return {
+        statusCode: 200,
+        headers: { "content-type": "application/json" },
         body: JSON.stringify(out.json || [])
       };
     }
 
-
-    // PROS (static)
+    // PROS (static for now)
     if (path === "pros") {
-
       const pros = [
         { id: "Rory McIlroy", name: "Rory McIlroy" },
         { id: "Scottie Scheffler", name: "Scottie Scheffler" },
@@ -107,89 +107,45 @@ const out = await sb(
 
       return {
         statusCode: 200,
+        headers: { "content-type": "application/json" },
         body: JSON.stringify(pros)
       };
     }
-// PLAYERS
-if (path === "players") {
-   
-}
 
-// PROS
-if (path === "pros") {
-   
-}
+    // LEADERBOARD (sorted by best combined)
+    if (path === "leaderboard") {
+      const cw = await getCurrentWeek();
 
-// CURRENT WEEK (returns id + label)
-if (path === "current-week") {
-  const cw = await getCurrentWeek();
+      if (!cw.ok) return { statusCode: cw.status, body: cw.text };
 
-  if (!cw.ok) {
-    return { statusCode: cw.status, body: cw.text };
-  }
+      if (!cw.week) {
+        return {
+          statusCode: 200,
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ week: null, rows: [] })
+        };
+      }
 
-  return {
-    statusCode: 200,
-    body: JSON.stringify({ week: cw.week })
-  };
-}
-}
-// LEADERBOARD
-if (path === "leaderboard") {
+      const out = await sb(
+        "GET",
+        `week_entries?select=your_score,pro_score,total,pga_golfer,players(name)` +
+          `&week_id=eq.${cw.week.id}` +
+          `&order=total.asc.nullslast`
+      );
 
-  const cw = await getCurrentWeek();
+      if (!out.ok) return { statusCode: out.status, body: out.text };
 
-  if (!cw.ok) {
-    return { statusCode: cw.status, body: cw.text };
-  }
-
-  if (!cw.week) {
-    return {
-      statusCode: 200,
-      body: JSON.stringify({ week: null, rows: [] })
-    };
-  }
-
-  const out = await sb(
-    "GET",
-    `week_entries?select=your_score,pro_score,total,pga_golfer,players(name)` +
-      `&week_id=eq.${cw.week.id}` +
-      `&order=total.asc.nullslast`
-  );
-
-  if (!out.ok) {
-    return { statusCode: out.status, body: out.text };
-  }
-
-  const rows = (out.json || []).map(r => ({
-    player_name: r.players?.name || "—",
-    playerScore: r.your_score,
-    proScore: r.pro_score,
-    combined: r.total,
-    pga_golfer: r.pga_golfer
-  }));
-
-  return {
-    statusCode: 200,
-    body: JSON.stringify({
-      week: cw.week.label,
-      rows
-    })
-  };
-}
-
-// rank: 1..N for rows with a combined score; null totals get no rank
-let rank = 1;
-for (const row of rows) {
-  if (row.combined == null) {
-    row.rank = null;
-  } else {
-    row.rank = rank++;
-  }
-}
+      const rows = (out.json || []).map((r) => ({
+        player_name: r.players?.name || "—",
+        playerScore: r.your_score,
+        proScore: r.pro_score,
+        combined: r.total,
+        pga_golfer: r.pga_golfer
+      }));
 
       return {
         statusCode: 200,
+        headers: { "content-type": "application/json" },
         body: JSON.stringify({
           week: cw.week.label,
           rows
@@ -197,84 +153,14 @@ for (const row of rows) {
       };
     }
 
-
-    // SUBMIT
+    // Old submit endpoint disabled (you now use mutate/submit-score)
     if (path === "submit") {
-
-      if (event.httpMethod !== "POST") {
-        return { statusCode: 405 };
-      }
-
-      const cw = await getCurrentWeek();
-
-      if (!cw.week) {
-        return { statusCode: 400, body: "No week exists" };
-      }
-
-      const body = JSON.parse(event.body || "{}");
-
-      const your_score = Number(body.player_to_par);
-      const pro_score = body.pro_to_par != null
-        ? Number(body.pro_to_par)
-        : null;
-
-      const total =
-        pro_score != null
-          ? your_score + pro_score
-          : null;
-
-
-      const row = {
-        week_id: cw.week.id,
-        player_id: body.player_id,
-        pga_golfer: body.pro_id,
-        your_score,
-        pro_score,
-        total
-      };
-
-
-      const r = await fetch(
-        `${SUPABASE_URL}/rest/v1/week_entries?on_conflict=week_id,player_id`,
-        {
-          method: "POST",
-          headers: {
-            apikey: SUPABASE_ANON_KEY,
-            Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-            "content-type": "application/json",
-            Prefer: "resolution=merge-duplicates"
-          },
-          body: JSON.stringify(row)
-        }
-      );
-
-
-      if (!r.ok) {
-
-        return {
-          statusCode: r.status,
-          body: await r.text()
-        };
-      }
-
-
-      return {
-        statusCode: 200,
-        body: JSON.stringify({ ok: true })
-      };
+      return { statusCode: 410, body: "Moved to /.netlify/functions/mutate/submit-score" };
     }
 
-
-    return {
-      statusCode: 404,
-      body: "Not found"
-    };
+    return { statusCode: 404, body: "Not found" };
 
   } catch (err) {
-
-    return {
-      statusCode: 500,
-      body: err.message
-    };
+    return { statusCode: 500, body: err.message };
   }
 };
