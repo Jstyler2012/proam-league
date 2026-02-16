@@ -587,19 +587,19 @@ if (pro !== null) payload.pro_to_par = pro;
     // -------------------------
     // Init
     // -------------------------
-    $("playerScore").addEventListener("input", renderCombined);
-    $("proScore").addEventListener("input", renderCombined);
+ $("playerScore")?.addEventListener("input", renderCombined);
+$("proScore")?.addEventListener("input", renderCombined);
 
-    $("submitBtn").addEventListener("click", submitScore);
-    $("autoProBtn").addEventListener("click", autoPullProScore);
-$("#refreshBtn").addEventListener("click", async () => {
+    $("submitBtn")?.addEventListener("click", submitScore);
+    $("autoProBtn")?.addEventListener("click", autoPullProScore);
+$("refreshBtn")?.addEventListener("click", async () => {
   await checkHealth();
   await loadPlayersAndPros();
   await loadCurrentWeek();
   await loadLeaderboard();
 });
 
-    $("adminSaveBtn").addEventListener("click", () => {
+    $("adminSaveBtn")?.addEventListener("click", () => {
       const v = $("adminToken").value.trim();
       if(v){
         localStorage.setItem("PROAM_ADMIN_TOKEN", v);
@@ -609,19 +609,19 @@ $("#refreshBtn").addEventListener("click", async () => {
       }
       updateAdminUI();
     });
-    $("adminClearBtn").addEventListener("click", () => {
+    $("adminClearBtn")?.addEventListener("click", () => {
       localStorage.removeItem("PROAM_ADMIN_TOKEN");
       $("adminToken").value = "";
       showMsg($("adminMsg"), "Cleared admin token.", "ok");
       updateAdminUI();
     });
 
-    $("resetWeekBtn").addEventListener("click", () => {
+    $("resetWeekBtn")?.addEventListener("click", () => {
       if(confirm("Reset the week? This can delete/clear current week scores.")){
         adminResetWeek();
       }
     });
-    $("recalcBtn").addEventListener("click", adminRecalc);
+    $("recalcBtn")?.addEventListener("click", adminRecalc);
 
     (async function boot(){
       updateAdminUI();
