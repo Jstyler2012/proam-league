@@ -330,11 +330,9 @@ let currentWeekId = null;
     // Helpers
     // -------------------------
     const $ = (id) => document.getElementById(id);
-async function loadCurrentWeek(){
-  const weeks = await getJSON("/.netlify/functions/public/weeks");
-  if (weeks && weeks.length) {
-    currentWeekId = weeks[weeks.length - 1].id;
-  }
+async function loadCurrentWeek() {
+  const res = await getJSON("/.netlify/functions/public/current-week");
+  currentWeekId = res?.week?.id || null;
 }
     function showMsg(el, text, type){
       el.style.display = "block";
@@ -492,7 +490,10 @@ async function loadCurrentWeek(){
     // -------------------------
     async function submitScore(){
       hideMsg($("submitMsg"));
-
+if (!currentWeekId) {
+  showMsg($("submitMsg"), "No current week loaded yet. Click refresh and try again.", "bad");
+  return;
+}
       const playerId = $("playerSel").value;
       const proId = $("proSel").value;
       const you = parseToPar($("playerScore").value);
@@ -506,12 +507,8 @@ async function loadCurrentWeek(){
       }
 
       // pro score may be optional if your backend can compute/fetch it
-      const payload = {
-  week_id: currentWeekId,
-  player_id: playerId,
-  pro_id: proId,
-  player_to_par: you
-};
+     const payload = { week_id: currentWeekId, player_id: playerId, pro_id: proId, player_to_par: you };
+if (pro !== null) payload.pro_to_par = pro;
       
 if (pro !== null) payload.pro_to_par = pro;
 
@@ -596,10 +593,10 @@ if (pro !== null) payload.pro_to_par = pro;
     $("submitBtn").addEventListener("click", submitScore);
     $("autoProBtn").addEventListener("click", autoPullProScore);
     $("refreshBtn").addEventListener("click", async () => {
-    await checkHealth();
+await checkHealth();
 await loadPlayersAndPros();
-await loadLeaderboard();
 await loadCurrentWeek();
+await loadLeaderboard();
     });
 
     $("adminSaveBtn").addEventListener("click", () => {
