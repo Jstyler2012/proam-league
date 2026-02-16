@@ -160,10 +160,11 @@ if (path === "leaderboard") {
       }
 
       const out = await sb(
-        "GET",
-        `week_entries?select=your_score,pro_score,total,pga_golfer,players(name)&week_id=eq.${cw.week.id}`
-      );
-
+  "GET",
+  `week_entries?select=your_score,pro_score,total,pga_golfer,players(name)` +
+  `&week_id=eq.${cw.week.id}` +
+  `&order=total.asc.nullslast`
+);
       if (!out.ok) {
         return { statusCode: out.status, body: out.text };
       }
