@@ -238,6 +238,72 @@
       background: rgba(90,167,255,.10);
       font-weight:800;
     }
+    /* Week Details hero with logo background */
+.weekHero{
+  position: relative;
+  min-height: 160px;
+  padding: 16px;
+  border-top: 1px solid var(--border);
+  background: rgba(0,0,0,.18);
+  overflow: hidden;
+}
+
+/* background image goes on the element via JS:
+   weekHero.style.backgroundImage = `url(...)` */
+.weekHero{
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+/* dark overlay for readability */
+.weekHeroOverlay{
+  position:absolute;
+  inset:0;
+  background:
+    radial-gradient(900px 320px at 20% 10%, rgba(90,167,255,.20), transparent 55%),
+    radial-gradient(800px 280px at 80% 0%, rgba(71,215,172,.18), transparent 60%),
+    linear-gradient(90deg, rgba(5,10,20,.86), rgba(5,10,20,.55));
+  backdrop-filter: blur(0px);
+}
+
+/* content sits above overlay */
+.weekHeroContent{
+  position: relative;
+  z-index: 1;
+  display:flex;
+  align-items:flex-end;
+  justify-content:space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.weekHeroTop{
+  min-width: 240px;
+}
+
+.weekHeroTitle{
+  font-weight: 950;
+  font-size: 22px;
+  letter-spacing: .2px;
+  line-height: 1.15;
+}
+
+.weekHeroDates{
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+/* optional small logo on right (still nice on mobile) */
+.weekHeroLogo{
+  width: 74px;
+  height: 74px;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background: rgba(0,0,0,.20);
+  object-fit: contain;
+}
   </style>
 </head>
 
@@ -510,29 +576,42 @@
     // -------------------------
     // Rendering
     // -------------------------
-    function renderWeekDetails(week){
-      if(!week){
-        $("tournamentWeekBadge").textContent = "—";
-        $("tournamentName").textContent = "—";
-        $("tournamentDates").textContent = "—";
-        $("tournamentLogo").style.display = "none";
-        return;
-      }
+function renderWeekDetails(week){
+  const hero = $("weekHero");
+  const img = $("tournamentLogo");
 
-      const label = week.label || `Week ${week.week_number || "—"}`;
-      $("tournamentWeekBadge").textContent = label;
-      $("tournamentName").textContent = week.tournament_name || "—";
-      $("tournamentDates").textContent = fmtDateRange(week.start_date, week.end_date);
+  if(!week){
+    $("tournamentWeekBadge").textContent = "—";
+    $("tournamentName").textContent = "—";
+    $("tournamentDates").textContent = "—";
+    if (hero) hero.style.backgroundImage = "";
+    img.style.display = "none";
+    return;
+  }
 
-      const img = $("tournamentLogo");
-      if(week.logo_url){
-        img.src = week.logo_url;
-        img.alt = `${week.tournament_name || "Tournament"} logo`;
-        img.style.display = "block";
-      }else{
-        img.style.display = "none";
-      }
+  const label = week.label || `Week ${week.week_number || "—"}`;
+  $("tournamentWeekBadge").textContent = label;
+  $("tournamentName").textContent = week.tournament_name || "—";
+  $("tournamentDates").textContent = fmtDateRange(week.start_date, week.end_date);
+
+  // Use logo_url as the hero background when available
+  if (hero) {
+    if (week.logo_url) {
+      hero.style.backgroundImage = `url("${week.logo_url}")`;
+    } else {
+      hero.style.backgroundImage = "";
     }
+  }
+
+  // Keep a small logo as a secondary element (optional)
+  if (week.logo_url) {
+    img.src = week.logo_url;
+    img.alt = `${week.tournament_name || "Tournament"} logo`;
+    img.style.display = "block";
+  } else {
+    img.style.display = "none";
+  }
+}
 
    function isMajor(tournamentName){
   const n = (tournamentName || "").toLowerCase();
