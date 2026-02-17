@@ -205,7 +205,22 @@
         <button class="btn secondary" id="refreshBtn">Refresh</button>
       </div>
     </header>
-
+<!-- Phase 2: Week Details -->
+<div class="card" style="margin-bottom:16px;">
+  <div class="hd">
+    <h2>Week Details</h2>
+    <span class="badge gray" id="tournamentWeekBadge">—</span>
+  </div>
+  <div class="bd" style="display:flex; gap:14px; align-items:center; flex-wrap:wrap;">
+    <img id="tournamentLogo"
+         alt=""
+         style="width:64px; height:64px; border-radius:14px; border:1px solid var(--border); background:rgba(0,0,0,.18); object-fit:contain; display:none;">
+    <div style="flex:1; min-width:240px;">
+      <div id="tournamentName" style="font-weight:900; font-size:18px; line-height:1.2;">—</div>
+      <div id="tournamentDates" style="color:var(--muted); margin-top:4px;">—</div>
+    </div>
+  </div>
+</div>
     <div class="grid">
       <!-- LEFT: Draft + Submit -->
       <div class="card">
@@ -351,7 +366,37 @@
       }
       return data;
     }
+function fmtDateRange(startISO, endISO){
+  if(!startISO || !endISO) return "—";
+  const opts = { month:"short", day:"numeric", year:"numeric" };
+  const s = new Date(startISO + "T00:00:00");
+  const e = new Date(endISO + "T00:00:00");
+  return `${s.toLocaleDateString("en-US", opts)} – ${e.toLocaleDateString("en-US", opts)}`;
+}
 
+function renderWeekDetails(week){
+  if(!week){
+    $("tournamentWeekBadge").textContent = "—";
+    $("tournamentName").textContent = "—";
+    $("tournamentDates").textContent = "—";
+    $("tournamentLogo").style.display = "none";
+    return;
+  }
+
+  const label = week.label || `Week ${week.week_number || "—"}`;
+  $("tournamentWeekBadge").textContent = label;
+  $("tournamentName").textContent = week.tournament_name || "—";
+  $("tournamentDates").textContent = fmtDateRange(week.start_date, week.end_date);
+
+  const img = $("tournamentLogo");
+  if(week.logo_url){
+    img.src = week.logo_url;
+    img.alt = `${week.tournament_name || "Tournament"} logo`;
+    img.style.display = "block";
+  }else{
+    img.style.display = "none";
+  }
+}
     function parseToPar(str){
       if(!str) return null;
 
@@ -685,7 +730,7 @@
           const label = displayWeek.label || `Week ${displayWeek.week_number || "—"}`;
           $("weekLabel").textContent = label;
           await loadLeaderboardForWeekId(displayWeek.id, label);
-          return;
+          return;renderWeekDetails(displayWeek);
         }
       } catch (e) {
         // fall back
