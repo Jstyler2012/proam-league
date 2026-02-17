@@ -38,20 +38,47 @@ exports.handler = async (event) => {
 
     if (event.httpMethod !== "POST") return { statusCode: 405, body: "Method not allowed" };
 
-    if (path === "reset-week") {
-      // Example: wipe current week's entries (latest week)
-      const w = await sb("GET", `weeks?select=id&order=created_at.desc&limit=1`);
-      const week = w?.[0];
-      if (!week) return { statusCode: 400, body: "No week exists" };
+    // Find current week schedule-based
+    const getCurrentWeek = async () => {
+      const weeks = await sb(
+        "GET",
+        "weeks?select=id,label,week_number,start_date,end_date&week_number=not.is.null&order=week_number.asc"
+      );
+      if (!weeks?.length) return null;
 
-      // delete entries for that week
+      const today = new Date();
+      const inRange = weeks.find((w) => {
+        if (!w.start_date || !w.end_date) return false;
+        const s = new Date(w.start_date + "T00:00:00");
+        const e = new Date(w.end_date + "T23:59:59");
+        return today >= s && today <= e;
+      });
+      if (inRange) return inRange;
+
+      const firstStart = weeks[0].start_date ? new Date(weeks[0].start_date + "T00:00:00") : null;
+      if (firstStart && today < firstStart) return weeks[0];
+
+      return weeks[weeks.length - 1];
+    };
+
+    if (path === "reset-week") {
+      const week = await getCurrentWeek();
+      if (!week) return { statusCode: 400, body: "No scheduled weeks exist" };
+
       await sb("DELETE", `week_entries?week_id=eq.${week.id}`);
-      return { statusCode: 200, headers: { "content-type": "application/json" }, body: JSON.stringify({ ok: true }) };
+      return {
+        statusCode: 200,
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ ok: true, week_id: week.id }),
+      };
     }
 
     if (path === "recalc") {
-      // Placeholder: you can implement a recalc strategy later.
-      return { statusCode: 200, headers: { "content-type": "application/json" }, body: JSON.stringify({ ok: true, message: "recalc placeholder" }) };
+      return {
+        statusCode: 200,
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ ok: true, message: "recalc placeholder" }),
+      };
     }
 
     return { statusCode: 404, body: "Not found" };
