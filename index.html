@@ -588,33 +588,35 @@
     // Rendering
     // -------------------------
 function renderWeekDetails(week){
-  const hero = $("weekHero");
+  const stamp = $("weekHero");
   const img = $("tournamentLogo");
 
   if(!week){
     $("tournamentWeekBadge").textContent = "—";
     $("tournamentName").textContent = "—";
     $("tournamentDates").textContent = "—";
-    if (hero) hero.style.backgroundImage = "";
+    if (stamp) stamp.style.backgroundImage = "";
     img.style.display = "none";
     return;
   }
 
   const label = week.label || `Week ${week.week_number || "—"}`;
   $("tournamentWeekBadge").textContent = label;
+
+  // "Title" uses uppercase style in CSS to match Week Details header vibe
   $("tournamentName").textContent = week.tournament_name || "—";
   $("tournamentDates").textContent = fmtDateRange(week.start_date, week.end_date);
 
-  // Use logo_url as the hero background when available
-  if (hero) {
+  // Background stamp
+  if (stamp) {
     if (week.logo_url) {
-      hero.style.backgroundImage = `url("${week.logo_url}")`;
+      stamp.style.backgroundImage = `url("${week.logo_url}")`;
     } else {
-      hero.style.backgroundImage = "";
+      stamp.style.backgroundImage = "";
     }
   }
 
-  // Keep a small logo as a secondary element (optional)
+  // Left logo image (crisp)
   if (week.logo_url) {
     img.src = week.logo_url;
     img.alt = `${week.tournament_name || "Tournament"} logo`;
