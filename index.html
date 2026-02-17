@@ -528,11 +528,17 @@
       }
     }
 
-    function isMajor(tournamentName){
-      const n = (tournamentName || "").toLowerCase();
-      return n.includes("masters") || n.includes("pga championship") || n.includes("u.s. open") || n.includes("us open");
-    }
-
+   function isMajor(tournamentName){
+  const n = (tournamentName || "").toLowerCase();
+  return (
+    n.includes("the players") ||        // THE PLAYERS Championship
+    n.includes("players championship") ||
+    n.includes("masters") ||
+    n.includes("pga championship") ||
+    n.includes("u.s. open") ||
+    n.includes("us open")
+  );
+}
     function renderScheduleList(weeks, activeWeekId){
       const el = $("scheduleList");
       el.innerHTML = "";
