@@ -1013,6 +1013,41 @@ const API = {
 
     $("recalcBtn")?.addEventListener("click", adminRecalc);
 
-    async function boot(){
-      updateAdminUI();
-      const tok = localStorage.getI
+  async function boot(){
+  updateAdminUI();
+
+  const tok = localStorage.getItem("PROAM_ADMIN_TOKEN");
+  if (tok) $("adminToken").value = tok;
+
+  await checkHealth();
+  await loadPlayersAndPros();
+
+  try{
+    const weeks = await loadSchedule();
+    const wk = pickDisplayedWeekFromSchedule(weeks);
+    if(!wk) throw new Error("No week found in schedule");
+    await setDisplayedWeek(wk);
+  }catch(e){
+    try{
+      const cw = await getJSON(API.currentWeek);
+      const wk = cw?.week || null;
+      if (wk) {
+        try { await loadSchedule(); } catch(_){}
+        await setDisplayedWeek(wk);
+      } else {
+        renderWeekDetails(null);
+      }
+    }catch(_){
+      renderWeekDetails(null);
+    }
+  }
+
+  await loadSeasonStandings();
+  renderCombined();
+}
+
+// Start the app
+boot();
+</script>
+</body>
+</html>
