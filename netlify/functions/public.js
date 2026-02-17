@@ -58,20 +58,47 @@ exports.handler = async (event) => {
       };
     };
 
-    // current week (existing behavior: most recently created week)
-    const getCurrentWeek = async () => {
-      const out = await sb(
-        "GET",
-        "weeks?select=id,label,created_at&order=created_at.desc&limit=1"
-      );
+  // current week based on schedule dates (Phase 2 correct logic)
+const getCurrentWeek = async () => {
 
-      if (!out.ok) return out;
+  // get full schedule ordered by week_number
+  const out = await sb(
+    "GET",
+    "weeks?select=id,label,week_number,start_date,end_date&week_number=not.is.null&order=week_number.asc"
+  );
 
-      return {
-        ok: true,
-        week: (out.json && out.json[0]) ? out.json[0] : null
-      };
-    };
+  if (!out.ok) return out;
+
+  const weeks = out.json || [];
+
+  if (!weeks.length) {
+    return { ok: true, week: null };
+  }
+
+  const today = new Date();
+
+  // find week in range
+  const inRange = weeks.find(w => {
+    if (!w.start_date || !w.end_date) return false;
+    const start = new Date(w.start_date + "T00:00:00");
+    const end = new Date(w.end_date + "T23:59:59");
+    return today >= start && today <= end;
+  });
+
+  if (inRange) return { ok: true, week: inRange };
+
+  // pre-season → first week
+  const firstStart = weeks[0].start_date
+    ? new Date(weeks[0].start_date + "T00:00:00")
+    : null;
+
+  if (firstStart && today < firstStart) {
+    return { ok: true, week: weeks[0] };
+  }
+
+  // post-season → last week
+  return { ok: true, week: weeks[weeks.length - 1] };
+};
 
     // CURRENT WEEK (returns id + label)
     if (path === "current-week") {
