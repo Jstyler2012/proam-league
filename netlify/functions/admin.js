@@ -1,23 +1,36 @@
 // netlify/functions/admin.js
 
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "Content-Type, x-admin-token",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
+
+function getHeader(event, name) {
+  const h = event.headers || {};
+  return (h[name] || h[name.toLowerCase()] || "").trim();
+}
+
 exports.handler = async (event) => {
+  if (event.httpMethod === "OPTIONS") return { statusCode: 204, headers: corsHeaders, body: "" };
+
   try {
     const path = (event.path || "")
-      .replace(/^\/.netlify\/functions\/admin\/?/, "")
+      .replace(/^\/\.netlify\/functions\/admin\/?/, "")
       .replace(/^\/+/, "");
 
-    const ADMIN_TOKEN = process.env.ADMIN_TOKEN || "";
-    const got = (event.headers?.["x-admin-token"] || event.headers?.["X-Admin-Token"] || "").trim();
+    const ADMIN_TOKEN = (process.env.ADMIN_TOKEN || "").trim();
+    const got = getHeader(event, "x-admin-token");
 
     if (!ADMIN_TOKEN || got !== ADMIN_TOKEN) {
-      return { statusCode: 401, body: "Unauthorized" };
+      return { statusCode: 401, headers: corsHeaders, body: "Unauthorized" };
     }
 
     const SUPABASE_URL = process.env.SUPABASE_URL;
     const SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
     if (!SUPABASE_URL || !SERVICE_ROLE) {
-      return { statusCode: 500, body: "Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY" };
+      return { statusCode: 500, headers: corsHeaders, body: "Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY" };
     }
 
     const sb = async (method, restPath, bodyObj) => {
@@ -36,9 +49,8 @@ exports.handler = async (event) => {
       return text ? JSON.parse(text) : null;
     };
 
-    if (event.httpMethod !== "POST") return { statusCode: 405, body: "Method not allowed" };
+    if (event.httpMethod !== "POST") return { statusCode: 405, headers: corsHeaders, body: "Method not allowed" };
 
-    // Find current week schedule-based
     const getCurrentWeek = async () => {
       const weeks = await sb(
         "GET",
@@ -63,12 +75,12 @@ exports.handler = async (event) => {
 
     if (path === "reset-week") {
       const week = await getCurrentWeek();
-      if (!week) return { statusCode: 400, body: "No scheduled weeks exist" };
+      if (!week) return { statusCode: 400, headers: corsHeaders, body: "No scheduled weeks exist" };
 
       await sb("DELETE", `week_entries?week_id=eq.${week.id}`);
       return {
         statusCode: 200,
-        headers: { "content-type": "application/json" },
+        headers: { "content-type": "application/json", ...corsHeaders },
         body: JSON.stringify({ ok: true, week_id: week.id }),
       };
     }
@@ -76,13 +88,13 @@ exports.handler = async (event) => {
     if (path === "recalc") {
       return {
         statusCode: 200,
-        headers: { "content-type": "application/json" },
+        headers: { "content-type": "application/json", ...corsHeaders },
         body: JSON.stringify({ ok: true, message: "recalc placeholder" }),
       };
     }
 
-    return { statusCode: 404, body: "Not found" };
+    return { statusCode: 404, headers: corsHeaders, body: "Not found" };
   } catch (e) {
-    return { statusCode: 500, body: `Server error: ${e?.message || e}` };
+    return { statusCode: 500, headers: corsHeaders, body: `Server error: ${e?.message || e}` };
   }
 };
