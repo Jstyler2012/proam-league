@@ -357,6 +357,12 @@
       background: var(--majorBg) !important;
       font-weight: 800 !important;
     }
+    .badge.majorPts{
+  border-color: rgba(255,207,90,.55) !important;
+  color: #ffe6ad !important;
+  background: rgba(255,207,90,.10) !important;
+  font-weight: 800 !important;
+}
   </style>
 </head>
 
@@ -401,11 +407,14 @@
 
     <!-- Week Details -->
     <div class="card" id="weekDetailsCard" style="margin-bottom:16px;">
-      <div class="hd">
-        <h2>Week Details</h2>
-        <span class="badge gray" id="tournamentWeekBadge">—</span>
-      </div>
+<div class="hd">
+  <h2>Week Details</h2>
 
+  <div class="row" style="justify-content:flex-end;">
+    <span class="badge gray" id="majorPtsBadge" style="display:none;">Major 2X Pts</span>
+    <span class="badge gray" id="tournamentWeekBadge">—</span>
+  </div>
+</div>
       <div id="weekHero" class="weekHero">
         <div class="weekHeroOverlay"></div>
 
@@ -701,7 +710,16 @@ async function loadSeasonStandings(){
         hero.style.backgroundImage = "none";
         return;
       }
+const majorBadge = document.getElementById("majorPtsBadge");
+const major = isMajor(week?.tournament_name);
 
+if (major) {
+  majorBadge.style.display = "inline-flex";
+  majorBadge.classList.add("majorPts");
+} else {
+  majorBadge.style.display = "none";
+  majorBadge.classList.remove("majorPts");
+}
       badge.textContent = week.label || `Week ${week.week_number || "—"}`;
       $("tournamentName").textContent = week.tournament_name || "—";
       $("tournamentDates").textContent = fmtDateRange(week.start_date, week.end_date);
