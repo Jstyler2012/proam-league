@@ -579,6 +579,7 @@
       currentWeek:   "/.netlify/functions/public/current-week",
       schedule:      "/.netlify/functions/public/schedule",
       leaderboard:   "/.netlify/functions/public/leaderboard",
+      seasonStandings: "/.netlify/functions/public/season-standings",
       submit:        "/.netlify/functions/mutate/submit-score",
       proscore:      "/.netlify/functions/proscore",
       adminResetWeek:"/.netlify/functions/admin/reset-week",
@@ -639,7 +640,38 @@
         n.includes("us open")
       );
     }
+async function loadSeasonStandings(){
 
+  const body = document.getElementById("seasonBody");
+
+  try{
+
+    const data = await getJSON(API.seasonStandings);
+
+    const rows = data.rows || [];
+
+    if(!rows.length){
+      body.innerHTML =
+        `<tr><td colspan="3">No points yet.</td></tr>`;
+      return;
+    }
+
+    body.innerHTML = rows.map((r,i)=>`
+      <tr>
+        <td class="rank">#${i+1}</td>
+        <td>${r.player_name}</td>
+        <td class="mono">${r.points}</td>
+      </tr>
+    `).join("");
+
+  }catch(e){
+
+    body.innerHTML =
+      `<tr><td colspan="3">Error loading standings.</td></tr>`;
+
+  }
+
+}
     function authHeaders(){
       const token = $("adminToken").value.trim();
       return token ? { "x-admin-token": token } : {};
@@ -945,8 +977,10 @@
     $("submitBtn")?.addEventListener("click", submitScore);
     $("autoProBtn")?.addEventListener("click", autoPullProScore);
 
-    $("refreshBtn")?.addEventListener("click", boot);
-
+  $("refreshBtn").onclick = async () => {
+  await boot();
+  await loadSeasonStandings();
+};
     $("adminSaveBtn")?.addEventListener("click", () => {
       const v = $("adminToken").value.trim();
       if(v){
@@ -1000,7 +1034,7 @@
           renderWeekDetails(null);
         }
       }
-
+await loadSeasonStandings();
       renderCombined();
     }
 
