@@ -1,11 +1,18 @@
 // netlify/functions/proscore.js
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "Content-Type",
+  "Access-Control-Allow-Methods": "GET, OPTIONS",
+};
+
 exports.handler = async (event) => {
-  // Placeholder:
-  // Later we can wire this to a real data source to pull PGA scores.
+  if (event.httpMethod === "OPTIONS") return { statusCode: 204, headers: corsHeaders, body: "" };
+
   const q = event.queryStringParameters || {};
   return {
     statusCode: 200,
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", ...corsHeaders },
     body: JSON.stringify({
       ok: true,
       pro_id: q.pro_id || null,
