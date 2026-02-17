@@ -18,7 +18,7 @@
 <body>
 <div class="wrap">
   <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:16px">
-    <div><a href="/index.html">← Home</a></div>
+    <div><a href="/">← Home</a></div>
     <div style="display:flex;gap:10px;flex-wrap:wrap">
       <a class="btn" href="/signup.html">Sign up / Login</a>
       <button class="btn" id="refreshBtn">Refresh</button>
@@ -57,7 +57,7 @@
 
 <script>
   const API = {
-    currentWeek: "/.netlify/functions/public/current-week",
+    currentWeek: "/api/current-week",
   };
   const $ = (id) => document.getElementById(id);
 
@@ -90,6 +90,8 @@
     if(w.logo_url){
       $("logo").src = w.logo_url;
       $("logo").style.display = "block";
+    } else {
+      $("logo").style.display = "none";
     }
   }
 
