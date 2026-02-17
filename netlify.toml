@@ -1,0 +1,14 @@
+[build]
+  publish = "."
+  functions = "netlify/functions"
+
+# Optional but recommended: clean URLs
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/public/:splat"
+  status = 200
+
+[[redirects]]
+  from = "/api-mutate/*"
+  to = "/.netlify/functions/mutate/:splat"
+  status = 200
