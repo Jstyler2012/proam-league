@@ -1,5 +1,4 @@
 // netlify/functions/mutate.js
-
 const crypto = require("crypto");
 
 const corsHeaders = {
@@ -20,15 +19,32 @@ function sha256Hex(s) {
   return crypto.createHash("sha256").update(s, "utf8").digest("hex");
 }
 
+async function assertAdmin(event, SUPABASE_URL, SERVICE_KEY) {
+  const adminToken = event.headers["x-admin-token"] || event.headers["X-Admin-Token"];
+  if (!adminToken) return { ok: false, resp: json(401, { error: "Missing x-admin-token" }) };
+
+  const tokenHash = sha256Hex(adminToken);
+
+  const checkResp = await fetch(
+    `${SUPABASE_URL}/rest/v1/admin_tokens?select=id&token_hash=eq.${tokenHash}&revoked_at=is.null&limit=1`,
+    { headers: { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}` } }
+  );
+
+  const checkText = await checkResp.text();
+  if (!checkResp.ok) return { ok: false, resp: json(checkResp.status, { error: checkText }) };
+
+  const rows = JSON.parse(checkText);
+  if (!rows.length) return { ok: false, resp: json(401, { error: "Invalid admin token" }) };
+
+  return { ok: true };
+}
+
 exports.handler = async (event) => {
-  if (event.httpMethod === "OPTIONS") {
-    return { statusCode: 204, headers: corsHeaders };
-  }
+  if (event.httpMethod === "OPTIONS") return { statusCode: 204, headers: corsHeaders };
 
   try {
     const SUPABASE_URL = process.env.SUPABASE_URL;
     const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
     if (!SUPABASE_URL || !SERVICE_KEY) {
       return json(500, { error: "Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY" });
     }
@@ -37,46 +53,18 @@ exports.handler = async (event) => {
       .replace(/^\/.netlify\/functions\/mutate\/?/, "")
       .replace(/^\/+/, "");
 
-    if (event.httpMethod !== "POST") {
-      return json(405, { error: "Method not allowed" });
-    }
+    if (event.httpMethod !== "POST") return json(405, { error: "Method not allowed" });
 
-    // Admin token check
-    const adminToken = event.headers["x-admin-token"] || event.headers["X-Admin-Token"];
-
-    if (!adminToken) {
-      return json(401, { error: "Missing x-admin-token" });
-    }
-
-    const tokenHash = sha256Hex(adminToken);
-
-    const checkResp = await fetch(
-      `${SUPABASE_URL}/rest/v1/admin_tokens?select=id&token_hash=eq.${tokenHash}&revoked_at=is.null&limit=1`,
-      {
-        headers: {
-          apikey: SERVICE_KEY,
-          Authorization: `Bearer ${SERVICE_KEY}`,
-        },
-      }
-    );
-
-    const checkText = await checkResp.text();
-
-    if (!checkResp.ok) {
-      return json(checkResp.status, { error: checkText });
-    }
-
-    const checkRows = JSON.parse(checkText);
-
-    if (!checkRows.length) {
-      return json(401, { error: "Invalid admin token" });
-    }
+    // Admin-only endpoints here
+    const admin = await assertAdmin(event, SUPABASE_URL, SERVICE_KEY);
+    if (!admin.ok) return admin.resp;
 
     const body = JSON.parse(event.body || "{}");
 
-    // submit-score endpoint
+    // -------------------------
+    // submit-score (existing behavior)
+    // -------------------------
     if (path === "submit-score") {
-
       const { week_id, player_id, pro_id, player_to_par, pro_to_par } = body;
 
       if (!week_id || !player_id || !pro_id) {
@@ -86,13 +74,8 @@ exports.handler = async (event) => {
       const your_score = Number(player_to_par);
       const pro_score = pro_to_par != null ? Number(pro_to_par) : null;
 
-      if (!Number.isFinite(your_score)) {
-        return json(400, { error: "Invalid player_to_par" });
-      }
-
-      if (pro_score != null && !Number.isFinite(pro_score)) {
-        return json(400, { error: "Invalid pro_to_par" });
-      }
+      if (!Number.isFinite(your_score)) return json(400, { error: "Invalid player_to_par" });
+      if (pro_score != null && !Number.isFinite(pro_score)) return json(400, { error: "Invalid pro_to_par" });
 
       const total = pro_score != null ? your_score + pro_score : null;
 
@@ -105,35 +88,38 @@ exports.handler = async (event) => {
         total,
       };
 
-      const insertResp = await fetch(
-        `${SUPABASE_URL}/rest/v1/week_entries?on_conflict=week_id,player_id`,
-        {
-          method: "POST",
-          headers: {
-            apikey: SERVICE_KEY,
-            Authorization: `Bearer ${SERVICE_KEY}`,
-            "content-type": "application/json",
-            Prefer: "resolution=merge-duplicates,return=representation",
-          },
-          body: JSON.stringify(row),
-        }
-      );
+      const insertResp = await fetch(`${SUPABASE_URL}/rest/v1/week_entries?on_conflict=week_id,player_id`, {
+        method: "POST",
+        headers: {
+          apikey: SERVICE_KEY,
+          Authorization: `Bearer ${SERVICE_KEY}`,
+          "content-type": "application/json",
+          Prefer: "resolution=merge-duplicates,return=representation",
+        },
+        body: JSON.stringify(row),
+      });
 
       const insertText = await insertResp.text();
+      if (!insertResp.ok) return json(insertResp.status, { error: insertText });
 
-      if (!insertResp.ok) {
-        return json(insertResp.status, { error: insertText });
-      }
+      return json(200, { ok: true, entry: JSON.parse(insertText)[0] });
+    }
 
-      return json(200, {
-        ok: true,
-        entry: JSON.parse(insertText)[0],
-      });
+    // -------------------------
+    // award-week-points (stub for Monday morning)
+    // You will call this after the tournament ends + all amateur scores are entered.
+    // -------------------------
+    if (path === "award-week-points") {
+      // For now: stub. We’ll implement after we confirm your standings schema + point rules.
+      // This endpoint is where we’d:
+      // 1) read week_entries sorted by total asc nullslast
+      // 2) award points: 10,8,5, then 1 for the rest
+      // 3) upsert into season_standings
+      return json(200, { ok: true, message: "award-week-points stub (next step)" });
     }
 
     return json(404, { error: "Not found" });
-
   } catch (err) {
-    return json(500, { error: err.message });
+    return json(500, { error: err?.message || String(err) });
   }
 };
