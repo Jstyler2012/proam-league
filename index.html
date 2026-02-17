@@ -238,71 +238,84 @@
       background: rgba(90,167,255,.10);
       font-weight:800;
     }
-    /* Week Details hero with logo background */
-.weekHero{
+/* Week Details "logo stamp" */
+.weekStamp{
   position: relative;
-  min-height: 160px;
   padding: 16px;
   border-top: 1px solid var(--border);
-  background: rgba(0,0,0,.18);
+  background: rgba(0,0,0,.16);
   overflow: hidden;
 }
 
-/* background image goes on the element via JS:
-   weekHero.style.backgroundImage = `url(...)` */
-.weekHero{
-  background-size: cover;
-  background-position: center;
+/* stamp background image applied via JS:
+   weekStamp.style.backgroundImage = `url(...)` */
+.weekStamp{
   background-repeat: no-repeat;
+  background-position: left 18px center;
+  background-size: 220px 220px; /* stamp size */
 }
 
-/* dark overlay for readability */
-.weekHeroOverlay{
+/* darken + soften so it looks like a stamp */
+.weekStampOverlay{
   position:absolute;
   inset:0;
   background:
-    radial-gradient(900px 320px at 20% 10%, rgba(90,167,255,.20), transparent 55%),
-    radial-gradient(800px 280px at 80% 0%, rgba(71,215,172,.18), transparent 60%),
-    linear-gradient(90deg, rgba(5,10,20,.86), rgba(5,10,20,.55));
-  backdrop-filter: blur(0px);
+    radial-gradient(900px 320px at 20% 10%, rgba(90,167,255,.14), transparent 60%),
+    radial-gradient(800px 280px at 80% 0%, rgba(71,215,172,.12), transparent 60%),
+    linear-gradient(90deg, rgba(5,10,20,.88), rgba(5,10,20,.62));
 }
 
 /* content sits above overlay */
-.weekHeroContent{
+.weekStampContent{
   position: relative;
   z-index: 1;
   display:flex;
-  align-items:flex-end;
-  justify-content:space-between;
-  gap: 12px;
+  align-items:center;
+  gap: 14px;
   flex-wrap: wrap;
 }
 
-.weekHeroTop{
-  min-width: 240px;
+/* Left logo (actual image element) */
+.weekStampLogo{
+  width: 88px;
+  height: 88px;
+  border-radius: 18px;
+  border: 1px solid var(--border);
+  background: rgba(0,0,0,.18);
+  object-fit: contain;
+  flex: 0 0 auto;
 }
 
-.weekHeroTitle{
-  font-weight: 950;
-  font-size: 22px;
-  letter-spacing: .2px;
-  line-height: 1.15;
+/* Right text */
+.weekStampText{
+  flex: 1;
+  min-width: 220px;
 }
 
-.weekHeroDates{
-  margin-top: 6px;
+/* Match the "Week Details" header vibe: uppercase, tighter, muted-ish */
+.weekStampTitle{
+  font-size: 14px;
+  letter-spacing: .3px;
+  text-transform: uppercase;
   color: var(--muted);
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+/* Dates can be slightly more readable but still subtle */
+.weekStampDates{
+  margin-top: 6px;
+  color: rgba(233,241,255,.70);
   font-size: 13px;
 }
 
-/* optional small logo on right (still nice on mobile) */
-.weekHeroLogo{
-  width: 74px;
-  height: 74px;
-  border-radius: 16px;
-  border: 1px solid var(--border);
-  background: rgba(0,0,0,.20);
-  object-fit: contain;
+/* On small screens, reduce stamp footprint */
+@media (max-width: 560px){
+  .weekStamp{
+    background-size: 160px 160px;
+    background-position: left 10px top 10px;
+  }
+  .weekStampLogo{ width: 76px; height: 76px; }
 }
   </style>
 </head>
