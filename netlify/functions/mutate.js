@@ -1,5 +1,4 @@
 // netlify/functions/mutate.js
-const crypto = require("crypto");
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -15,32 +14,21 @@ function json(statusCode, body) {
   };
 }
 
-function sha256Hex(s) {
-  return crypto.createHash("sha256").update(s, "utf8").digest("hex");
+function getHeader(event, name) {
+  const h = event.headers || {};
+  return (h[name] || h[name.toLowerCase()] || "").trim();
 }
 
-async function assertAdmin(event, SUPABASE_URL, SERVICE_KEY) {
-  const adminToken = event.headers["x-admin-token"] || event.headers["X-Admin-Token"];
-  if (!adminToken) return { ok: false, resp: json(401, { error: "Missing x-admin-token" }) };
-
-  const tokenHash = sha256Hex(adminToken);
-
-  const checkResp = await fetch(
-    `${SUPABASE_URL}/rest/v1/admin_tokens?select=id&token_hash=eq.${tokenHash}&revoked_at=is.null&limit=1`,
-    { headers: { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}` } }
-  );
-
-  const checkText = await checkResp.text();
-  if (!checkResp.ok) return { ok: false, resp: json(checkResp.status, { error: checkText }) };
-
-  const rows = JSON.parse(checkText);
-  if (!rows.length) return { ok: false, resp: json(401, { error: "Invalid admin token" }) };
-
+function assertAdmin(event) {
+  const need = (process.env.ADMIN_TOKEN || "").trim();
+  const got = getHeader(event, "x-admin-token");
+  if (!need) return { ok: false, resp: json(500, { error: "Missing ADMIN_TOKEN env var" }) };
+  if (!got || got !== need) return { ok: false, resp: json(401, { error: "Unauthorized" }) };
   return { ok: true };
 }
 
 exports.handler = async (event) => {
-  if (event.httpMethod === "OPTIONS") return { statusCode: 204, headers: corsHeaders };
+  if (event.httpMethod === "OPTIONS") return { statusCode: 204, headers: corsHeaders, body: "" };
 
   try {
     const SUPABASE_URL = process.env.SUPABASE_URL;
@@ -50,19 +38,16 @@ exports.handler = async (event) => {
     }
 
     const path = (event.path || "")
-      .replace(/^\/.netlify\/functions\/mutate\/?/, "")
+      .replace(/^\/\.netlify\/functions\/mutate\/?/, "")
       .replace(/^\/+/, "");
 
     if (event.httpMethod !== "POST") return json(405, { error: "Method not allowed" });
 
-    // Admin-only endpoints here
-    const admin = await assertAdmin(event, SUPABASE_URL, SERVICE_KEY);
-    if (!admin.ok) return admin.resp;
-
-    const body = JSON.parse(event.body || "{}");
+    let body = {};
+    try { body = JSON.parse(event.body || "{}"); } catch { body = {}; }
 
     // -------------------------
-    // submit-score (existing behavior)
+    // submit-score (PUBLIC)
     // -------------------------
     if (path === "submit-score") {
       const { week_id, player_id, pro_id, player_to_par, pro_to_par } = body;
@@ -102,19 +87,19 @@ exports.handler = async (event) => {
       const insertText = await insertResp.text();
       if (!insertResp.ok) return json(insertResp.status, { error: insertText });
 
-      return json(200, { ok: true, entry: JSON.parse(insertText)[0] });
+      let inserted = null;
+      try { inserted = JSON.parse(insertText)[0]; } catch { inserted = null; }
+      return json(200, { ok: true, entry: inserted });
     }
 
     // -------------------------
-    // award-week-points (stub for Monday morning)
-    // You will call this after the tournament ends + all amateur scores are entered.
+    // award-week-points (ADMIN ONLY)
     // -------------------------
     if (path === "award-week-points") {
-      // For now: stub. We’ll implement after we confirm your standings schema + point rules.
-      // This endpoint is where we’d:
-      // 1) read week_entries sorted by total asc nullslast
-      // 2) award points: 10,8,5, then 1 for the rest
-      // 3) upsert into season_standings
+      const admin = assertAdmin(event);
+      if (!admin.ok) return admin.resp;
+
+      // Stub for next step (points rules + schema)
       return json(200, { ok: true, message: "award-week-points stub (next step)" });
     }
 
