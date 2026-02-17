@@ -1,346 +1,369 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Wellman Golf Club Pro-Am League</title>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Wellman Golf Club PRO-AM 2026</title>
 
-<style>
-:root{
---bg:#0b1220;
---panel:#0f1b33;
---text:#e8eefc;
---muted:#a9b7d6;
---brand:#47d7ac;
---brand2:#5aa7ff;
---danger:#ff5a7a;
---ok:#49e28b;
---border:rgba(255,255,255,.10);
---shadow:0 12px 40px rgba(0,0,0,.35);
---radius:18px;
-}
-
-*{box-sizing:border-box;}
-
-body{
-margin:0;
-font-family:system-ui;
-background:linear-gradient(180deg,var(--bg),#060b15);
-color:var(--text);
-}
-
-.wrap{
-max-width:1100px;
-margin:auto;
-padding:28px 18px 60px;
-}
-
-header{
-display:flex;
-justify-content:space-between;
-align-items:center;
-margin-bottom:18px;
-flex-wrap:wrap;
-gap:12px;
-}
-
-.logo{
-width:44px;
-height:44px;
-border-radius:12px;
-background:linear-gradient(135deg,var(--brand2),var(--brand));
-display:flex;
-align-items:center;
-justify-content:center;
-font-weight:bold;
-color:#04101e;
-}
-
-.titleblock h1{
-margin:0;
-font-size:20px;
-}
-
-.titleblock p{
-margin:2px 0 0;
-color:var(--muted);
-font-size:13px;
-}
-
-.pill{
-border:1px solid var(--border);
-padding:6px 10px;
-border-radius:999px;
-font-size:12px;
-display:flex;
-gap:6px;
-align-items:center;
-}
-
-.dot{
-width:8px;
-height:8px;
-border-radius:50%;
-background:var(--ok);
-}
-
-.btn{
-background:linear-gradient(135deg,var(--brand2),var(--brand));
-border:none;
-padding:8px 12px;
-border-radius:10px;
-cursor:pointer;
-font-weight:bold;
-}
-
-.card{
-border:1px solid var(--border);
-border-radius:var(--radius);
-margin-bottom:16px;
-overflow:hidden;
-}
-
-.card .hd{
-padding:12px 16px;
-border-bottom:1px solid var(--border);
-display:flex;
-justify-content:space-between;
-}
-
-.card .bd{
-padding:16px;
-}
-
-.badge{
-padding:4px 8px;
-border-radius:999px;
-border:1px solid var(--border);
-font-size:12px;
-}
-
-table{
-width:100%;
-border-collapse:collapse;
-}
-
-th,td{
-padding:8px;
-border-bottom:1px solid var(--border);
-font-size:13px;
-}
-
-.rank{
-font-weight:bold;
-}
-</style>
+  <style>
+    :root{
+      --bg:#0b1220; --panel:#0f1b33; --text:#e8eefc; --muted:#a9b7d6;
+      --brand:#47d7ac; --brand2:#5aa7ff; --danger:#ff5a7a; --ok:#49e28b;
+      --border:rgba(255,255,255,.10); --shadow:0 12px 40px rgba(0,0,0,.35); --radius:18px;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:system-ui;background:linear-gradient(180deg,var(--bg),#060b15);color:var(--text)}
+    .wrap{max-width:1100px;margin:0 auto;padding:28px 18px 60px}
+    header{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+    .brand{display:flex;gap:12px;align-items:center}
+    .logo{width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,var(--brand2),var(--brand));
+      display:grid;place-items:center;font-weight:900;color:#04101e}
+    .titleblock h1{margin:0;font-size:20px}
+    .titleblock p{margin:2px 0 0;color:var(--muted);font-size:13px}
+    .pillrow{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+    .pill{border:1px solid var(--border);padding:8px 10px;border-radius:999px;font-size:12px;color:var(--muted);display:flex;gap:8px;align-items:center}
+    .dot{width:8px;height:8px;border-radius:50%;background:var(--ok)}
+    .dot.bad{background:var(--danger)}
+    .btn{appearance:none;border:none;cursor:pointer;border-radius:12px;padding:10px 12px;font-weight:800;font-size:13px}
+    .btn.primary{background:linear-gradient(135deg,var(--brand2),var(--brand));color:#04101e}
+    .btn.secondary{background:rgba(255,255,255,.08);color:var(--text);border:1px solid var(--border)}
+    .card{border:1px solid var(--border);border-radius:var(--radius);background:rgba(255,255,255,.04);box-shadow:var(--shadow);overflow:hidden;margin-bottom:16px}
+    .card .hd{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:10px}
+    .card .hd h2{margin:0;font-size:14px;letter-spacing:.3px;text-transform:uppercase;color:var(--muted)}
+    .card .bd{padding:16px}
+    table{width:100%;border-collapse:collapse;border:1px solid var(--border);border-radius:14px;overflow:hidden;background:rgba(0,0,0,.18)}
+    th,td{padding:10px;border-bottom:1px solid rgba(255,255,255,.07);text-align:left;font-size:13px}
+    th{color:var(--muted);font-weight:700;font-size:12px;text-transform:uppercase;letter-spacing:.3px}
+    tr:last-child td{border-bottom:none}
+    .rank{font-weight:900;width:56px}
+    .mono{font-family:ui-monospace,Menlo,Consolas,monospace}
+    .badge{display:inline-flex;align-items:center;gap:8px;padding:6px 10px;border-radius:999px;border:1px solid var(--border);color:var(--muted);font-size:12px}
+    .badge.good{border-color:rgba(71,215,172,.35);color:#c9fff0;background:rgba(71,215,172,.10)}
+    .msg{margin-top:10px;border:1px solid var(--border);background:rgba(0,0,0,.22);padding:10px 12px;border-radius:12px;color:var(--muted);font-size:13px}
+    .msg.bad{border-color:rgba(255,90,122,.35);color:#ffd0da}
+    .grid{display:grid;grid-template-columns:1fr;gap:16px}
+    @media(min-width:980px){.grid{grid-template-columns:1.2fr .8fr}}
+    .scheduleBtn{width:100%;text-align:left;display:flex;justify-content:space-between;gap:12px;padding:12px;border-radius:14px}
+  </style>
 </head>
 
 <body>
-
 <div class="wrap">
+  <header>
+    <div class="brand">
+      <div class="logo">⛳</div>
+      <div class="titleblock">
+        <h1>Wellman Golf Club PRO-AM 2026</h1>
+        <p>Season 1: March 9 – June 21, 2026</p>
+      </div>
+    </div>
 
-<header>
+    <div class="pillrow">
+      <div class="pill" title="API health">
+        <span id="healthDot" class="dot"></span>
+        <span>API:</span>
+        <span id="healthText" class="mono">checking…</span>
+      </div>
+      <div class="pill" title="Displayed week">
+        <span>Week:</span>
+        <span id="weekLabel" class="mono">—</span>
+      </div>
+      <a class="btn secondary" href="/draft.html">Draft</a>
+      <a class="btn secondary" href="/signup.html">Sign up / Login</a>
+      <button class="btn primary" id="refreshBtn">Refresh</button>
+    </div>
+  </header>
 
-<div style="display:flex;gap:12px;align-items:center;">
-<div class="logo">⛳</div>
+  <!-- Week Details -->
+  <div class="card">
+    <div class="hd">
+      <h2>This Week</h2>
+      <span class="badge" id="tournamentWeekBadge">—</span>
+    </div>
+    <div class="bd" style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;">
+      <img id="tournamentLogo" alt="" style="width:64px;height:64px;border-radius:14px;border:1px solid var(--border);background:rgba(0,0,0,.18);object-fit:contain;display:none;">
+      <div style="flex:1;min-width:240px;">
+        <div id="tournamentName" style="font-weight:900;font-size:18px;line-height:1.2;">—</div>
+        <div id="tournamentDates" style="color:var(--muted);margin-top:4px;">—</div>
+      </div>
+    </div>
+  </div>
 
-<div class="titleblock">
-<h1>Wellman Golf Club Pro-Am League</h1>
-<p>Season 1: March 9 – June 21, 2026</p>
-</div>
-</div>
+  <div class="grid">
+    <!-- Weekly Leaderboard -->
+    <div class="card">
+      <div class="hd">
+        <h2>Weekly Leaderboard</h2>
+        <span class="badge" id="lastUpdated">Updated: —</span>
+      </div>
+      <div class="bd">
+        <table>
+          <thead>
+            <tr>
+              <th class="rank">Rank</th>
+              <th>Amateur</th>
+              <th>Am</th>
+              <th>Pro</th>
+              <th>Pro</th>
+              <th>Combined</th>
+            </tr>
+          </thead>
+          <tbody id="lbBody">
+            <tr><td colspan="6" style="color:rgba(233,241,255,.45);">Loading…</td></tr>
+          </tbody>
+        </table>
+        <div id="lbMsg" class="msg" style="display:none;"></div>
+      </div>
+    </div>
 
-<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+    <!-- Season Standings -->
+    <div class="card">
+      <div class="hd">
+        <h2>Season Standings</h2>
+        <span class="badge good">Points</span>
+      </div>
+      <div class="bd">
+        <table>
+          <thead>
+            <tr>
+              <th class="rank">Rank</th>
+              <th>Player</th>
+              <th class="mono">Points</th>
+            </tr>
+          </thead>
+          <tbody id="ssBody">
+            <tr><td colspan="3" style="color:rgba(233,241,255,.45);">Loading…</td></tr>
+          </tbody>
+        </table>
+        <div id="ssMsg" class="msg" style="display:none;"></div>
+      </div>
+    </div>
+  </div>
 
-<div class="pill">
-<div id="healthDot" class="dot"></div>
-<div id="healthText">API</div>
-</div>
+  <!-- Season Schedule -->
+  <div class="card">
+    <div class="hd">
+      <h2>Season Schedule</h2>
+      <span class="badge">Click a week to view</span>
+    </div>
+    <div class="bd">
+      <div id="scheduleList" style="display:flex;flex-direction:column;gap:10px;"></div>
+      <div id="scheduleMsg" class="msg" style="display:none;"></div>
+    </div>
+  </div>
 
-<div class="pill">
-Week:
-<div id="weekLabel">—</div>
-</div>
-
-<button class="btn" id="refreshBtn">Refresh</button>
-
-</div>
-
-</header>
-
-<!-- Week Details -->
-
-<div class="card">
-
-<div class="hd">
-<div>Week Details</div>
-<div id="tournamentWeekBadge" class="badge">—</div>
-</div>
-
-<div class="bd" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
-
-<img id="tournamentLogo" style="width:64px;height:64px;display:none;">
-
-<div>
-
-<div id="tournamentName" style="font-weight:bold;font-size:18px;">—</div>
-
-<div id="tournamentDates" style="color:var(--muted);">—</div>
-
-</div>
-
-</div>
-
-</div>
-
-<!-- Leaderboard -->
-
-<div class="card">
-
-<div class="hd">
-<div>Leaderboard</div>
-<div id="lastUpdated" class="badge">—</div>
-</div>
-
-<div class="bd">
-
-<table>
-
-<thead>
-<tr>
-<th>Rank</th>
-<th>Player</th>
-<th>You</th>
-<th>Pro</th>
-<th>Combined</th>
-</tr>
-</thead>
-
-<tbody id="lbBody">
-<tr><td colspan="5">Loading…</td></tr>
-</tbody>
-
-</table>
-
-</div>
-</div>
+  <div class="msg" style="opacity:.9">
+    <b>Admin note:</b> scoring is admin-only (per your architecture). Draft/login is being added next.
+  </div>
 
 </div>
 
 <script>
+  const API = {
+    health: "/.netlify/functions/public/health",
+    schedule: "/.netlify/functions/public/schedule",
+    currentWeek: "/.netlify/functions/public/current-week",
+    weekDetails: "/.netlify/functions/public/week-details",
+    leaderboard: "/.netlify/functions/public/leaderboard",
+    seasonStandings: "/.netlify/functions/public/season-standings"
+  };
 
-const API = {
-health:"/.netlify/functions/public/health",
-schedule:"/.netlify/functions/public/schedule",
-leaderboard:"/.netlify/functions/public/leaderboard"
-};
+  const $ = (id) => document.getElementById(id);
 
-const $=id=>document.getElementById(id);
+  let scheduleWeeks = [];
+  let selectedWeek = null;
 
-let currentWeekId=null;
+  async function getJSON(url){
+    const r = await fetch(url, { headers: { "accept":"application/json" }});
+    const t = await r.text();
+    let j = null;
+    try { j = t ? JSON.parse(t) : null; } catch(e) {}
+    if(!r.ok) throw new Error((j && (j.error||j.message)) ? (j.error||j.message) : (t || r.statusText));
+    return j;
+  }
 
-function fmtDateRange(a,b){
-const s=new Date(a);
-const e=new Date(b);
-return s.toLocaleDateString()+" – "+e.toLocaleDateString();
-}
+  function fmtToPar(n){
+    if(n === null || n === undefined || Number.isNaN(n)) return "—";
+    const num = Number(n);
+    if(!Number.isFinite(num)) return "—";
+    return (num > 0 ? "+" : "") + String(num);
+  }
 
-function renderWeekDetails(w){
+  function fmtDateRange(startISO, endISO){
+    if(!startISO || !endISO) return "—";
+    const opts = { month:"short", day:"numeric", year:"numeric" };
+    const s = new Date(startISO + "T00:00:00");
+    const e = new Date(endISO + "T00:00:00");
+    return `${s.toLocaleDateString("en-US", opts)} – ${e.toLocaleDateString("en-US", opts)}`;
+  }
 
-$("tournamentWeekBadge").textContent=w.label;
+  function renderWeekDetails(week){
+    if(!week){
+      $("weekLabel").textContent = "—";
+      $("tournamentWeekBadge").textContent = "—";
+      $("tournamentName").textContent = "—";
+      $("tournamentDates").textContent = "—";
+      $("tournamentLogo").style.display = "none";
+      return;
+    }
 
-$("tournamentName").textContent=w.tournament_name;
+    const label = week.label || `Week ${week.week_number || "—"}`;
+    $("weekLabel").textContent = label;
+    $("tournamentWeekBadge").textContent = label;
+    $("tournamentName").textContent = week.tournament_name || "—";
+    $("tournamentDates").textContent = fmtDateRange(week.start_date, week.end_date);
 
-$("tournamentDates").textContent=fmtDateRange(w.start_date,w.end_date);
+    const img = $("tournamentLogo");
+    if(week.logo_url){
+      img.src = week.logo_url;
+      img.alt = `${week.tournament_name || "Tournament"} logo`;
+      img.style.display = "block";
+    } else {
+      img.style.display = "none";
+    }
+  }
 
-if(w.logo_url){
-$("tournamentLogo").src=w.logo_url;
-$("tournamentLogo").style.display="block";
-}
-}
+  function renderScheduleList(){
+    const list = $("scheduleList");
+    list.innerHTML = "";
 
-async function getJSON(url){
-const r=await fetch(url);
-return await r.json();
-}
+    if(!scheduleWeeks.length){
+      list.innerHTML = `<div style="color:var(--muted);">No schedule loaded.</div>`;
+      return;
+    }
 
-async function loadSchedule(){
+    scheduleWeeks.forEach((w) => {
+      const label = w.label || `Week ${w.week_number}`;
+      const dates = fmtDateRange(w.start_date, w.end_date);
+      const active = selectedWeek && w.id === selectedWeek.id;
 
-const data=await getJSON(API.schedule);
+      const btn = document.createElement("button");
+      btn.className = "btn secondary scheduleBtn";
+      btn.style.border = `1px solid ${active ? "rgba(71,215,172,.55)" : "var(--border)"}`;
+      btn.style.background = active ? "rgba(71,215,172,.10)" : "rgba(255,255,255,.06)";
 
-return data.weeks;
-}
+      btn.innerHTML = `
+        <div style="min-width:0;">
+          <div style="font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+            ${label}: ${w.tournament_name || "—"}
+          </div>
+          <div style="color:var(--muted);font-size:12px;margin-top:2px;">
+            ${dates}
+            ${w.winner_player_name ? ` • Winner: <b>${w.winner_player_name}</b>` : ""}
+          </div>
+        </div>
+        <span class="badge">View</span>
+      `;
 
-function pickWeek(weeks){
+      btn.addEventListener("click", async () => {
+        selectedWeek = w;
+        renderWeekDetails(w);
+        renderScheduleList();
+        await loadLeaderboardForWeek(w.id, label);
+      });
 
-const today=new Date();
+      list.appendChild(btn);
+    });
+  }
 
-for(const w of weeks){
+  async function checkHealth(){
+    try{
+      const j = await getJSON(API.health);
+      $("healthDot").className = "dot";
+      $("healthText").textContent = j && j.ok ? "ok" : "unknown";
+    }catch(e){
+      $("healthDot").className = "dot bad";
+      $("healthText").textContent = "down";
+    }
+  }
 
-const s=new Date(w.start_date);
-const e=new Date(w.end_date);
+  async function loadScheduleAndSelectWeek(){
+    const j = await getJSON(API.schedule);
+    scheduleWeeks = (j.weeks || []).filter(w => w.week_number != null).sort((a,b)=>a.week_number-b.week_number);
 
-if(today>=s && today<=e)
-return w;
-}
+    // choose current by backend
+    const cw = await getJSON(API.currentWeek);
+    const wk = cw.week || null;
 
-return weeks[0];
-}
+    selectedWeek = wk ? (scheduleWeeks.find(x => x.id === wk.id) || wk) : (scheduleWeeks[0] || null);
+    renderWeekDetails(selectedWeek);
+    renderScheduleList();
+  }
 
-async function loadLeaderboard(week){
+  async function loadLeaderboardForWeek(weekId, label){
+    const lbMsg = $("lbMsg");
+    lbMsg.style.display = "none";
+    $("lbBody").innerHTML = `<tr><td colspan="6" style="color:rgba(233,241,255,.45);">Loading…</td></tr>`;
 
-const data=await getJSON(API.leaderboard+"?week_id="+week.id);
+    try{
+      const j = await getJSON(`${API.leaderboard}?week_id=${encodeURIComponent(weekId)}`);
+      const rows = j.rows || [];
+      $("weekLabel").textContent = label || j.week || "—";
 
-$("weekLabel").textContent=week.label;
+      if(!rows.length){
+        $("lbBody").innerHTML = `<tr><td colspan="6" style="color:rgba(233,241,255,.45);">No scores yet.</td></tr>`;
+      } else {
+        $("lbBody").innerHTML = rows.map((r, idx) => `
+          <tr>
+            <td class="rank">#${idx+1}</td>
+            <td>${r.player_name || "—"}</td>
+            <td class="mono">${fmtToPar(r.playerScore)}</td>
+            <td>${r.pga_golfer || "—"}</td>
+            <td class="mono">${fmtToPar(r.proScore)}</td>
+            <td class="mono"><b>${fmtToPar(r.combined)}</b></td>
+          </tr>
+        `).join("");
+      }
 
-const rows=data.rows;
+      $("lastUpdated").textContent = "Updated: " + new Date().toLocaleTimeString();
+    }catch(e){
+      $("lbBody").innerHTML = `<tr><td colspan="6" style="color:rgba(233,241,255,.45);">Couldn’t load leaderboard.</td></tr>`;
+      lbMsg.style.display = "block";
+      lbMsg.className = "msg bad";
+      lbMsg.textContent = "Leaderboard error: " + e.message;
+    }
+  }
 
-if(!rows.length){
-$("lbBody").innerHTML="<tr><td colspan=5>No scores yet</td></tr>";
-return;
-}
+  async function loadSeasonStandings(){
+    const ssMsg = $("ssMsg");
+    ssMsg.style.display = "none";
+    $("ssBody").innerHTML = `<tr><td colspan="3" style="color:rgba(233,241,255,.45);">Loading…</td></tr>`;
 
-$("lbBody").innerHTML=rows.map((r,i)=>`
+    try{
+      const j = await getJSON(API.seasonStandings);
+      const rows = j.rows || [];
 
-<tr>
+      if(!rows.length){
+        $("ssBody").innerHTML = `<tr><td colspan="3" style="color:rgba(233,241,255,.45);">No points yet.</td></tr>`;
+      } else {
+        $("ssBody").innerHTML = rows.map((r, idx) => `
+          <tr>
+            <td class="rank">#${idx+1}</td>
+            <td>${r.player_name || "—"}</td>
+            <td class="mono"><b>${r.points ?? 0}</b></td>
+          </tr>
+        `).join("");
+      }
+    }catch(e){
+      $("ssBody").innerHTML = `<tr><td colspan="3" style="color:rgba(233,241,255,.45);">Couldn’t load standings.</td></tr>`;
+      ssMsg.style.display = "block";
+      ssMsg.className = "msg bad";
+      ssMsg.textContent = "Standings error: " + e.message;
+    }
+  }
 
-<td class="rank">#${i+1}</td>
+  async function boot(){
+    await checkHealth();
+    await loadScheduleAndSelectWeek();
+    if(selectedWeek){
+      const label = selectedWeek.label || `Week ${selectedWeek.week_number || "—"}`;
+      await loadLeaderboardForWeek(selectedWeek.id, label);
+    }
+    await loadSeasonStandings();
+  }
 
-<td>${r.player_name||"—"}</td>
-
-<td>${r.playerScore??"—"}</td>
-
-<td>${r.proScore??"—"}</td>
-
-<td>${r.combined??"—"}</td>
-
-</tr>
-
-`).join("");
-
-$("lastUpdated").textContent=new Date().toLocaleTimeString();
-}
-
-async function boot(){
-
-$("healthText").textContent="ok";
-
-const weeks=await loadSchedule();
-
-const week=pickWeek(weeks);
-
-currentWeekId=week.id;
-
-renderWeekDetails(week);
-
-await loadLeaderboard(week);
-}
-
-$("refreshBtn").onclick=boot;
-
-boot();
-
+  $("refreshBtn").addEventListener("click", boot);
+  boot();
 </script>
-
 </body>
 </html>
