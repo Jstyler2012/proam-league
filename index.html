@@ -45,15 +45,28 @@
       gap:16px; margin-bottom:18px;
     }
     .brand{ display:flex; align-items:center; gap:12px; }
+
+    /* ======= UPDATED TITLE SECTION STYLES (only change requested) ======= */
     .logo{
-      width:44px; height:44px; border-radius:14px;
-      background: linear-gradient(135deg, var(--brand2), var(--brand));
-      box-shadow: var(--shadow);
-      display:grid; place-items:center;
-      font-weight:900; color:#04101e;
+      width:44px; height:44px;
+      border-radius:0;
+      background: transparent;
+      box-shadow:none;
+      display:block;
+      font-weight:900;
+      color:inherit;
+      object-fit:contain;
+      flex: 0 0 auto;
     }
+    .titleblock{ display:flex; flex-direction:column; }
     .titleblock h1{ margin:0; font-size:20px; letter-spacing:.2px; }
-    .titleblock p{ margin:2px 0 0; color:var(--muted); font-size:13px; }
+    .titleblock p{
+      margin:2px 0 0;
+      color:var(--muted);
+      font-size:13px;
+      text-align:right; /* aligns subtitle to the right edge of the title */
+    }
+    /* ================================================================ */
 
     .pillrow{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; justify-content:flex-end; }
     .pill{
@@ -76,6 +89,7 @@
       .grid{ grid-template-columns:1fr; }
       header{ flex-direction:column; align-items:flex-start; }
       .pillrow{ justify-content:flex-start; }
+      .titleblock p{ text-align:left; } /* subtitle reads better on mobile */
     }
 
     .card{
@@ -370,10 +384,11 @@
   <div class="wrap">
     <header>
       <div class="brand">
-        <div class="logo">⛳</div>
+        <!-- UPDATED: SC mark only. Put the file at /assets/sc-mark.png -->
+        <img class="logo" src="/assets/sc-mark.png" alt="Wellman Golf Club" />
         <div class="titleblock">
-          <h1>Wellman Golf Club Pro-Am League</h1>
-          <p>Season 1: March 9 – June 21, 2026 • Weekly combined scoring: your round + your drafted pro’s score</p>
+          <h1>WELLMAN GOLF CLUB PRO-AM</h1>
+          <p>Season 1: March 9 - June 21, 2026</p>
         </div>
       </div>
 
