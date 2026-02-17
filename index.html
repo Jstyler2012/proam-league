@@ -311,7 +311,13 @@
 .card.weekMajorCard{
   border-color: rgba(255,207,90,.55);
 }
-
+/* Subtle gold glow for majors */
+.card.weekMajorCard{
+  box-shadow:
+    0 12px 40px rgba(0,0,0,.35),
+    0 0 0 1px rgba(255,207,90,.12),
+    0 0 26px rgba(255,207,90,.14);
+}
 .card.weekMajorCard .hd{
   border-bottom-color: rgba(255,207,90,.25);
 }
@@ -425,6 +431,12 @@
         </div>
       </div>
 
+      /* HARD OVERRIDE: Week Details must NEVER use a background image */
+#weekHero{
+  background-image: none !important;
+  background-repeat: no-repeat !important;
+}
+      
       <!-- RIGHT: Weekly Leaderboard -->
       <div class="card">
         <div class="hd">
@@ -603,7 +615,8 @@
 function renderWeekDetails(week){
   const stamp = $("weekHero");
   const img = $("tournamentLogo");
-
+// Safety: ensure no old code leaves a background image behind
+if (hero) hero.style.backgroundImage = "none";
   if(!week){
     $("tournamentWeekBadge").textContent = "—";
     $("tournamentName").textContent = "—";
