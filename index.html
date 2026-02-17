@@ -238,7 +238,7 @@
       background: rgba(90,167,255,.10);
       font-weight:800;
     }
-/* Week Details "logo stamp" */
+/* Week Details base (NO background logo) */
 .weekStamp{
   position: relative;
   padding: 16px;
@@ -247,15 +247,6 @@
   overflow: hidden;
 }
 
-/* stamp background image applied via JS:
-   weekStamp.style.backgroundImage = `url(...)` */
-.weekStamp{
-  background-repeat: no-repeat;
-  background-position: left 18px center;
-  background-size: 220px 220px; /* stamp size */
-}
-
-/* darken + soften so it looks like a stamp */
 .weekStampOverlay{
   position:absolute;
   inset:0;
@@ -265,7 +256,6 @@
     linear-gradient(90deg, rgba(5,10,20,.88), rgba(5,10,20,.62));
 }
 
-/* content sits above overlay */
 .weekStampContent{
   position: relative;
   z-index: 1;
@@ -275,7 +265,6 @@
   flex-wrap: wrap;
 }
 
-/* Left logo (actual image element) */
 .weekStampLogo{
   width: 88px;
   height: 88px;
@@ -286,13 +275,11 @@
   flex: 0 0 auto;
 }
 
-/* Right text */
 .weekStampText{
   flex: 1;
   min-width: 220px;
 }
 
-/* Match the "Week Details" header vibe: uppercase, tighter, muted-ish */
 .weekStampTitle{
   font-size: 14px;
   letter-spacing: .3px;
@@ -302,13 +289,39 @@
   line-height: 1.2;
 }
 
-/* Dates can be slightly more readable but still subtle */
 .weekStampDates{
   margin-top: 6px;
   color: rgba(233,241,255,.70);
   font-size: 13px;
 }
 
+/* Major highlight styling */
+.weekMajor .weekStampLogo{
+  border-color: rgba(255,207,90,.55);
+}
+
+.weekMajor .weekStampTitle{
+  color: #ffe6ad;
+}
+
+.weekMajor .weekStampDates{
+  color: rgba(255,230,173,.85);
+}
+
+.card.weekMajorCard{
+  border-color: rgba(255,207,90,.55);
+}
+
+.card.weekMajorCard .hd{
+  border-bottom-color: rgba(255,207,90,.25);
+}
+
+.badge.majorBadge{
+  border-color: rgba(255,207,90,.55) !important;
+  color: #ffe6ad !important;
+  background: rgba(255,207,90,.10) !important;
+  font-weight: 800 !important;
+}
 /* On small screens, reduce stamp footprint */
 @media (max-width: 560px){
   .weekStamp{
@@ -352,7 +365,7 @@
     <span class="badge gray" id="tournamentWeekBadge">—</span>
   </div>
 
-  <div id="weekHero" class="weekStamp">
+ <div id="weekHero" class="weekStamp majorable">
     <div class="weekStampOverlay"></div>
 
     <div class="weekStampContent">
