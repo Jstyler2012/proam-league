@@ -578,26 +578,19 @@
   </div>
 
   <script>
-    // Prefer /api aliases (from netlify.toml redirects)
-    const API = {
-      health:           "/api/health",
-      players:          "/api/players",
-      pros:             "/api/pros",
-      currentWeek:      "/api/current-week",
-      schedule:         "/api/schedule",
-      leaderboard:      "/api/leaderboard",
-      seasonStandings:  "/api/season-standings",
-
-      // Mutations
-      submit:           "/api-mutate/submit-score",
-
-      // Pro score
-      proscore:         "/api-proscore", // redirect to /.netlify/functions/proscore
-
-      // Admin
-      adminResetWeek:   "/.netlify/functions/admin/reset-week",
-      adminRecalc:      "/.netlify/functions/admin/recalc"
-    };
+const API = {
+  health: "/.netlify/functions/public/health",
+  players: "/.netlify/functions/public/players",
+  pros: "/.netlify/functions/public/pros",
+  currentWeek: "/.netlify/functions/public/current-week",
+  schedule: "/.netlify/functions/public/schedule",
+  leaderboard: "/.netlify/functions/public/leaderboard",
+  seasonStandings: "/.netlify/functions/public/season-standings",
+  submit: "/.netlify/functions/mutate/submit-score",
+  proscore: "/.netlify/functions/proscore",
+  adminResetWeek: "/.netlify/functions/admin/reset-week",
+  adminRecalc: "/.netlify/functions/admin/recalc"
+};
 
     const $ = (id) => document.getElementById(id);
 
