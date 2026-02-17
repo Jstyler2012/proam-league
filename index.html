@@ -40,17 +40,12 @@
 
     .wrap{ max-width:1100px; margin:0 auto; padding:28px 18px 60px; }
 
-    /* ======= HEADER BANNER CARD (FIXED PATH + FALLBACK) ======= */
     .headerCard{ overflow:hidden; margin-bottom:16px; }
     .headerBanner{
       position:relative;
       width:100%;
       height:220px;
-
-      /* fallback so you always see something even if image path is wrong */
       background-color: rgba(0,0,0,.18);
-
-      /* IMPORTANT: relative path works reliably on Netlify + local */
       background-image: url("./assets/header-banner.jpg");
       background-size: cover;
       background-position: center;
@@ -83,7 +78,6 @@
     @media (max-width: 560px){
       .headerBanner{ height:190px; }
     }
-    /* ========================================================== */
 
     header{
       display:flex; align-items:center; justify-content:space-between;
@@ -217,6 +211,7 @@
       border-radius:12px;
       color:var(--muted);
       font-size:13px;
+      white-space: pre-wrap;
     }
     .msg.ok{ border-color: rgba(73,226,139,.3); color:#c9ffde; }
     .msg.bad{ border-color: rgba(255,90,122,.35); color:#ffd0da; }
@@ -228,27 +223,26 @@
       text-align:center;
     }
 
-.navTab{
-  padding:8px 14px;
-  border-radius:999px;
-  border:1px solid var(--border);
-  text-decoration:none;
-  font-size:13px;
-  color:var(--muted);
-  font-weight:700;
-  transition:.15s;
-}
-.navTab:hover{
-  border-color:rgba(90,167,255,.45);
-  color:#cfe3ff;
-}
-.navTabActive{
-  border-color:rgba(71,215,172,.45);
-  color:#c9fff0;
-  background:rgba(71,215,172,.10);
-}
+    .navTab{
+      padding:8px 14px;
+      border-radius:999px;
+      border:1px solid var(--border);
+      text-decoration:none;
+      font-size:13px;
+      color:var(--muted);
+      font-weight:700;
+      transition:.15s;
+    }
+    .navTab:hover{
+      border-color:rgba(90,167,255,.45);
+      color:#cfe3ff;
+    }
+    .navTabActive{
+      border-color:rgba(71,215,172,.45);
+      color:#c9fff0;
+      background:rgba(71,215,172,.10);
+    }
 
-    /* ========= Week Details: single background image positioned to the RIGHT ========= */
     .weekHero{
       position: relative;
       min-height: 150px;
@@ -256,21 +250,15 @@
       border-top: 1px solid var(--border);
       background: rgba(0,0,0,.16);
       overflow: hidden;
-
-      /* critical: NEVER repeat */
       background-repeat: no-repeat;
       background-size: cover;
-
-      /* anchor background to the RIGHT side of the pill */
       background-position: right center;
     }
 
-    /* dark overlay with heavier left-side darkening for readability */
     .weekHeroOverlay{
       position:absolute;
       inset:0;
       background:
-        /* keep the right side a bit more visible */
         linear-gradient(90deg, rgba(5,10,20,.92) 0%, rgba(5,10,20,.78) 44%, rgba(5,10,20,.35) 100%),
         radial-gradient(900px 320px at 20% 10%, rgba(90,167,255,.18), transparent 60%),
         radial-gradient(800px 280px at 80% 0%, rgba(71,215,172,.14), transparent 60%);
@@ -295,7 +283,6 @@
       flex: 0 0 auto;
     }
 
-    /* Tournament title area (to the RIGHT of the logo) */
     .weekHeroText{
       flex: 1;
       min-width: 240px;
@@ -312,7 +299,6 @@
       font-size: 13px;
     }
 
-    /* ========= Schedule ========= */
     .scheduleList{ display:flex; flex-direction:column; gap:10px; }
     .scheduleItem{
       display:flex;
@@ -375,7 +361,6 @@
       background: var(--majorBg);
     }
 
-    /* ========= Major glow for Week Details card ========= */
     .card.weekMajorCard{
       border-color: var(--majorBorder);
       box-shadow:
@@ -404,7 +389,6 @@
 <body>
   <div class="wrap">
 
-    <!-- Title/Header Banner -->
     <div class="card headerCard">
       <div class="headerBanner" role="img" aria-label="Wellman Golf Club Pro-Am">
         <div class="headerBannerOverlay"></div>
@@ -414,7 +398,6 @@
       </div>
     </div>
 
-    <!-- Status / Controls / Nav -->
     <header>
       <div class="pillrow">
         <div class="pill" title="Netlify Functions health">
@@ -429,15 +412,8 @@
         <button class="btn secondary" id="refreshBtn">Refresh</button>
       </div>
 
-      <!-- Navigation tabs -->
       <div style="width:100%; margin-top:12px;">
-        <div style="
-          display:flex;
-          gap:8px;
-          flex-wrap:wrap;
-          border-top:1px solid var(--border);
-          padding-top:10px;
-        ">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;border-top:1px solid var(--border);padding-top:10px;">
           <a href="/" class="navTab navTabActive">Home</a>
           <a href="/draft.html" class="navTab">Draft</a>
           <a href="/signup.html" class="navTab">Sign Up</a>
@@ -445,7 +421,6 @@
       </div>
     </header>
 
-    <!-- Week Details -->
     <div class="card" id="weekDetailsCard" style="margin-bottom:16px;">
       <div class="hd">
         <h2>Week Details</h2>
@@ -468,7 +443,6 @@
     </div>
 
     <div class="grid">
-      <!-- LEFT: Submit -->
       <div class="card">
         <div class="hd">
           <h2>Submit your week</h2>
@@ -513,7 +487,6 @@
         </div>
       </div>
 
-      <!-- RIGHT: Leaderboard -->
       <div class="card">
         <div class="hd">
           <h2>Leaderboard</h2>
@@ -539,7 +512,6 @@
       </div>
     </div>
 
-    <!-- Season Leaderboard -->
     <div class="card">
       <div class="hd">
         <h2>Season Standings</h2>
@@ -555,16 +527,13 @@
             </tr>
           </thead>
           <tbody id="seasonBody">
-            <tr>
-              <td colspan="3">Loading…</td>
-            </tr>
+            <tr><td colspan="3">Loading…</td></tr>
           </tbody>
         </table>
         <div id="seasonMsg" class="msg" style="display:none;"></div>
       </div>
     </div>
 
-    <!-- Full season schedule -->
     <div class="card" style="margin-top:16px;">
       <div class="hd">
         <h2>Full Season Schedule</h2>
@@ -577,7 +546,6 @@
       </div>
     </div>
 
-    <!-- Admin -->
     <div class="card" style="margin-top:16px;">
       <div class="hd">
         <h2>Admin</h2>
@@ -588,7 +556,7 @@
       <div class="bd">
         <div class="split">
           <div class="field">
-            <label for="adminToken">Admin token (from your Netlify env or manual)</label>
+            <label for="adminToken">Admin token (Netlify env ADMIN_TOKEN)</label>
             <input id="adminToken" placeholder="paste token here" />
           </div>
           <div class="row" style="align-items:flex-end;">
@@ -610,18 +578,25 @@
   </div>
 
   <script>
+    // Prefer /api aliases (from netlify.toml redirects)
     const API = {
-      health:        "/.netlify/functions/public/health",
-      players:       "/.netlify/functions/public/players",
-      pros:          "/.netlify/functions/public/pros",
-      currentWeek:   "/.netlify/functions/public/current-week",
-      schedule:      "/.netlify/functions/public/schedule",
-      leaderboard:   "/.netlify/functions/public/leaderboard",
-      seasonStandings: "/.netlify/functions/public/season-standings",
-      submit:        "/.netlify/functions/mutate/submit-score",
-      proscore:      "/.netlify/functions/proscore",
-      adminResetWeek:"/.netlify/functions/admin/reset-week",
-      adminRecalc:   "/.netlify/functions/admin/recalc"
+      health:           "/api/health",
+      players:          "/api/players",
+      pros:             "/api/pros",
+      currentWeek:      "/api/current-week",
+      schedule:         "/api/schedule",
+      leaderboard:      "/api/leaderboard",
+      seasonStandings:  "/api/season-standings",
+
+      // Mutations
+      submit:           "/api-mutate/submit-score",
+
+      // Pro score
+      proscore:         "/api-proscore", // redirect to /.netlify/functions/proscore
+
+      // Admin
+      adminResetWeek:   "/.netlify/functions/admin/reset-week",
+      adminRecalc:      "/.netlify/functions/admin/recalc"
     };
 
     const $ = (id) => document.getElementById(id);
@@ -680,7 +655,7 @@
     }
 
     async function loadSeasonStandings(){
-      const body = document.getElementById("seasonBody");
+      const body = $("seasonBody");
       try{
         const data = await getJSON(API.seasonStandings);
         const rows = data.rows || [];
@@ -730,7 +705,7 @@
         return;
       }
 
-      const majorBadge = document.getElementById("majorPtsBadge");
+      const majorBadge = $("majorPtsBadge");
       const major = isMajor(week?.tournament_name);
 
       if (major) {
@@ -755,7 +730,7 @@
         img.style.display = "none";
       }
 
-      if (isMajor(week.tournament_name)) {
+      if (major) {
         weekCard.classList.add("weekMajorCard");
         badge.classList.add("majorBadge");
       }
@@ -942,7 +917,7 @@
       try{
         await getJSON(API.submit, {
           method:"POST",
-          headers: { "content-type":"application/json", ...authHeaders() },
+          headers: { "content-type":"application/json" },
           body: JSON.stringify(payload)
         });
 
@@ -976,7 +951,7 @@
     function updateAdminUI(){
       const tok = localStorage.getItem("PROAM_ADMIN_TOKEN");
       if(tok){
-        $("adminState").textContent = "Token saved";
+        $("adminState").textContent = "Token saved (admin actions enabled)";
         $("lockBadge").textContent = "Admin ready";
         $("lockBadge").className = "badge";
       }else{
@@ -1008,7 +983,6 @@
       }
     }
 
-    // Events
     $("playerScore")?.addEventListener("input", renderCombined);
     $("proScore")?.addEventListener("input", renderCombined);
 
@@ -1039,7 +1013,7 @@
     });
 
     $("resetWeekBtn")?.addEventListener("click", () => {
-      if(confirm("Reset the week? This can delete/clear current week scores.")){
+      if(confirm("Reset the week? This will delete current week entries.")){
         adminResetWeek();
       }
     });
@@ -1048,35 +1022,4 @@
 
     async function boot(){
       updateAdminUI();
-      const tok = localStorage.getItem("PROAM_ADMIN_TOKEN");
-      if (tok) $("adminToken").value = tok;
-
-      await checkHealth();
-      await loadPlayersAndPros();
-
-      try{
-        const weeks = await loadSchedule();
-        const wk = pickDisplayedWeekFromSchedule(weeks);
-        if(!wk) throw new Error("No week found in schedule");
-        await setDisplayedWeek(wk);
-      }catch(e){
-        try{
-          const cw = await getJSON(API.currentWeek);
-          const wk = cw?.week || null;
-          if (wk) {
-            try { await loadSchedule(); } catch(_){}
-            await setDisplayedWeek(wk);
-          }
-        }catch(_){
-          renderWeekDetails(null);
-        }
-      }
-
-      await loadSeasonStandings();
-      renderCombined();
-    }
-
-    boot();
-  </script>
-</body>
-</html>
+      const tok = localStorage.getI
