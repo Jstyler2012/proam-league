@@ -83,7 +83,7 @@ body::before{
   background-size: clamp(320px, 92vw, 860px) auto;
 
   /* Subtle */
-  opacity: 0.15;
+  opacity: 0.25;
   filter: saturate(.9) contrast(1.04);
 }
 
@@ -92,7 +92,7 @@ body::before{
   body::before{
     background-position: 50% 30%;
     background-size: clamp(520px, 60vw, 980px) auto;
-    opacity: 0.06;
+    opacity: 0.25;
   }
 }
 
@@ -101,7 +101,7 @@ body::before{
   body::before{
     background-position: 50% 34%;
     background-size: 980px auto;
-    opacity: 0.055;
+    opacity: 0.25;
   }
 }
 
