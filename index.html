@@ -9,7 +9,23 @@
 
 <body>
   <div class="wrap">
+<div id="siteHeader"></div>
+<script src="./partials/header.js"></script>
+<script>loadHeader("home");</script>
 
+<!-- Home-only controls (these IDs must exist for your JS) -->
+<div class="pillrow" style="margin: 14px 0 18px;">
+  <div class="pill" title="Netlify Functions health">
+    <span id="healthDot" class="dot"></span>
+    <span>API:</span>
+    <span id="healthText" class="mono">checking…</span>
+  </div>
+  <div class="pill" title="Current / displayed week">
+    <span class="mono">Week:</span>
+    <span id="weekLabel" class="mono">—</span>
+  </div>
+  <button class="btn secondary" id="refreshBtn">Refresh</button>
+</div>
     <div class="card headerCard">
       <div class="headerBanner" role="img" aria-label="Wellman Golf Club Pro-Am">
         <div class="headerBannerOverlay"></div>
@@ -18,32 +34,6 @@
         </div>
       </div>
     </div>
-
-    <header>
-   <header>
-  <div class="pillrow">
-    <div class="pill" title="Netlify Functions health">
-      <span id="healthDot" class="dot"></span>
-      <span>API:</span>
-      <span id="healthText" class="mono">checking…</span>
-    </div>
-    <div class="pill" title="Current / displayed week">
-      <span class="mono">Week:</span>
-      <span id="weekLabel" class="mono">—</span>
-    </div>
-    <button class="btn secondary" id="refreshBtn">Refresh</button>
-  </div>
-
-  <div style="width:100%; margin-top:12px;">
-    <div style="display:flex;gap:8px;flex-wrap:wrap;border-top:1px solid var(--border);padding-top:10px;">
-      <a href="./index.html" class="navTab navTabActive">Home</a>
-      <a href="./draft.html" class="navTab">Draft</a>
-      <a href="./rules.html" class="navTab">Rules</a>
-      <a href="./signup.html" class="navTab">Sign Up</a>
-    </div>
-  </div>
-</header>
-    </header>
 
     <div class="card" id="weekDetailsCard" style="margin-bottom:16px;">
       <div class="hd">
@@ -608,10 +598,13 @@ const API = {
     $("submitBtn")?.addEventListener("click", submitScore);
     $("autoProBtn")?.addEventListener("click", autoPullProScore);
 
-    $("refreshBtn").onclick = async () => {
-      await boot();
-      await loadSeasonStandings();
-    };
+   const refreshBtn = $("refreshBtn");
+if (refreshBtn) {
+  refreshBtn.onclick = async () => {
+    await boot();
+    await loadSeasonStandings();
+  };
+}
 
     $("adminSaveBtn")?.addEventListener("click", () => {
       const v = $("adminToken").value.trim();
