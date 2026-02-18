@@ -4,55 +4,451 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Wellman Golf Club Pro-Am League</title>
-  <link rel="stylesheet" href="./styles.css">
+
+  <style>
+    :root{
+      --bg:#0b1220;
+      --panel:#0f1b33;
+      --panel2:#0c162b;
+      --text:#e8eefc;
+      --muted:#a9b7d6;
+      --brand:#47d7ac;
+      --brand2:#5aa7ff;
+      --danger:#ff5a7a;
+      --warn:#ffcf5a;
+      --ok:#49e28b;
+
+      --majorBorder: rgba(255,207,90,.55);
+      --majorText: #ffe6ad;
+      --majorBg: rgba(255,207,90,.10);
+
+      --border:rgba(255,255,255,.10);
+      --shadow: 0 12px 40px rgba(0,0,0,.35);
+      --radius: 18px;
+    }
+
+    *{ box-sizing:border-box; }
+    body{
+      margin:0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+      background: radial-gradient(1200px 600px at 20% 0%, rgba(90,167,255,.22), transparent 55%),
+                  radial-gradient(900px 500px at 80% 10%, rgba(71,215,172,.18), transparent 55%),
+                  linear-gradient(180deg, var(--bg), #060b15);
+      color:var(--text);
+    }
+    a{ color:inherit; text-decoration:none; }
+
+    .wrap{ max-width:1100px; margin:0 auto; padding:28px 18px 60px; }
+
+    header{
+      display:flex; align-items:flex-end; justify-content:space-between;
+      gap:16px; margin-bottom:18px;
+      flex-wrap:wrap;
+    }
+
+    .pillrow{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; justify-content:flex-start; }
+    .pill{
+      border:1px solid var(--border);
+      background: rgba(255,255,255,.06);
+      padding:8px 10px; border-radius:999px;
+      font-size:12px; color:var(--muted);
+      display:flex; gap:8px; align-items:center;
+    }
+    .dot{ width:8px; height:8px; border-radius:50%; background:var(--warn); }
+    .dot.ok{ background:var(--ok); }
+    .dot.bad{ background:var(--danger); }
+
+    .grid{
+      display:grid;
+      grid-template-columns: 1.1fr .9fr;
+      gap:16px;
+    }
+    @media (max-width: 980px){
+      .grid{ grid-template-columns:1fr; }
+      header{ flex-direction:column; align-items:flex-start; }
+      .pillrow{ justify-content:flex-start; }
+    }
+
+    .card{
+      background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
+      border:1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow:hidden;
+    }
+    .card .hd{
+      padding:14px 16px;
+      display:flex; align-items:center; justify-content:space-between; gap:12px;
+      background: rgba(0,0,0,.14);
+      border-bottom:1px solid var(--border);
+    }
+    .card .hd h2{
+      margin:0; font-size:14px; letter-spacing:.3px; text-transform:uppercase; color:var(--muted);
+    }
+    .card .bd{ padding:16px; }
+
+    .btn{
+      appearance:none; border:none; cursor:pointer;
+      background: linear-gradient(135deg, var(--brand2), var(--brand));
+      color:#04101e; font-weight:800;
+      padding:10px 12px; border-radius:12px;
+      box-shadow: 0 10px 24px rgba(0,0,0,.28);
+      transition: transform .08s ease;
+      font-size:13px;
+    }
+    .btn:active{ transform: translateY(1px); }
+    .btn.secondary{
+      background: rgba(255,255,255,.08);
+      color:var(--text);
+      border:1px solid var(--border);
+      box-shadow:none;
+      font-weight:700;
+    }
+    .btn.danger{
+      background: rgba(255,90,122,.16);
+      border:1px solid rgba(255,90,122,.35);
+      color:#ffd5dd;
+      box-shadow:none;
+    }
+
+    .row{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+    .field{
+      display:flex; flex-direction:column; gap:6px;
+      min-width: 180px;
+      flex: 1;
+    }
+    label{ font-size:12px; color:var(--muted); }
+    input, select{
+      width:100%;
+      padding:10px 12px;
+      border-radius:12px;
+      border:1px solid var(--border);
+      background: rgba(0,0,0,.25);
+      color:var(--text);
+      outline:none;
+    }
+    input::placeholder{ color: rgba(233,241,255,.35); }
+    .split{ display:grid; grid-template-columns: 1fr 1fr; gap:10px; }
+    @media(max-width:560px){ .split{ grid-template-columns:1fr; } }
+
+    table{
+      width:100%;
+      border-collapse:collapse;
+      overflow:hidden;
+      border-radius: 14px;
+      border:1px solid var(--border);
+      background: rgba(0,0,0,.18);
+    }
+    th, td{
+      padding:10px 10px;
+      border-bottom:1px solid rgba(255,255,255,.07);
+      text-align:left;
+      font-size:13px;
+    }
+    th{ color:var(--muted); font-weight:700; font-size:12px; text-transform:uppercase; letter-spacing:.3px; }
+    tr:last-child td{ border-bottom:none; }
+    .rank{ font-weight:900; color:#d9e6ff; width:56px; }
+    .mono{ font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+
+    .badge{
+      display:inline-flex; align-items:center; gap:8px;
+      padding:6px 10px; border-radius:999px;
+      background: rgba(71,215,172,.12);
+      border:1px solid rgba(71,215,172,.28);
+      color:#c9fff0;
+      font-weight:700; font-size:12px;
+    }
+    .badge.gray{
+      background: rgba(255,255,255,.06);
+      border:1px solid var(--border);
+      color: var(--muted);
+      font-weight:700;
+    }
+
+    /* Week pill replaces "Week Details" title */
+    .badge.weekPill{
+      font-size:13px;
+      padding:7px 12px;
+      font-weight:900;
+      letter-spacing:.2px;
+    }
+
+    .msg{
+      margin-top:10px;
+      border:1px solid var(--border);
+      background: rgba(0,0,0,.22);
+      padding:10px 12px;
+      border-radius:12px;
+      color:var(--muted);
+      font-size:13px;
+      white-space: pre-wrap;
+    }
+    .msg.ok{ border-color: rgba(73,226,139,.3); color:#c9ffde; }
+    .msg.bad{ border-color: rgba(255,90,122,.35); color:#ffd0da; }
+
+    .footer{
+      margin-top:16px;
+      color:rgba(233,241,255,.45);
+      font-size:12px;
+      text-align:center;
+    }
+
+    .navTab{
+      padding:8px 14px;
+      border-radius:999px;
+      border:1px solid var(--border);
+      text-decoration:none;
+      font-size:13px;
+      color:var(--muted);
+      font-weight:700;
+      transition:.15s;
+    }
+    .navTab:hover{
+      border-color:rgba(90,167,255,.45);
+      color:#cfe3ff;
+    }
+    .navTabActive{
+      border-color:rgba(71,215,172,.45);
+      color:#c9fff0;
+      background:rgba(71,215,172,.10);
+    }
+
+    /* Week hero (inside Week card) */
+    .weekHero{
+      position: relative;
+      min-height: 150px;
+      padding: 16px;
+      border-top: 1px solid var(--border);
+      background: rgba(0,0,0,.16);
+      overflow: hidden;
+      background-repeat: no-repeat;
+      background-size: cover;
+      background-position: right center;
+    }
+    .weekHeroOverlay{
+      position:absolute;
+      inset:0;
+      background:
+        linear-gradient(90deg, rgba(5,10,20,.92) 0%, rgba(5,10,20,.78) 44%, rgba(5,10,20,.35) 100%),
+        radial-gradient(900px 320px at 20% 10%, rgba(90,167,255,.18), transparent 60%),
+        radial-gradient(800px 280px at 80% 0%, rgba(71,215,172,.14), transparent 60%);
+    }
+    .weekHeroContent{
+      position: relative;
+      z-index: 1;
+      display:flex;
+      align-items:center;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+    .weekHeroLogo{
+      width: 88px;
+      height: 88px;
+      border-radius: 18px;
+      border: 1px solid var(--border);
+      background: rgba(0,0,0,.18);
+      object-fit: contain;
+      flex: 0 0 auto;
+    }
+    .weekHeroText{ flex: 1; min-width: 240px; }
+    .weekHeroTitle{
+      font-weight: 900;
+      font-size: 18px;
+      letter-spacing: .2px;
+      line-height: 1.15;
+    }
+    .weekHeroDates{
+      margin-top: 6px;
+      color: rgba(233,241,255,.75);
+      font-size: 13px;
+    }
+
+    .scheduleList{ display:flex; flex-direction:column; gap:10px; }
+    .scheduleItem{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      padding:12px 12px;
+      border-radius:14px;
+      border:1px solid var(--border);
+      background: rgba(0,0,0,.18);
+      cursor:pointer;
+      transition: transform .08s ease, background .12s ease;
+    }
+    .scheduleItem:active{ transform: translateY(1px); }
+    .scheduleItem.active{
+      border-color: rgba(71,215,172,.35);
+      background: rgba(71,215,172,.08);
+    }
+    .scheduleLeft{
+      display:flex;
+      align-items:center;
+      gap:12px;
+      min-width:0;
+      flex:1;
+    }
+    .scheduleLogo{
+      width:40px; height:40px;
+      border-radius:12px;
+      border:1px solid var(--border);
+      background: rgba(0,0,0,.18);
+      object-fit: contain;
+      flex:0 0 auto;
+    }
+    .scheduleText{ min-width:0; }
+    .scheduleName{
+      font-weight:800;
+      font-size:13px;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+    .scheduleMeta{ margin-top:2px; color:var(--muted); font-size:12px; }
+
+    .tag{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:6px 10px;
+      border-radius:999px;
+      border:1px solid var(--border);
+      background: rgba(255,255,255,.06);
+      color: var(--muted);
+      font-weight:800;
+      font-size:12px;
+      flex: 0 0 auto;
+    }
+    .tag.major{
+      border-color: var(--majorBorder);
+      color: var(--majorText);
+      background: var(--majorBg);
+    }
+
+    .card.weekMajorCard{
+      border-color: var(--majorBorder);
+      box-shadow:
+        0 12px 40px rgba(0,0,0,.35),
+        0 0 0 1px rgba(255,207,90,.12),
+        0 0 26px rgba(255,207,90,.14);
+    }
+    .card.weekMajorCard .hd{
+      border-bottom-color: rgba(255,207,90,.25);
+    }
+    .badge.majorBadge{
+      border-color: var(--majorBorder) !important;
+      color: var(--majorText) !important;
+      background: var(--majorBg) !important;
+      font-weight: 800 !important;
+    }
+    .badge.majorPts{
+      border-color: rgba(255,207,90,.55) !important;
+      color: #ffe6ad !important;
+      background: rgba(255,207,90,.10) !important;
+      font-weight: 800 !important;
+    }
+
+    /* NEW: discreet background behind title + nav + controls */
+    .topMasthead{
+      position: relative;
+      padding: 16px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      overflow: hidden;
+      background: rgba(0,0,0,.16);
+      box-shadow: var(--shadow);
+      margin-bottom: 16px;
+    }
+    .topMasthead::before{
+      content:"";
+      position:absolute;
+      inset:0;
+      background-image: url("./assets/header-banner.jpg");
+      background-size: cover;
+      background-position: center;
+      background-repeat:no-repeat;
+      opacity: .10; /* discreet */
+      transform: scale(1.03);
+      filter: saturate(.9);
+      pointer-events:none;
+    }
+    .topMasthead::after{
+      content:"";
+      position:absolute;
+      inset:0;
+      background:
+        radial-gradient(900px 380px at 25% 20%, rgba(90,167,255,.10), transparent 62%),
+        radial-gradient(800px 320px at 80% 10%, rgba(71,215,172,.09), transparent 62%),
+        linear-gradient(180deg, rgba(0,0,0,.55), rgba(0,0,0,.22));
+      pointer-events:none;
+    }
+    .topMasthead > *{ position:relative; z-index:1; }
+
+    .siteTitle{
+      font-size:22px;
+      font-weight:900;
+      letter-spacing:.2px;
+      margin:0;
+      line-height:1.15;
+    }
+    .seasonPill{
+      margin-top:8px;
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:7px 12px;
+      border-radius:999px;
+      border:1px solid rgba(255,255,255,.12);
+      background: rgba(0,0,0,.18);
+      color: rgba(233,241,255,.82);
+      font-size:13px;
+      text-shadow: 0 2px 10px rgba(0,0,0,.55);
+    }
+  </style>
 </head>
 
 <body>
   <div class="wrap">
 
-    <!-- Title -->
-    <div>
-      <div class="pageTitle">Wellman Golf Club Pro-Am League</div>
-      <div class="pageSub">Season 1 dashboard • submissions • leaderboard • schedule</div>
-    </div>
+    <!-- REPLACED big banner with discreet background masthead -->
+    <div class="topMasthead">
+      <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:14px;flex-wrap:wrap;">
+        <div>
+          <div class="siteTitle">Wellman Golf Club Pro-Am League</div>
+          <div class="seasonPill">Season 1: March 9 - June 21, 2026</div>
+        </div>
 
-    <!-- Shared Header -->
-    <div id="siteHeader" class="sectionRule"></div>
-    <script src="./partials/header.js"></script>
-    <script>loadHeader("home");</script>
-
-    <!-- Page Controls -->
-    <div class="pillrow sectionRule">
-      <div class="pill" title="Netlify Functions health">
-        <span id="healthDot" class="dot"></span>
-        <span>API:</span>
-        <span id="healthText" class="mono">checking…</span>
+        <div class="pillrow" aria-label="Top controls">
+          <div class="pill" title="Netlify Functions health">
+            <span id="healthDot" class="dot"></span>
+            <span>API:</span>
+            <span id="healthText" class="mono">checking…</span>
+          </div>
+          <div class="pill" title="Current / displayed week">
+            <span class="mono">Week:</span>
+            <span id="weekLabel" class="mono">—</span>
+          </div>
+          <button class="btn secondary" id="refreshBtn">Refresh</button>
+        </div>
       </div>
 
-      <div class="pill" title="Current / displayed week">
-        <span class="mono">Week:</span>
-        <span id="weekLabel" class="mono">—</span>
-      </div>
-
-      <button class="btn secondary" id="refreshBtn">Refresh</button>
-    </div>
-
-    <!-- Content -->
-    <div class="card headerCard" style="margin-top:16px;">
-      <div class="headerBanner" role="img" aria-label="Wellman Golf Club Pro-Am">
-        <div class="headerBannerOverlay"></div>
-        <div class="headerBannerText">
-          <div class="headerSubtitle">Season 1: March 9 - June 21, 2026</div>
+      <div style="margin-top:12px; border-top:1px solid var(--border); padding-top:10px;">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <a href="./index.html" class="navTab navTabActive">Home</a>
+          <a href="./draft.html" class="navTab">Draft</a>
+          <a href="./rules.html" class="navTab">Rules</a>
+          <a href="./signup.html" class="navTab">Sign Up</a>
         </div>
       </div>
     </div>
 
     <div class="card" id="weekDetailsCard" style="margin-bottom:16px;">
       <div class="hd">
-        <h2>Week Details</h2>
+        <!-- Week pill replaces "Week Details" -->
+        <span class="badge weekPill" id="tournamentWeekBadge">—</span>
+
         <div class="row" style="justify-content:flex-end;">
           <span class="badge gray" id="majorPtsBadge" style="display:none;">Major 2X Pts</span>
-          <span class="badge gray" id="tournamentWeekBadge">—</span>
         </div>
       </div>
 
@@ -63,10 +459,6 @@
           <div class="weekHeroText">
             <div class="weekHeroTitle" id="tournamentName">—</div>
             <div class="weekHeroDates" id="tournamentDates">—</div>
-            <div class="row" style="margin-top:12px;">
-              <a href="./rules.html" class="btn secondary">View Rules</a>
-              <a href="./draft.html" class="btn secondary">Go to Draft</a>
-            </div>
           </div>
         </div>
       </div>
@@ -207,7 +599,7 @@
     <div class="footer">Hosted on Netlify • Data via Netlify Functions • DB via Supabase</div>
   </div>
 
-<script>
+  <script>
 const API = {
   health: "/.netlify/functions/public/health",
   players: "/.netlify/functions/public/players",
@@ -222,427 +614,429 @@ const API = {
   adminRecalc: "/.netlify/functions/admin/recalc"
 };
 
-const $ = (id) => document.getElementById(id);
+    const $ = (id) => document.getElementById(id);
 
-function showMsg(el, text, type){
-  el.style.display = "block";
-  el.className = "msg" + (type ? " " + type : "");
-  el.textContent = text;
-}
-function hideMsg(el){ el.style.display="none"; }
-
-async function getJSON(url, opts={}){
-  const res = await fetch(url, { ...opts, headers: { "accept":"application/json", ...(opts.headers||{}) }});
-  const text = await res.text();
-  let data = null;
-  try { data = text ? JSON.parse(text) : null; } catch(e) {}
-  if(!res.ok){
-    const msg = (data && (data.error || data.message)) ? (data.error || data.message) : (text || res.statusText);
-    throw new Error(msg);
-  }
-  return data;
-}
-
-function parseToPar(str){
-  if(!str) return null;
-  let s = String(str).trim();
-  s = s.replace(/[−–—]/g, "-").replace(/[＋]/g, "+");
-  s = s.replace(/\u00A0/g, "");
-  if(/^[-+]?\d+$/.test(s)) return Number(s);
-  return null;
-}
-function fmtToPar(n){
-  if(n === null || n === undefined || Number.isNaN(n)) return "—";
-  return (n > 0 ? "+" : "") + String(n);
-}
-
-function fmtDateRange(startISO, endISO){
-  if(!startISO || !endISO) return "—";
-  const opts = { month:"short", day:"numeric", year:"numeric" };
-  const s = new Date(startISO + "T00:00:00");
-  const e = new Date(endISO + "T00:00:00");
-  return `${s.toLocaleDateString("en-US", opts)} – ${e.toLocaleDateString("en-US", opts)}`;
-}
-
-function isMajor(tournamentName){
-  const n = (tournamentName || "").toLowerCase();
-  return (
-    n.includes("the players") ||
-    n.includes("players championship") ||
-    n.includes("masters") ||
-    n.includes("pga championship") ||
-    n.includes("u.s. open") ||
-    n.includes("us open")
-  );
-}
-
-async function loadSeasonStandings(){
-  const body = $("seasonBody");
-  try{
-    const data = await getJSON(API.seasonStandings);
-    const rows = data.rows || [];
-    if(!rows.length){
-      body.innerHTML = `<tr><td colspan="3">No points yet.</td></tr>`;
-      return;
+    function showMsg(el, text, type){
+      el.style.display = "block";
+      el.className = "msg" + (type ? " " + type : "");
+      el.textContent = text;
     }
-    body.innerHTML = rows.map((r,i)=>`
-      <tr>
-        <td class="rank">#${i+1}</td>
-        <td>${r.player_name}</td>
-        <td class="mono">${r.points}</td>
-      </tr>
-    `).join("");
-  }catch(e){
-    body.innerHTML = `<tr><td colspan="3">Error loading standings.</td></tr>`;
-  }
-}
+    function hideMsg(el){ el.style.display="none"; }
 
-function authHeaders(){
-  const token = $("adminToken").value.trim();
-  return token ? { "x-admin-token": token } : {};
-}
+    async function getJSON(url, opts={}){
+      const res = await fetch(url, { ...opts, headers: { "accept":"application/json", ...(opts.headers||{}) }});
+      const text = await res.text();
+      let data = null;
+      try { data = text ? JSON.parse(text) : null; } catch(e) {}
+      if(!res.ok){
+        const msg = (data && (data.error || data.message)) ? (data.error || data.message) : (text || res.statusText);
+        throw new Error(msg);
+      }
+      return data;
+    }
 
-// State
-let players = [];
-let pros = [];
-let scheduleWeeks = [];
-let displayedWeek = null;
-let currentWeekId = null;
+    function parseToPar(str){
+      if(!str) return null;
+      let s = String(str).trim();
+      s = s.replace(/[−–—]/g, "-").replace(/[＋]/g, "+");
+      s = s.replace(/\u00A0/g, "");
+      if(/^[-+]?\d+$/.test(s)) return Number(s);
+      return null;
+    }
 
-function renderWeekDetails(week){
-  const hero = $("weekHero");
-  const img = $("tournamentLogo");
-  const badge = $("tournamentWeekBadge");
-  const weekCard = $("weekDetailsCard");
+    function fmtToPar(n){
+      if(n === null || n === undefined || Number.isNaN(n)) return "—";
+      return (n > 0 ? "+" : "") + String(n);
+    }
 
-  weekCard.classList.remove("weekMajorCard");
-  badge.classList.remove("majorBadge");
+    function fmtDateRange(startISO, endISO){
+      if(!startISO || !endISO) return "—";
+      const opts = { month:"short", day:"numeric", year:"numeric" };
+      const s = new Date(startISO + "T00:00:00");
+      const e = new Date(endISO + "T00:00:00");
+      return `${s.toLocaleDateString("en-US", opts)} – ${e.toLocaleDateString("en-US", opts)}`;
+    }
 
-  if(!week){
-    $("tournamentName").textContent = "—";
-    $("tournamentDates").textContent = "—";
-    badge.textContent = "—";
-    img.style.display = "none";
-    hero.style.backgroundImage = "none";
-    return;
-  }
+    /* UPDATED: Players Championship is NOT a major */
+    function isMajor(tournamentName){
+      const n = (tournamentName || "").toLowerCase();
+      return (
+        n.includes("masters") ||
+        n.includes("pga championship") ||
+        n.includes("u.s. open") ||
+        n.includes("us open") ||
+        n.includes("the open") ||
+        n.includes("open championship")
+      );
+    }
 
-  const majorBadge = $("majorPtsBadge");
-  const major = isMajor(week?.tournament_name);
+    async function loadSeasonStandings(){
+      const body = $("seasonBody");
+      try{
+        const data = await getJSON(API.seasonStandings);
+        const rows = data.rows || [];
+        if(!rows.length){
+          body.innerHTML = `<tr><td colspan="3">No points yet.</td></tr>`;
+          return;
+        }
+        body.innerHTML = rows.map((r,i)=>`
+          <tr>
+            <td class="rank">#${i+1}</td>
+            <td>${r.player_name}</td>
+            <td class="mono">${r.points}</td>
+          </tr>
+        `).join("");
+      }catch(e){
+        body.innerHTML = `<tr><td colspan="3">Error loading standings.</td></tr>`;
+      }
+    }
 
-  if (major) {
-    majorBadge.style.display = "inline-flex";
-    majorBadge.classList.add("majorPts");
-  } else {
-    majorBadge.style.display = "none";
-    majorBadge.classList.remove("majorPts");
-  }
+    function authHeaders(){
+      const token = $("adminToken").value.trim();
+      return token ? { "x-admin-token": token } : {};
+    }
 
-  badge.textContent = week.label || `Week ${week.week_number || "—"}`;
-  $("tournamentName").textContent = week.tournament_name || "—";
-  $("tournamentDates").textContent = fmtDateRange(week.start_date, week.end_date);
+    // State
+    let players = [];
+    let pros = [];
+    let scheduleWeeks = [];
+    let displayedWeek = null;
+    let currentWeekId = null;
 
-  if (week.logo_url) {
-    hero.style.backgroundImage = `url("${week.logo_url}")`;
-    img.src = week.logo_url;
-    img.alt = `${week.tournament_name || "Tournament"} logo`;
-    img.style.display = "block";
-  } else {
-    hero.style.backgroundImage = "none";
-    img.style.display = "none";
-  }
+    function renderWeekDetails(week){
+      const hero = $("weekHero");
+      const img = $("tournamentLogo");
+      const badge = $("tournamentWeekBadge");
+      const weekCard = $("weekDetailsCard");
 
-  if (major) {
-    weekCard.classList.add("weekMajorCard");
-    badge.classList.add("majorBadge");
-  }
-}
+      weekCard.classList.remove("weekMajorCard");
+      badge.classList.remove("majorBadge");
 
-function renderSchedule(weeks, activeWeekId){
-  const el = $("scheduleList");
-  if(!Array.isArray(weeks) || weeks.length === 0){
-    el.innerHTML = `<div style="color:rgba(233,241,255,.45);">No weeks found.</div>`;
-    return;
-  }
+      if(!week){
+        $("tournamentName").textContent = "—";
+        $("tournamentDates").textContent = "—";
+        badge.textContent = "—";
+        img.style.display = "none";
+        hero.style.backgroundImage = "none";
+        return;
+      }
 
-  const sorted = weeks
-    .filter(w => w.week_number != null)
-    .sort((a,b) => a.week_number - b.week_number);
+      const majorBadge = $("majorPtsBadge");
+      const major = isMajor(week?.tournament_name);
 
-  el.innerHTML = sorted.map(w => {
-    const active = (w.id === activeWeekId) ? "active" : "";
-    const dates = fmtDateRange(w.start_date, w.end_date);
-    const logo = w.logo_url
-      ? `<img class="scheduleLogo" alt="" src="${w.logo_url}">`
-      : `<div class="scheduleLogo"></div>`;
-    const tag = isMajor(w.tournament_name)
-      ? `<span class="tag major">Major</span>`
-      : `<span class="tag">Week ${w.week_number}</span>`;
+      if (major) {
+        majorBadge.style.display = "inline-flex";
+        majorBadge.classList.add("majorPts");
+      } else {
+        majorBadge.style.display = "none";
+        majorBadge.classList.remove("majorPts");
+      }
 
-    return `
-      <div class="scheduleItem ${active}" data-week-id="${w.id}">
-        <div class="scheduleLeft">
-          ${logo}
-          <div class="scheduleText">
-            <div class="scheduleName">Week ${w.week_number} • ${w.tournament_name || "—"}</div>
-            <div class="scheduleMeta">${dates}</div>
+      badge.textContent = week.label || `Week ${week.week_number || "—"}`;
+      $("tournamentName").textContent = week.tournament_name || "—";
+      $("tournamentDates").textContent = fmtDateRange(week.start_date, week.end_date);
+
+      if (week.logo_url) {
+        hero.style.backgroundImage = `url("${week.logo_url}")`;
+        img.src = week.logo_url;
+        img.alt = `${week.tournament_name || "Tournament"} logo`;
+        img.style.display = "block";
+      } else {
+        hero.style.backgroundImage = "none";
+        img.style.display = "none";
+      }
+
+      if (major) {
+        weekCard.classList.add("weekMajorCard");
+        badge.classList.add("majorBadge");
+      }
+    }
+
+    function renderSchedule(weeks, activeWeekId){
+      const el = $("scheduleList");
+      if(!Array.isArray(weeks) || weeks.length === 0){
+        el.innerHTML = `<div style="color:rgba(233,241,255,.45);">No weeks found.</div>`;
+        return;
+      }
+
+      const sorted = weeks
+        .filter(w => w.week_number != null)
+        .sort((a,b) => a.week_number - b.week_number);
+
+      el.innerHTML = sorted.map(w => {
+        const active = (w.id === activeWeekId) ? "active" : "";
+        const dates = fmtDateRange(w.start_date, w.end_date);
+        const logo = w.logo_url
+          ? `<img class="scheduleLogo" alt="" src="${w.logo_url}">`
+          : `<div class="scheduleLogo"></div>`;
+        const tag = isMajor(w.tournament_name)
+          ? `<span class="tag major">Major</span>`
+          : `<span class="tag">Week ${w.week_number}</span>`;
+
+        return `
+          <div class="scheduleItem ${active}" data-week-id="${w.id}">
+            <div class="scheduleLeft">
+              ${logo}
+              <div class="scheduleText">
+                <div class="scheduleName">Week ${w.week_number} • ${w.tournament_name || "—"}</div>
+                <div class="scheduleMeta">${dates}</div>
+              </div>
+            </div>
+            ${tag}
           </div>
-        </div>
-        ${tag}
-      </div>
-    `;
-  }).join("");
+        `;
+      }).join("");
 
-  el.querySelectorAll(".scheduleItem").forEach(item => {
-    item.addEventListener("click", async () => {
-      const weekId = item.getAttribute("data-week-id");
-      const w = weeks.find(x => x.id === weekId);
-      if(!w) return;
-      await setDisplayedWeek(w);
-    });
-  });
-}
-
-async function loadLeaderboardForWeek(week){
-  hideMsg($("lbMsg"));
-  $("lbBody").innerHTML = `<tr><td colspan="5" style="color:rgba(233,241,255,.45);">Loading…</td></tr>`;
-
-  try{
-    const url = `${API.leaderboard}?week_id=${encodeURIComponent(week.id)}`;
-    const data = await getJSON(url);
-
-    $("weekLabel").textContent = week.label || data.week || "—";
-
-    const rows = data.rows || [];
-    if(!Array.isArray(rows) || rows.length === 0){
-      $("lbBody").innerHTML = `<tr><td colspan="5" style="color:rgba(233,241,255,.45);">No scores yet.</td></tr>`;
-    }else{
-      $("lbBody").innerHTML = rows.map((r, idx) => `
-        <tr>
-          <td class="rank">#${idx+1}</td>
-          <td>${r.player_name || "—"}</td>
-          <td class="mono">${fmtToPar(r.playerScore)}</td>
-          <td class="mono">${fmtToPar(r.proScore)}</td>
-          <td class="mono"><b>${fmtToPar(r.combined)}</b></td>
-        </tr>
-      `).join("");
+      el.querySelectorAll(".scheduleItem").forEach(item => {
+        item.addEventListener("click", async () => {
+          const weekId = item.getAttribute("data-week-id");
+          const w = weeks.find(x => x.id === weekId);
+          if(!w) return;
+          await setDisplayedWeek(w);
+        });
+      });
     }
 
-    $("lastUpdated").textContent = "Updated: " + new Date().toLocaleTimeString();
-  }catch(e){
-    $("lbBody").innerHTML = `<tr><td colspan="5" style="color:rgba(233,241,255,.45);">Couldn’t load leaderboard.</td></tr>`;
-    showMsg($("lbMsg"), "Leaderboard error: " + e.message, "bad");
-  }
-}
+    async function loadLeaderboardForWeek(week){
+      hideMsg($("lbMsg"));
+      $("lbBody").innerHTML = `<tr><td colspan="5" style="color:rgba(233,241,255,.45);">Loading…</td></tr>`;
 
-async function setDisplayedWeek(week){
-  displayedWeek = week;
-  currentWeekId = week.id;
-  renderWeekDetails(week);
-  renderSchedule(scheduleWeeks, week.id);
-  await loadLeaderboardForWeek(week);
-}
+      try{
+        const url = `${API.leaderboard}?week_id=${encodeURIComponent(week.id)}`;
+        const data = await getJSON(url);
 
-async function checkHealth(){
-  try{
-    const data = await getJSON(API.health);
-    $("healthDot").className = "dot ok";
-    $("healthText").textContent = data && data.ok ? "ok" : "unknown";
-  }catch(e){
-    $("healthDot").className = "dot bad";
-    $("healthText").textContent = "down";
-  }
-}
+        $("weekLabel").textContent = week.label || data.week || "—";
 
-function populateSelect(sel, items, labelKey="name", valueKey="id"){
-  sel.innerHTML = "";
-  for(const it of items){
-    const opt = document.createElement("option");
-    opt.value = it[valueKey];
-    opt.textContent = it[labelKey];
-    sel.appendChild(opt);
-  }
-}
+        const rows = data.rows || [];
+        if(!Array.isArray(rows) || rows.length === 0){
+          $("lbBody").innerHTML = `<tr><td colspan="5" style="color:rgba(233,241,255,.45);">No scores yet.</td></tr>`;
+        }else{
+          $("lbBody").innerHTML = rows.map((r, idx) => `
+            <tr>
+              <td class="rank">#${idx+1}</td>
+              <td>${r.player_name || "—"}</td>
+              <td class="mono">${fmtToPar(r.playerScore)}</td>
+              <td class="mono">${fmtToPar(r.proScore)}</td>
+              <td class="mono"><b>${fmtToPar(r.combined)}</b></td>
+            </tr>
+          `).join("");
+        }
 
-async function loadPlayersAndPros(){
-  const [p, pr] = await Promise.all([ getJSON(API.players), getJSON(API.pros) ]);
-  players = Array.isArray(p) ? p : (p.players || []);
-  pros = Array.isArray(pr) ? pr : (pr.pros || []);
-  populateSelect($("playerSel"), players);
-  populateSelect($("proSel"), pros);
-}
+        $("lastUpdated").textContent = "Updated: " + new Date().toLocaleTimeString();
+      }catch(e){
+        $("lbBody").innerHTML = `<tr><td colspan="5" style="color:rgba(233,241,255,.45);">Couldn’t load leaderboard.</td></tr>`;
+        showMsg($("lbMsg"), "Leaderboard error: " + e.message, "bad");
+      }
+    }
 
-async function loadSchedule(){
-  const res = await getJSON(API.schedule);
-  scheduleWeeks = res?.weeks || [];
-  return scheduleWeeks;
-}
+    async function setDisplayedWeek(week){
+      displayedWeek = week;
+      currentWeekId = week.id;
+      renderWeekDetails(week);
+      renderSchedule(scheduleWeeks, week.id);
+      await loadLeaderboardForWeek(week);
+    }
 
-function pickDisplayedWeekFromSchedule(weeks){
-  const sorted = (weeks || [])
-    .filter(w => w.week_number != null)
-    .sort((a,b) => a.week_number - b.week_number);
+    async function checkHealth(){
+      try{
+        const data = await getJSON(API.health);
+        $("healthDot").className = "dot ok";
+        $("healthText").textContent = data && data.ok ? "ok" : "unknown";
+      }catch(e){
+        $("healthDot").className = "dot bad";
+        $("healthText").textContent = "down";
+      }
+    }
 
-  if(!sorted.length) return null;
+    function populateSelect(sel, items, labelKey="name", valueKey="id"){
+      sel.innerHTML = "";
+      for(const it of items){
+        const opt = document.createElement("option");
+        opt.value = it[valueKey];
+        opt.textContent = it[labelKey];
+        sel.appendChild(opt);
+      }
+    }
 
-  const today = new Date();
+    async function loadPlayersAndPros(){
+      const [p, pr] = await Promise.all([ getJSON(API.players), getJSON(API.pros) ]);
+      players = Array.isArray(p) ? p : (p.players || []);
+      pros = Array.isArray(pr) ? pr : (pr.pros || []);
+      populateSelect($("playerSel"), players);
+      populateSelect($("proSel"), pros);
+    }
 
-  const inRange = sorted.find(w => {
-    if(!w.start_date || !w.end_date) return false;
-    const s = new Date(w.start_date + "T00:00:00");
-    const e = new Date(w.end_date + "T23:59:59");
-    return today >= s && today <= e;
-  });
+    async function loadSchedule(){
+      const res = await getJSON(API.schedule);
+      scheduleWeeks = res?.weeks || [];
+      return scheduleWeeks;
+    }
 
-  if(inRange) return inRange;
+    function pickDisplayedWeekFromSchedule(weeks){
+      const sorted = (weeks || [])
+        .filter(w => w.week_number != null)
+        .sort((a,b) => a.week_number - b.week_number);
 
-  const seasonStart = sorted[0].start_date ? new Date(sorted[0].start_date + "T00:00:00") : null;
-  if(seasonStart && today < seasonStart) return sorted[0];
+      if(!sorted.length) return null;
 
-  return sorted[sorted.length - 1];
-}
+      const today = new Date();
 
-function computeCombined(){
-  const you = parseToPar($("playerScore").value);
-  const pro = parseToPar($("proScore").value);
-  if(you === null || pro === null) return null;
-  return you + pro;
-}
-function renderCombined(){
-  const c = computeCombined();
-  $("combinedBadge").textContent = "Combined: " + fmtToPar(c);
-}
+      const inRange = sorted.find(w => {
+        if(!w.start_date || !w.end_date) return false;
+        const s = new Date(w.start_date + "T00:00:00");
+        const e = new Date(w.end_date + "T23:59:59");
+        return today >= s && today <= e;
+      });
 
-async function submitScore(){
-  hideMsg($("submitMsg"));
+      if(inRange) return inRange;
 
-  if (!currentWeekId) {
-    showMsg($("submitMsg"), "No week loaded yet. Click refresh and try again.", "bad");
-    return;
-  }
+      const seasonStart = sorted[0].start_date ? new Date(sorted[0].start_date + "T00:00:00") : null;
+      if(seasonStart && today < seasonStart) return sorted[0];
 
-  const playerId = $("playerSel").value;
-  const proId = $("proSel").value;
-  const you = parseToPar($("playerScore").value);
-  const pro = parseToPar($("proScore").value);
+      return sorted[sorted.length - 1];
+    }
 
-  if(!playerId || !proId){
-    showMsg($("submitMsg"), "Pick a Player and a Pro.", "bad"); return;
-  }
-  if(you === null){
-    showMsg($("submitMsg"), "Enter your score to par (example: +10).", "bad"); return;
-  }
+    function computeCombined(){
+      const you = parseToPar($("playerScore").value);
+      const pro = parseToPar($("proScore").value);
+      if(you === null || pro === null) return null;
+      return you + pro;
+    }
+    function renderCombined(){
+      const c = computeCombined();
+      $("combinedBadge").textContent = "Combined: " + fmtToPar(c);
+    }
 
-  const payload = { week_id: currentWeekId, player_id: playerId, pro_id: proId, player_to_par: you };
-  if (pro !== null) payload.pro_to_par = pro;
+    async function submitScore(){
+      hideMsg($("submitMsg"));
 
-  try{
-    await getJSON(API.submit, {
-      method:"POST",
-      headers: { "content-type":"application/json" },
-      body: JSON.stringify(payload)
+      if (!currentWeekId) {
+        showMsg($("submitMsg"), "No week loaded yet. Click refresh and try again.", "bad");
+        return;
+      }
+
+      const playerId = $("playerSel").value;
+      const proId = $("proSel").value;
+      const you = parseToPar($("playerScore").value);
+      const pro = parseToPar($("proScore").value);
+
+      if(!playerId || !proId){
+        showMsg($("submitMsg"), "Pick a Player and a Pro.", "bad"); return;
+      }
+      if(you === null){
+        showMsg($("submitMsg"), "Enter your score to par (example: +10).", "bad"); return;
+      }
+
+      const payload = { week_id: currentWeekId, player_id: playerId, pro_id: proId, player_to_par: you };
+      if (pro !== null) payload.pro_to_par = pro;
+
+      try{
+        await getJSON(API.submit, {
+          method:"POST",
+          headers: { "content-type":"application/json" },
+          body: JSON.stringify(payload)
+        });
+
+        showMsg($("submitMsg"), "Saved!", "ok");
+        if (displayedWeek) await loadLeaderboardForWeek(displayedWeek);
+      }catch(e){
+        showMsg($("submitMsg"), "Submit error: " + e.message, "bad");
+      }
+    }
+
+    async function autoPullProScore(){
+      hideMsg($("submitMsg"));
+      const proId = $("proSel").value;
+      if(!proId){
+        showMsg($("submitMsg"), "Pick a Pro first.", "bad"); return;
+      }
+      try{
+        const data = await getJSON(API.proscore + "?pro_id=" + encodeURIComponent(proId));
+        const val = data.pro_to_par ?? data.to_par ?? data.score_to_par ?? null;
+        if(val === null || val === undefined){
+          showMsg($("submitMsg"), "Auto-pull worked but didn’t return a score field.", "bad"); return;
+        }
+        $("proScore").value = fmtToPar(Number(val));
+        renderCombined();
+        showMsg($("submitMsg"), "Pulled pro score: " + fmtToPar(Number(val)), "ok");
+      }catch(e){
+        showMsg($("submitMsg"), "Auto-pull error: " + e.message, "bad");
+      }
+    }
+
+    function updateAdminUI(){
+      const tok = localStorage.getItem("PROAM_ADMIN_TOKEN");
+      if(tok){
+        $("adminState").textContent = "Token saved (admin actions enabled)";
+        $("lockBadge").textContent = "Admin ready";
+        $("lockBadge").className = "badge";
+      }else{
+        $("adminState").textContent = "Not signed in";
+        $("lockBadge").textContent = "Public";
+        $("lockBadge").className = "badge gray";
+      }
+    }
+
+    async function adminResetWeek(){
+      hideMsg($("adminMsg"));
+      try{
+        await getJSON(API.adminResetWeek, { method:"POST", headers: { ...authHeaders() } });
+        showMsg($("adminMsg"), "Week reset complete.", "ok");
+        if (displayedWeek) await loadLeaderboardForWeek(displayedWeek);
+      }catch(e){
+        showMsg($("adminMsg"), "Admin reset error: " + e.message, "bad");
+      }
+    }
+
+    async function adminRecalc(){
+      hideMsg($("adminMsg"));
+      try{
+        await getJSON(API.adminRecalc, { method:"POST", headers: { ...authHeaders() } });
+        showMsg($("adminMsg"), "Recalculation complete.", "ok");
+        if (displayedWeek) await loadLeaderboardForWeek(displayedWeek);
+      }catch(e){
+        showMsg($("adminMsg"), "Admin recalc error: " + e.message, "bad");
+      }
+    }
+
+    $("playerScore")?.addEventListener("input", renderCombined);
+    $("proScore")?.addEventListener("input", renderCombined);
+
+    $("submitBtn")?.addEventListener("click", submitScore);
+    $("autoProBtn")?.addEventListener("click", autoPullProScore);
+
+    $("refreshBtn").onclick = async () => {
+      await boot();
+      await loadSeasonStandings();
+    };
+
+    $("adminSaveBtn")?.addEventListener("click", () => {
+      const v = $("adminToken").value.trim();
+      if(v){
+        localStorage.setItem("PROAM_ADMIN_TOKEN", v);
+        showMsg($("adminMsg"), "Saved admin token in this browser.", "ok");
+      }else{
+        showMsg($("adminMsg"), "Paste a token first.", "bad");
+      }
+      updateAdminUI();
     });
 
-    showMsg($("submitMsg"), "Saved!", "ok");
-    if (displayedWeek) await loadLeaderboardForWeek(displayedWeek);
-  }catch(e){
-    showMsg($("submitMsg"), "Submit error: " + e.message, "bad");
-  }
-}
+    $("adminClearBtn")?.addEventListener("click", () => {
+      localStorage.removeItem("PROAM_ADMIN_TOKEN");
+      $("adminToken").value = "";
+      showMsg($("adminMsg"), "Cleared admin token.", "ok");
+      updateAdminUI();
+    });
 
-async function autoPullProScore(){
-  hideMsg($("submitMsg"));
-  const proId = $("proSel").value;
-  if(!proId){
-    showMsg($("submitMsg"), "Pick a Pro first.", "bad"); return;
-  }
-  try{
-    const data = await getJSON(API.proscore + "?pro_id=" + encodeURIComponent(proId));
-    const val = data.pro_to_par ?? data.to_par ?? data.score_to_par ?? null;
-    if(val === null || val === undefined){
-      showMsg($("submitMsg"), "Auto-pull worked but didn’t return a score field.", "bad"); return;
-    }
-    $("proScore").value = fmtToPar(Number(val));
-    renderCombined();
-    showMsg($("submitMsg"), "Pulled pro score: " + fmtToPar(Number(val)), "ok");
-  }catch(e){
-    showMsg($("submitMsg"), "Auto-pull error: " + e.message, "bad");
-  }
-}
+    $("resetWeekBtn")?.addEventListener("click", () => {
+      if(confirm("Reset the week? This will delete current week entries.")){
+        adminResetWeek();
+      }
+    });
 
-function updateAdminUI(){
-  const tok = localStorage.getItem("PROAM_ADMIN_TOKEN");
-  if(tok){
-    $("adminState").textContent = "Token saved (admin actions enabled)";
-    $("lockBadge").textContent = "Admin ready";
-    $("lockBadge").className = "badge";
-  }else{
-    $("adminState").textContent = "Not signed in";
-    $("lockBadge").textContent = "Public";
-    $("lockBadge").className = "badge gray";
-  }
-}
+    $("recalcBtn")?.addEventListener("click", adminRecalc);
 
-async function adminResetWeek(){
-  hideMsg($("adminMsg"));
-  try{
-    await getJSON(API.adminResetWeek, { method:"POST", headers: { ...authHeaders() } });
-    showMsg($("adminMsg"), "Week reset complete.", "ok");
-    if (displayedWeek) await loadLeaderboardForWeek(displayedWeek);
-  }catch(e){
-    showMsg($("adminMsg"), "Admin reset error: " + e.message, "bad");
-  }
-}
-
-async function adminRecalc(){
-  hideMsg($("adminMsg"));
-  try{
-    await getJSON(API.adminRecalc, { method:"POST", headers: { ...authHeaders() } });
-    showMsg($("adminMsg"), "Recalculation complete.", "ok");
-    if (displayedWeek) await loadLeaderboardForWeek(displayedWeek);
-  }catch(e){
-    showMsg($("adminMsg"), "Admin recalc error: " + e.message, "bad");
-  }
-}
-
-$("playerScore")?.addEventListener("input", renderCombined);
-$("proScore")?.addEventListener("input", renderCombined);
-
-$("submitBtn")?.addEventListener("click", submitScore);
-$("autoProBtn")?.addEventListener("click", autoPullProScore);
-
-$("refreshBtn").onclick = async () => {
-  await boot();
-  await loadSeasonStandings();
-};
-
-$("adminSaveBtn")?.addEventListener("click", () => {
-  const v = $("adminToken").value.trim();
-  if(v){
-    localStorage.setItem("PROAM_ADMIN_TOKEN", v);
-    showMsg($("adminMsg"), "Saved admin token in this browser.", "ok");
-  }else{
-    showMsg($("adminMsg"), "Paste a token first.", "bad");
-  }
-  updateAdminUI();
-});
-
-$("adminClearBtn")?.addEventListener("click", () => {
-  localStorage.removeItem("PROAM_ADMIN_TOKEN");
-  $("adminToken").value = "";
-  showMsg($("adminMsg"), "Cleared admin token.", "ok");
-  updateAdminUI();
-});
-
-$("resetWeekBtn")?.addEventListener("click", () => {
-  if(confirm("Reset the week? This will delete current week entries.")){
-    adminResetWeek();
-  }
-});
-
-$("recalcBtn")?.addEventListener("click", adminRecalc);
-
-async function boot(){
+  async function boot(){
   updateAdminUI();
 
   const tok = localStorage.getItem("PROAM_ADMIN_TOKEN");
