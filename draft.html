@@ -11,21 +11,23 @@
 
 <body>
 <div class="wrap">
+<header>
+  <div class="pillrow">
+    <div class="pill">
+      <span class="mono">Draft Portal</span>
+    </div>
+    <button class="btn secondary" id="refreshBtn">Refresh</button>
+  </div>
 
-  <!-- Header row -->
-  <header>
-<div id="siteHeader"></div>
-
-<script>
-  async function loadHeader(activeKey){
-    const host = document.getElementById("siteHeader");
-    const res = await fetch("./partials/header.html");
-    host.innerHTML = await res.text();
-    const active = host.querySelector(`[data-nav="${activeKey}"]`);
-    if(active) active.classList.add("navTabActive");
-  }
-  loadHeader("draft");
-</script>
+  <div style="width:100%; margin-top:12px;">
+    <div style="display:flex;gap:8px;flex-wrap:wrap;border-top:1px solid var(--border);padding-top:10px;">
+      <a href="./index.html" class="navTab">Home</a>
+      <a href="./draft.html" class="navTab navTabActive">Draft</a>
+      <a href="./rules.html" class="navTab">Rules</a>
+      <a href="./signup.html" class="navTab">Sign Up</a>
+    </div>
+  </div>
+</header>
   </header>
 
 
