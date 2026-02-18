@@ -259,40 +259,52 @@
       color: rgba(233,241,255,.55);
       font-size: 12px;
     }
-    .scheduleCarousel{
-      display:flex;
-      gap:10px;
-      overflow-x:auto;
-      padding-bottom: 6px;
-      scroll-snap-type: x mandatory;
-      -webkit-overflow-scrolling: touch;
-    }
-    .scheduleCarousel::-webkit-scrollbar{ height: 8px; }
-    .scheduleCarousel::-webkit-scrollbar-thumb{
-      background: rgba(255,255,255,.12);
-      border-radius: 999px;
-    }
-    .scheduleItem{
-      flex: 0 0 auto;
-      min-width: 260px;
-      max-width: 320px;
-      scroll-snap-align: center;
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:12px;
-      padding:12px 12px;
-      border-radius:14px;
-      border:1px solid var(--border);
-      background: rgba(0,0,0,.18);
-      cursor:pointer;
-      transition: transform .08s ease, background .12s ease, border-color .12s ease;
-    }
-    .scheduleItem:active{ transform: translateY(1px); }
-    .scheduleItem.active{
-      border-color: rgba(71,215,172,.35);
-      background: rgba(71,215,172,.08);
-    }
+   .scheduleCarousel{
+  display:flex;
+  gap:10px;
+  overflow-x:auto;
+  padding-bottom: 6px;
+
+  /* Better snapping + center target */
+  scroll-snap-type: x mandatory;
+  scroll-padding: 0 50%;
+  scroll-behavior: smooth;
+
+  -webkit-overflow-scrolling: touch;
+}
+
+.scheduleCarousel::-webkit-scrollbar{ height: 8px; }
+.scheduleCarousel::-webkit-scrollbar-thumb{
+  background: rgba(255,255,255,.12);
+  border-radius: 999px;
+}
+
+.scheduleItem{
+  flex: 0 0 auto;
+  min-width: 260px;
+  max-width: 320px;
+
+  /* Stronger snap behavior */
+  scroll-snap-align: center;
+  scroll-snap-stop: always;
+
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  padding:12px 12px;
+  border-radius:14px;
+  border:1px solid var(--border);
+  background: rgba(0,0,0,.18);
+  cursor:pointer;
+  transition: transform .08s ease, background .12s ease, border-color .12s ease;
+}
+
+.scheduleItem:active{ transform: translateY(1px); }
+.scheduleItem.active{
+  border-color: rgba(71,215,172,.35);
+  background: rgba(71,215,172,.08);
+}
     .scheduleLeft{
       display:flex;
       align-items:center;
@@ -555,7 +567,7 @@
           <div class="tableWrap">
             <table>
               <thead>
-                <thead>
+                
   <tr>
     <th class="rank" rowspan="2">Rank</th>
     <th class="mono center" rowspan="2">Score Total</th>
@@ -662,9 +674,56 @@ const API = {
     let displayedWeek = null;
     let currentWeekId = null;
 
-    // For swipe-to-select
-    let scheduleObserver = null;
-    let ignoreAutoSelectUntil = 0;
+  // For swipe-to-select (scroll-stop based)
+let ignoreAutoSelectUntil = 0;
+let scheduleScrollTimer = null;
+
+function pickCenteredWeekId(){
+  const root = $("scheduleList");
+  if(!root) return null;
+
+  const rootRect = root.getBoundingClientRect();
+  const centerX = rootRect.left + rootRect.width / 2;
+
+  let bestId = null;
+  let bestDist = Infinity;
+
+  root.querySelectorAll(".scheduleItem").forEach(el => {
+    const r = el.getBoundingClientRect();
+    const elCenter = r.left + r.width / 2;
+    const dist = Math.abs(elCenter - centerX);
+    if(dist < bestDist){
+      bestDist = dist;
+      bestId = el.getAttribute("data-week-id");
+    }
+  });
+
+  return bestId;
+}
+
+function attachScheduleScrollStop(weeks){
+  const root = $("scheduleList");
+  if(!root) return;
+
+  // Avoid stacking handlers across renders
+  root.onscroll = null;
+
+  root.onscroll = () => {
+    if(Date.now() < ignoreAutoSelectUntil) return;
+
+    clearTimeout(scheduleScrollTimer);
+    scheduleScrollTimer = setTimeout(() => {
+      const id = pickCenteredWeekId();
+      if(!id) return;
+
+      const w = weeks.find(x => x.id === id);
+      if(!w) return;
+      if(displayedWeek?.id === w.id) return;
+
+      setDisplayedWeek(w);
+    }, 140); // adjust 120–180ms if you want
+  };
+}
 
     function indexPros(list){
       prosById = new Map();
@@ -736,44 +795,7 @@ const API = {
       }
     }
 
-    function attachSwipeAutoSelect(weeks){
-      const root = $("scheduleList");
-      if(!root) return;
-
-      if(scheduleObserver){
-        try{ scheduleObserver.disconnect(); }catch(_){}
-        scheduleObserver = null;
-      }
-
-      // Automatically select the card that's most in view (center-ish)
-      scheduleObserver = new IntersectionObserver((entries) => {
-        if(Date.now() < ignoreAutoSelectUntil) return;
-
-        // pick the most visible intersecting entry
-        let best = null;
-        for(const e of entries){
-          if(!e.isIntersecting) continue;
-          if(!best || e.intersectionRatio > best.intersectionRatio) best = e;
-        }
-        if(!best) return;
-
-        const weekId = best.target.getAttribute("data-week-id");
-        if(!weekId) return;
-
-        const w = weeks.find(x => x.id === weekId);
-        if(!w) return;
-
-        // prevent redundant selects
-        if(displayedWeek?.id === w.id) return;
-
-        setDisplayedWeek(w);
-      }, {
-        root,
-        threshold: [0.55, 0.7, 0.85]
-      });
-
-      root.querySelectorAll(".scheduleItem").forEach(item => scheduleObserver.observe(item));
-    }
+    
 
     function scrollScheduleToActive(activeWeekId){
       const root = $("scheduleList");
@@ -837,8 +859,8 @@ const API = {
         });
       });
 
-      // enable swipe-stop auto select
-      attachSwipeAutoSelect(sorted);
+      // NEW: select the week after scrolling stops (less sticky)
+attachScheduleScrollStop(sorted);
 
       // keep active week centered
       scrollScheduleToActive(activeWeekId);
