@@ -98,7 +98,7 @@ body::before{
     /* logo position */
     center center;
 
-  opacity: 0.08;
+  opacity: .25;
 }
 
 /* Tablet / desktop */
