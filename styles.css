@@ -70,21 +70,35 @@ body::before{
   pointer-events: none;
   z-index: -2;
 
-  background-image: url("./assets/wellman-logo-clean.png");
-  background-repeat: no-repeat;
+  /* YOUR EXACT SITE BACKGROUND GRADIENT */
+  background:
+    radial-gradient(1200px 600px at 20% 0%, rgba(90,167,255,.22), transparent 55%),
+    radial-gradient(900px 500px at 80% 10%, rgba(71,215,172,.18), transparent 55%),
+    linear-gradient(180deg, #0b1220, #060b15),
 
-  /* Mobile-first: keep it behind header area */
-  background-position: 50% 22%;
+    /* logo layered on top */
+    url("./assets/header-banner.jpg");
 
-  /*
-    Use "contain-like" behavior by controlling size explicitly.
-    clamp(min, preferred, max) => great on mobile + ultrawide
-  */
-  background-size: clamp(320px, 92vw, 860px) auto;
+  background-repeat: no-repeat, no-repeat, no-repeat, no-repeat;
 
-  /* Subtle */
-  opacity: 0.15;
-  filter: saturate(.9) contrast(1.04);
+  /* first 3 gradients fill screen */
+  background-size:
+    100% 100%,
+    100% 100%,
+    100% 100%,
+
+    /* logo size */
+    min(1100px, 78vw) auto;
+
+  background-position:
+    center center,
+    center center,
+    center center,
+
+    /* logo position */
+    center center;
+
+  opacity: .25;
 }
 
 /* Tablet / desktop */
@@ -92,7 +106,7 @@ body::before{
   body::before{
     background-position: 50% 30%;
     background-size: clamp(520px, 60vw, 980px) auto;
-    opacity: 0.06;
+    opacity: 0.25;
   }
 }
 
@@ -101,7 +115,7 @@ body::before{
   body::before{
     background-position: 50% 34%;
     background-size: 980px auto;
-    opacity: 0.055;
+    opacity: 0.25;
   }
 }
 
