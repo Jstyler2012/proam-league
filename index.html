@@ -555,18 +555,20 @@
           <div class="tableWrap">
             <table>
               <thead>
-                <tr>
-                  <th class="rank" rowspan="2">Rank</th>
-                  <th class="center" colspan="2">Player</th>
-                  <th class="center" colspan="2">Pro</th>
-                  <th class="mono center" rowspan="2">Combined</th>
-                </tr>
-                <tr>
-                  <th>Player</th>
-                  <th class="mono center">Score</th>
-                  <th>Pro</th>
-                  <th class="mono center">Score</th>
-                </tr>
+                <thead>
+  <tr>
+    <th class="rank" rowspan="2">Rank</th>
+    <th class="mono center" rowspan="2">Score Total</th>
+    <th class="center" colspan="2">Player</th>
+    <th class="center" colspan="2">Pro</th>
+  </tr>
+  <tr>
+    <th>Player</th>
+    <th class="mono center">Score</th>
+    <th>Pro</th>
+    <th class="mono center">Score</th>
+  </tr>
+</thead>
               </thead>
               <tbody id="lbBody">
                 <tr><td colspan="6" style="color:rgba(233,241,255,.45);">Loading…</td></tr>
@@ -866,16 +868,16 @@ const API = {
         }else{
           $("lbBody").innerHTML = rows.map((r, idx) => {
             const proName = proNameFromRow(r);
-            return `
-              <tr>
-                <td class="rank">#${idx+1}</td>
-                <td>${r.player_name || "—"}</td>
-                <td class="mono lbScore">${fmtToPar(r.playerScore)}</td>
-                <td>${proName || "—"}</td>
-                <td class="mono lbScore">${fmtToPar(r.proScore)}</td>
-                <td class="mono lbCombined"><b>${fmtToPar(r.combined)}</b></td>
-              </tr>
-            `;
+    return `
+  <tr>
+    <td class="rank">#${idx+1}</td>
+    <td class="mono lbCombined"><b>${fmtToPar(r.combined)}</b></td>
+    <td>${r.player_name || "—"}</td>
+    <td class="mono lbScore">${fmtToPar(r.playerScore)}</td>
+    <td>${proName || "—"}</td>
+    <td class="mono lbScore">${fmtToPar(r.proScore)}</td>
+  </tr>
+`;
           }).join("");
         }
 
