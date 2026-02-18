@@ -1,32 +1,105 @@
-/* styles.css */
+/* styles.css — GLOBAL FOUNDATION */
+
+/* =========================
+   GLOBAL VARIABLES
+   ========================= */
 :root{
-  /* Global fixed watermark background (behind entire page) */
+  --bg:#0b1220;
+  --panel:#0f1b33;
+  --panel2:#0c162b;
+  --text:#e8eefc;
+  --muted:#a9b7d6;
+  --brand:#47d7ac;
+  --brand2:#5aa7ff;
+  --danger:#ff5a7a;
+  --warn:#ffcf5a;
+  --ok:#49e28b;
+
+  --majorBorder: rgba(255,207,90,.55);
+  --majorText: #ffe6ad;
+  --majorBg: rgba(255,207,90,.10);
+
+  --border:rgba(255,255,255,.10);
+  --shadow: 0 12px 40px rgba(0,0,0,.35);
+  --radius: 18px;
+}
+
+
+/* =========================
+   BASE PAGE BACKGROUND
+   ========================= */
 body{
   position: relative;
   margin:0;
-  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+  font-family:
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    Segoe UI,
+    Roboto,
+    Helvetica,
+    Arial,
+    "Apple Color Emoji",
+    "Segoe UI Emoji";
+
   background:
     radial-gradient(1200px 600px at 20% 0%, rgba(90,167,255,.22), transparent 55%),
     radial-gradient(900px 500px at 80% 10%, rgba(71,215,172,.18), transparent 55%),
     linear-gradient(180deg, var(--bg), #060b15);
-  color:var(--text);
+
+  color: var(--text);
 }
 
-/* the watermark image layer */
+
+/* =========================
+   FIXED WATERMARK IMAGE
+   stays still while scrolling
+   ========================= */
 body::before{
   content:"";
-  position: fixed;          /* stays still while scrolling */
+  position: fixed;
   inset: 0;
-  background-image: url("./assets/header-banner.jpg"); /* or your logo image */
+
+  background-image: url("./assets/header-banner.jpg");
+
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
 
-  opacity: 0.10;            /* adjust to taste: .06–.12 */
+  opacity: 0.10;
   transform: scale(1.03);
   filter: saturate(.9);
+
   pointer-events: none;
-  z-index: -2;              /* behind everything */
+  z-index: -2;
+}
+
+
+/* =========================
+   DARK VEIL FOR READABILITY
+   ========================= */
+body::after{
+  content:"";
+  position: fixed;
+  inset: 0;
+
+  background:
+    radial-gradient(900px 380px at 25% 20%, rgba(90,167,255,.10), transparent 62%),
+    radial-gradient(800px 320px at 80% 10%, rgba(71,215,172,.09), transparent 62%),
+    linear-gradient(180deg, rgba(0,0,0,.55), rgba(0,0,0,.22));
+
+  pointer-events: none;
+  z-index: -1;
+}
+
+
+/* =========================
+   GLOBAL STRUCTURE
+   ========================= */
+
+.wrap{
+  position: relative;
+  z-index: 1;
 }
 
 /* optional: adds the same subtle dark/gradient veil over the watermark */
