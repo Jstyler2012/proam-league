@@ -3,30 +3,42 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-
+  <title>Wellman Golf Club Pro-Am League</title>
   <link rel="stylesheet" href="./styles.css">
 </head>
 
 <body>
   <div class="wrap">
-<div id="siteHeader"></div>
-<script src="./partials/header.js"></script>
-<script>loadHeader("home");</script>
 
-<!-- Home-only controls (these IDs must exist for your JS) -->
-<div class="pillrow" style="margin: 14px 0 18px;">
-  <div class="pill" title="Netlify Functions health">
-    <span id="healthDot" class="dot"></span>
-    <span>API:</span>
-    <span id="healthText" class="mono">checking…</span>
-  </div>
-  <div class="pill" title="Current / displayed week">
-    <span class="mono">Week:</span>
-    <span id="weekLabel" class="mono">—</span>
-  </div>
-  <button class="btn secondary" id="refreshBtn">Refresh</button>
-</div>
-    <div class="card headerCard">
+    <!-- Title -->
+    <div>
+      <div class="pageTitle">Wellman Golf Club Pro-Am League</div>
+      <div class="pageSub">Season 1 dashboard • submissions • leaderboard • schedule</div>
+    </div>
+
+    <!-- Shared Header -->
+    <div id="siteHeader" class="sectionRule"></div>
+    <script src="./partials/header.js"></script>
+    <script>loadHeader("home");</script>
+
+    <!-- Page Controls -->
+    <div class="pillrow sectionRule">
+      <div class="pill" title="Netlify Functions health">
+        <span id="healthDot" class="dot"></span>
+        <span>API:</span>
+        <span id="healthText" class="mono">checking…</span>
+      </div>
+
+      <div class="pill" title="Current / displayed week">
+        <span class="mono">Week:</span>
+        <span id="weekLabel" class="mono">—</span>
+      </div>
+
+      <button class="btn secondary" id="refreshBtn">Refresh</button>
+    </div>
+
+    <!-- Content -->
+    <div class="card headerCard" style="margin-top:16px;">
       <div class="headerBanner" role="img" aria-label="Wellman Golf Club Pro-Am">
         <div class="headerBannerOverlay"></div>
         <div class="headerBannerText">
@@ -46,16 +58,18 @@
 
       <div id="weekHero" class="weekHero">
         <div class="weekHeroOverlay"></div>
-       <div class="weekHeroContent">
-  <img id="tournamentLogo" class="weekHeroLogo" alt="" style="display:none;">
-  <div class="weekHeroText">
-    <div class="weekHeroTitle" id="tournamentName">—</div>
-    <div class="weekHeroDates" id="tournamentDates">—</div>
-    <div class="row" style="margin-top:12px;">
-      <a href="./rules.html" class="btn secondary">View Rules</a>
-    </div>
-  </div>
-</div>
+        <div class="weekHeroContent">
+          <img id="tournamentLogo" class="weekHeroLogo" alt="" style="display:none;">
+          <div class="weekHeroText">
+            <div class="weekHeroTitle" id="tournamentName">—</div>
+            <div class="weekHeroDates" id="tournamentDates">—</div>
+            <div class="row" style="margin-top:12px;">
+              <a href="./rules.html" class="btn secondary">View Rules</a>
+              <a href="./draft.html" class="btn secondary">Go to Draft</a>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <div class="grid">
@@ -193,7 +207,7 @@
     <div class="footer">Hosted on Netlify • Data via Netlify Functions • DB via Supabase</div>
   </div>
 
-  <script>
+<script>
 const API = {
   health: "/.netlify/functions/public/health",
   players: "/.netlify/functions/public/players",
@@ -208,431 +222,427 @@ const API = {
   adminRecalc: "/.netlify/functions/admin/recalc"
 };
 
-    const $ = (id) => document.getElementById(id);
+const $ = (id) => document.getElementById(id);
 
-    function showMsg(el, text, type){
-      el.style.display = "block";
-      el.className = "msg" + (type ? " " + type : "");
-      el.textContent = text;
-    }
-    function hideMsg(el){ el.style.display="none"; }
+function showMsg(el, text, type){
+  el.style.display = "block";
+  el.className = "msg" + (type ? " " + type : "");
+  el.textContent = text;
+}
+function hideMsg(el){ el.style.display="none"; }
 
-    async function getJSON(url, opts={}){
-      const res = await fetch(url, { ...opts, headers: { "accept":"application/json", ...(opts.headers||{}) }});
-      const text = await res.text();
-      let data = null;
-      try { data = text ? JSON.parse(text) : null; } catch(e) {}
-      if(!res.ok){
-        const msg = (data && (data.error || data.message)) ? (data.error || data.message) : (text || res.statusText);
-        throw new Error(msg);
-      }
-      return data;
-    }
-
-    function parseToPar(str){
-      if(!str) return null;
-      let s = String(str).trim();
-      s = s.replace(/[−–—]/g, "-").replace(/[＋]/g, "+");
-      s = s.replace(/\u00A0/g, "");
-      if(/^[-+]?\d+$/.test(s)) return Number(s);
-      return null;
-    }
-
-    function fmtToPar(n){
-      if(n === null || n === undefined || Number.isNaN(n)) return "—";
-      return (n > 0 ? "+" : "") + String(n);
-    }
-
-    function fmtDateRange(startISO, endISO){
-      if(!startISO || !endISO) return "—";
-      const opts = { month:"short", day:"numeric", year:"numeric" };
-      const s = new Date(startISO + "T00:00:00");
-      const e = new Date(endISO + "T00:00:00");
-      return `${s.toLocaleDateString("en-US", opts)} – ${e.toLocaleDateString("en-US", opts)}`;
-    }
-
-    function isMajor(tournamentName){
-      const n = (tournamentName || "").toLowerCase();
-      return (
-        n.includes("the players") ||
-        n.includes("players championship") ||
-        n.includes("masters") ||
-        n.includes("pga championship") ||
-        n.includes("u.s. open") ||
-        n.includes("us open")
-      );
-    }
-
-    async function loadSeasonStandings(){
-      const body = $("seasonBody");
-      try{
-        const data = await getJSON(API.seasonStandings);
-        const rows = data.rows || [];
-        if(!rows.length){
-          body.innerHTML = `<tr><td colspan="3">No points yet.</td></tr>`;
-          return;
-        }
-        body.innerHTML = rows.map((r,i)=>`
-          <tr>
-            <td class="rank">#${i+1}</td>
-            <td>${r.player_name}</td>
-            <td class="mono">${r.points}</td>
-          </tr>
-        `).join("");
-      }catch(e){
-        body.innerHTML = `<tr><td colspan="3">Error loading standings.</td></tr>`;
-      }
-    }
-
-    function authHeaders(){
-      const token = $("adminToken").value.trim();
-      return token ? { "x-admin-token": token } : {};
-    }
-
-    // State
-    let players = [];
-    let pros = [];
-    let scheduleWeeks = [];
-    let displayedWeek = null;
-    let currentWeekId = null;
-
-    function renderWeekDetails(week){
-      const hero = $("weekHero");
-      const img = $("tournamentLogo");
-      const badge = $("tournamentWeekBadge");
-      const weekCard = $("weekDetailsCard");
-
-      weekCard.classList.remove("weekMajorCard");
-      badge.classList.remove("majorBadge");
-
-      if(!week){
-        $("tournamentName").textContent = "—";
-        $("tournamentDates").textContent = "—";
-        badge.textContent = "—";
-        img.style.display = "none";
-        hero.style.backgroundImage = "none";
-        return;
-      }
-
-      const majorBadge = $("majorPtsBadge");
-      const major = isMajor(week?.tournament_name);
-
-      if (major) {
-        majorBadge.style.display = "inline-flex";
-        majorBadge.classList.add("majorPts");
-      } else {
-        majorBadge.style.display = "none";
-        majorBadge.classList.remove("majorPts");
-      }
-
-      badge.textContent = week.label || `Week ${week.week_number || "—"}`;
-      $("tournamentName").textContent = week.tournament_name || "—";
-      $("tournamentDates").textContent = fmtDateRange(week.start_date, week.end_date);
-
-      if (week.logo_url) {
-        hero.style.backgroundImage = `url("${week.logo_url}")`;
-        img.src = week.logo_url;
-        img.alt = `${week.tournament_name || "Tournament"} logo`;
-        img.style.display = "block";
-      } else {
-        hero.style.backgroundImage = "none";
-        img.style.display = "none";
-      }
-
-      if (major) {
-        weekCard.classList.add("weekMajorCard");
-        badge.classList.add("majorBadge");
-      }
-    }
-
-    function renderSchedule(weeks, activeWeekId){
-      const el = $("scheduleList");
-      if(!Array.isArray(weeks) || weeks.length === 0){
-        el.innerHTML = `<div style="color:rgba(233,241,255,.45);">No weeks found.</div>`;
-        return;
-      }
-
-      const sorted = weeks
-        .filter(w => w.week_number != null)
-        .sort((a,b) => a.week_number - b.week_number);
-
-      el.innerHTML = sorted.map(w => {
-        const active = (w.id === activeWeekId) ? "active" : "";
-        const dates = fmtDateRange(w.start_date, w.end_date);
-        const logo = w.logo_url
-          ? `<img class="scheduleLogo" alt="" src="${w.logo_url}">`
-          : `<div class="scheduleLogo"></div>`;
-        const tag = isMajor(w.tournament_name)
-          ? `<span class="tag major">Major</span>`
-          : `<span class="tag">Week ${w.week_number}</span>`;
-
-        return `
-          <div class="scheduleItem ${active}" data-week-id="${w.id}">
-            <div class="scheduleLeft">
-              ${logo}
-              <div class="scheduleText">
-                <div class="scheduleName">Week ${w.week_number} • ${w.tournament_name || "—"}</div>
-                <div class="scheduleMeta">${dates}</div>
-              </div>
-            </div>
-            ${tag}
-          </div>
-        `;
-      }).join("");
-
-      el.querySelectorAll(".scheduleItem").forEach(item => {
-        item.addEventListener("click", async () => {
-          const weekId = item.getAttribute("data-week-id");
-          const w = weeks.find(x => x.id === weekId);
-          if(!w) return;
-          await setDisplayedWeek(w);
-        });
-      });
-    }
-
-    async function loadLeaderboardForWeek(week){
-      hideMsg($("lbMsg"));
-      $("lbBody").innerHTML = `<tr><td colspan="5" style="color:rgba(233,241,255,.45);">Loading…</td></tr>`;
-
-      try{
-        const url = `${API.leaderboard}?week_id=${encodeURIComponent(week.id)}`;
-        const data = await getJSON(url);
-
-        $("weekLabel").textContent = week.label || data.week || "—";
-
-        const rows = data.rows || [];
-        if(!Array.isArray(rows) || rows.length === 0){
-          $("lbBody").innerHTML = `<tr><td colspan="5" style="color:rgba(233,241,255,.45);">No scores yet.</td></tr>`;
-        }else{
-          $("lbBody").innerHTML = rows.map((r, idx) => `
-            <tr>
-              <td class="rank">#${idx+1}</td>
-              <td>${r.player_name || "—"}</td>
-              <td class="mono">${fmtToPar(r.playerScore)}</td>
-              <td class="mono">${fmtToPar(r.proScore)}</td>
-              <td class="mono"><b>${fmtToPar(r.combined)}</b></td>
-            </tr>
-          `).join("");
-        }
-
-        $("lastUpdated").textContent = "Updated: " + new Date().toLocaleTimeString();
-      }catch(e){
-        $("lbBody").innerHTML = `<tr><td colspan="5" style="color:rgba(233,241,255,.45);">Couldn’t load leaderboard.</td></tr>`;
-        showMsg($("lbMsg"), "Leaderboard error: " + e.message, "bad");
-      }
-    }
-
-    async function setDisplayedWeek(week){
-      displayedWeek = week;
-      currentWeekId = week.id;
-      renderWeekDetails(week);
-      renderSchedule(scheduleWeeks, week.id);
-      await loadLeaderboardForWeek(week);
-    }
-
-    async function checkHealth(){
-      try{
-        const data = await getJSON(API.health);
-        $("healthDot").className = "dot ok";
-        $("healthText").textContent = data && data.ok ? "ok" : "unknown";
-      }catch(e){
-        $("healthDot").className = "dot bad";
-        $("healthText").textContent = "down";
-      }
-    }
-
-    function populateSelect(sel, items, labelKey="name", valueKey="id"){
-      sel.innerHTML = "";
-      for(const it of items){
-        const opt = document.createElement("option");
-        opt.value = it[valueKey];
-        opt.textContent = it[labelKey];
-        sel.appendChild(opt);
-      }
-    }
-
-    async function loadPlayersAndPros(){
-      const [p, pr] = await Promise.all([ getJSON(API.players), getJSON(API.pros) ]);
-      players = Array.isArray(p) ? p : (p.players || []);
-      pros = Array.isArray(pr) ? pr : (pr.pros || []);
-      populateSelect($("playerSel"), players);
-      populateSelect($("proSel"), pros);
-    }
-
-    async function loadSchedule(){
-      const res = await getJSON(API.schedule);
-      scheduleWeeks = res?.weeks || [];
-      return scheduleWeeks;
-    }
-
-    function pickDisplayedWeekFromSchedule(weeks){
-      const sorted = (weeks || [])
-        .filter(w => w.week_number != null)
-        .sort((a,b) => a.week_number - b.week_number);
-
-      if(!sorted.length) return null;
-
-      const today = new Date();
-
-      const inRange = sorted.find(w => {
-        if(!w.start_date || !w.end_date) return false;
-        const s = new Date(w.start_date + "T00:00:00");
-        const e = new Date(w.end_date + "T23:59:59");
-        return today >= s && today <= e;
-      });
-
-      if(inRange) return inRange;
-
-      const seasonStart = sorted[0].start_date ? new Date(sorted[0].start_date + "T00:00:00") : null;
-      if(seasonStart && today < seasonStart) return sorted[0];
-
-      return sorted[sorted.length - 1];
-    }
-
-    function computeCombined(){
-      const you = parseToPar($("playerScore").value);
-      const pro = parseToPar($("proScore").value);
-      if(you === null || pro === null) return null;
-      return you + pro;
-    }
-    function renderCombined(){
-      const c = computeCombined();
-      $("combinedBadge").textContent = "Combined: " + fmtToPar(c);
-    }
-
-    async function submitScore(){
-      hideMsg($("submitMsg"));
-
-      if (!currentWeekId) {
-        showMsg($("submitMsg"), "No week loaded yet. Click refresh and try again.", "bad");
-        return;
-      }
-
-      const playerId = $("playerSel").value;
-      const proId = $("proSel").value;
-      const you = parseToPar($("playerScore").value);
-      const pro = parseToPar($("proScore").value);
-
-      if(!playerId || !proId){
-        showMsg($("submitMsg"), "Pick a Player and a Pro.", "bad"); return;
-      }
-      if(you === null){
-        showMsg($("submitMsg"), "Enter your score to par (example: +10).", "bad"); return;
-      }
-
-      const payload = { week_id: currentWeekId, player_id: playerId, pro_id: proId, player_to_par: you };
-      if (pro !== null) payload.pro_to_par = pro;
-
-      try{
-        await getJSON(API.submit, {
-          method:"POST",
-          headers: { "content-type":"application/json" },
-          body: JSON.stringify(payload)
-        });
-
-        showMsg($("submitMsg"), "Saved!", "ok");
-        if (displayedWeek) await loadLeaderboardForWeek(displayedWeek);
-      }catch(e){
-        showMsg($("submitMsg"), "Submit error: " + e.message, "bad");
-      }
-    }
-
-    async function autoPullProScore(){
-      hideMsg($("submitMsg"));
-      const proId = $("proSel").value;
-      if(!proId){
-        showMsg($("submitMsg"), "Pick a Pro first.", "bad"); return;
-      }
-      try{
-        const data = await getJSON(API.proscore + "?pro_id=" + encodeURIComponent(proId));
-        const val = data.pro_to_par ?? data.to_par ?? data.score_to_par ?? null;
-        if(val === null || val === undefined){
-          showMsg($("submitMsg"), "Auto-pull worked but didn’t return a score field.", "bad"); return;
-        }
-        $("proScore").value = fmtToPar(Number(val));
-        renderCombined();
-        showMsg($("submitMsg"), "Pulled pro score: " + fmtToPar(Number(val)), "ok");
-      }catch(e){
-        showMsg($("submitMsg"), "Auto-pull error: " + e.message, "bad");
-      }
-    }
-
-    function updateAdminUI(){
-      const tok = localStorage.getItem("PROAM_ADMIN_TOKEN");
-      if(tok){
-        $("adminState").textContent = "Token saved (admin actions enabled)";
-        $("lockBadge").textContent = "Admin ready";
-        $("lockBadge").className = "badge";
-      }else{
-        $("adminState").textContent = "Not signed in";
-        $("lockBadge").textContent = "Public";
-        $("lockBadge").className = "badge gray";
-      }
-    }
-
-    async function adminResetWeek(){
-      hideMsg($("adminMsg"));
-      try{
-        await getJSON(API.adminResetWeek, { method:"POST", headers: { ...authHeaders() } });
-        showMsg($("adminMsg"), "Week reset complete.", "ok");
-        if (displayedWeek) await loadLeaderboardForWeek(displayedWeek);
-      }catch(e){
-        showMsg($("adminMsg"), "Admin reset error: " + e.message, "bad");
-      }
-    }
-
-    async function adminRecalc(){
-      hideMsg($("adminMsg"));
-      try{
-        await getJSON(API.adminRecalc, { method:"POST", headers: { ...authHeaders() } });
-        showMsg($("adminMsg"), "Recalculation complete.", "ok");
-        if (displayedWeek) await loadLeaderboardForWeek(displayedWeek);
-      }catch(e){
-        showMsg($("adminMsg"), "Admin recalc error: " + e.message, "bad");
-      }
-    }
-
-    $("playerScore")?.addEventListener("input", renderCombined);
-    $("proScore")?.addEventListener("input", renderCombined);
-
-    $("submitBtn")?.addEventListener("click", submitScore);
-    $("autoProBtn")?.addEventListener("click", autoPullProScore);
-
-   const refreshBtn = $("refreshBtn");
-if (refreshBtn) {
-  refreshBtn.onclick = async () => {
-    await boot();
-    await loadSeasonStandings();
-  };
+async function getJSON(url, opts={}){
+  const res = await fetch(url, { ...opts, headers: { "accept":"application/json", ...(opts.headers||{}) }});
+  const text = await res.text();
+  let data = null;
+  try { data = text ? JSON.parse(text) : null; } catch(e) {}
+  if(!res.ok){
+    const msg = (data && (data.error || data.message)) ? (data.error || data.message) : (text || res.statusText);
+    throw new Error(msg);
+  }
+  return data;
 }
 
-    $("adminSaveBtn")?.addEventListener("click", () => {
-      const v = $("adminToken").value.trim();
-      if(v){
-        localStorage.setItem("PROAM_ADMIN_TOKEN", v);
-        showMsg($("adminMsg"), "Saved admin token in this browser.", "ok");
-      }else{
-        showMsg($("adminMsg"), "Paste a token first.", "bad");
-      }
-      updateAdminUI();
+function parseToPar(str){
+  if(!str) return null;
+  let s = String(str).trim();
+  s = s.replace(/[−–—]/g, "-").replace(/[＋]/g, "+");
+  s = s.replace(/\u00A0/g, "");
+  if(/^[-+]?\d+$/.test(s)) return Number(s);
+  return null;
+}
+function fmtToPar(n){
+  if(n === null || n === undefined || Number.isNaN(n)) return "—";
+  return (n > 0 ? "+" : "") + String(n);
+}
+
+function fmtDateRange(startISO, endISO){
+  if(!startISO || !endISO) return "—";
+  const opts = { month:"short", day:"numeric", year:"numeric" };
+  const s = new Date(startISO + "T00:00:00");
+  const e = new Date(endISO + "T00:00:00");
+  return `${s.toLocaleDateString("en-US", opts)} – ${e.toLocaleDateString("en-US", opts)}`;
+}
+
+function isMajor(tournamentName){
+  const n = (tournamentName || "").toLowerCase();
+  return (
+    n.includes("the players") ||
+    n.includes("players championship") ||
+    n.includes("masters") ||
+    n.includes("pga championship") ||
+    n.includes("u.s. open") ||
+    n.includes("us open")
+  );
+}
+
+async function loadSeasonStandings(){
+  const body = $("seasonBody");
+  try{
+    const data = await getJSON(API.seasonStandings);
+    const rows = data.rows || [];
+    if(!rows.length){
+      body.innerHTML = `<tr><td colspan="3">No points yet.</td></tr>`;
+      return;
+    }
+    body.innerHTML = rows.map((r,i)=>`
+      <tr>
+        <td class="rank">#${i+1}</td>
+        <td>${r.player_name}</td>
+        <td class="mono">${r.points}</td>
+      </tr>
+    `).join("");
+  }catch(e){
+    body.innerHTML = `<tr><td colspan="3">Error loading standings.</td></tr>`;
+  }
+}
+
+function authHeaders(){
+  const token = $("adminToken").value.trim();
+  return token ? { "x-admin-token": token } : {};
+}
+
+// State
+let players = [];
+let pros = [];
+let scheduleWeeks = [];
+let displayedWeek = null;
+let currentWeekId = null;
+
+function renderWeekDetails(week){
+  const hero = $("weekHero");
+  const img = $("tournamentLogo");
+  const badge = $("tournamentWeekBadge");
+  const weekCard = $("weekDetailsCard");
+
+  weekCard.classList.remove("weekMajorCard");
+  badge.classList.remove("majorBadge");
+
+  if(!week){
+    $("tournamentName").textContent = "—";
+    $("tournamentDates").textContent = "—";
+    badge.textContent = "—";
+    img.style.display = "none";
+    hero.style.backgroundImage = "none";
+    return;
+  }
+
+  const majorBadge = $("majorPtsBadge");
+  const major = isMajor(week?.tournament_name);
+
+  if (major) {
+    majorBadge.style.display = "inline-flex";
+    majorBadge.classList.add("majorPts");
+  } else {
+    majorBadge.style.display = "none";
+    majorBadge.classList.remove("majorPts");
+  }
+
+  badge.textContent = week.label || `Week ${week.week_number || "—"}`;
+  $("tournamentName").textContent = week.tournament_name || "—";
+  $("tournamentDates").textContent = fmtDateRange(week.start_date, week.end_date);
+
+  if (week.logo_url) {
+    hero.style.backgroundImage = `url("${week.logo_url}")`;
+    img.src = week.logo_url;
+    img.alt = `${week.tournament_name || "Tournament"} logo`;
+    img.style.display = "block";
+  } else {
+    hero.style.backgroundImage = "none";
+    img.style.display = "none";
+  }
+
+  if (major) {
+    weekCard.classList.add("weekMajorCard");
+    badge.classList.add("majorBadge");
+  }
+}
+
+function renderSchedule(weeks, activeWeekId){
+  const el = $("scheduleList");
+  if(!Array.isArray(weeks) || weeks.length === 0){
+    el.innerHTML = `<div style="color:rgba(233,241,255,.45);">No weeks found.</div>`;
+    return;
+  }
+
+  const sorted = weeks
+    .filter(w => w.week_number != null)
+    .sort((a,b) => a.week_number - b.week_number);
+
+  el.innerHTML = sorted.map(w => {
+    const active = (w.id === activeWeekId) ? "active" : "";
+    const dates = fmtDateRange(w.start_date, w.end_date);
+    const logo = w.logo_url
+      ? `<img class="scheduleLogo" alt="" src="${w.logo_url}">`
+      : `<div class="scheduleLogo"></div>`;
+    const tag = isMajor(w.tournament_name)
+      ? `<span class="tag major">Major</span>`
+      : `<span class="tag">Week ${w.week_number}</span>`;
+
+    return `
+      <div class="scheduleItem ${active}" data-week-id="${w.id}">
+        <div class="scheduleLeft">
+          ${logo}
+          <div class="scheduleText">
+            <div class="scheduleName">Week ${w.week_number} • ${w.tournament_name || "—"}</div>
+            <div class="scheduleMeta">${dates}</div>
+          </div>
+        </div>
+        ${tag}
+      </div>
+    `;
+  }).join("");
+
+  el.querySelectorAll(".scheduleItem").forEach(item => {
+    item.addEventListener("click", async () => {
+      const weekId = item.getAttribute("data-week-id");
+      const w = weeks.find(x => x.id === weekId);
+      if(!w) return;
+      await setDisplayedWeek(w);
+    });
+  });
+}
+
+async function loadLeaderboardForWeek(week){
+  hideMsg($("lbMsg"));
+  $("lbBody").innerHTML = `<tr><td colspan="5" style="color:rgba(233,241,255,.45);">Loading…</td></tr>`;
+
+  try{
+    const url = `${API.leaderboard}?week_id=${encodeURIComponent(week.id)}`;
+    const data = await getJSON(url);
+
+    $("weekLabel").textContent = week.label || data.week || "—";
+
+    const rows = data.rows || [];
+    if(!Array.isArray(rows) || rows.length === 0){
+      $("lbBody").innerHTML = `<tr><td colspan="5" style="color:rgba(233,241,255,.45);">No scores yet.</td></tr>`;
+    }else{
+      $("lbBody").innerHTML = rows.map((r, idx) => `
+        <tr>
+          <td class="rank">#${idx+1}</td>
+          <td>${r.player_name || "—"}</td>
+          <td class="mono">${fmtToPar(r.playerScore)}</td>
+          <td class="mono">${fmtToPar(r.proScore)}</td>
+          <td class="mono"><b>${fmtToPar(r.combined)}</b></td>
+        </tr>
+      `).join("");
+    }
+
+    $("lastUpdated").textContent = "Updated: " + new Date().toLocaleTimeString();
+  }catch(e){
+    $("lbBody").innerHTML = `<tr><td colspan="5" style="color:rgba(233,241,255,.45);">Couldn’t load leaderboard.</td></tr>`;
+    showMsg($("lbMsg"), "Leaderboard error: " + e.message, "bad");
+  }
+}
+
+async function setDisplayedWeek(week){
+  displayedWeek = week;
+  currentWeekId = week.id;
+  renderWeekDetails(week);
+  renderSchedule(scheduleWeeks, week.id);
+  await loadLeaderboardForWeek(week);
+}
+
+async function checkHealth(){
+  try{
+    const data = await getJSON(API.health);
+    $("healthDot").className = "dot ok";
+    $("healthText").textContent = data && data.ok ? "ok" : "unknown";
+  }catch(e){
+    $("healthDot").className = "dot bad";
+    $("healthText").textContent = "down";
+  }
+}
+
+function populateSelect(sel, items, labelKey="name", valueKey="id"){
+  sel.innerHTML = "";
+  for(const it of items){
+    const opt = document.createElement("option");
+    opt.value = it[valueKey];
+    opt.textContent = it[labelKey];
+    sel.appendChild(opt);
+  }
+}
+
+async function loadPlayersAndPros(){
+  const [p, pr] = await Promise.all([ getJSON(API.players), getJSON(API.pros) ]);
+  players = Array.isArray(p) ? p : (p.players || []);
+  pros = Array.isArray(pr) ? pr : (pr.pros || []);
+  populateSelect($("playerSel"), players);
+  populateSelect($("proSel"), pros);
+}
+
+async function loadSchedule(){
+  const res = await getJSON(API.schedule);
+  scheduleWeeks = res?.weeks || [];
+  return scheduleWeeks;
+}
+
+function pickDisplayedWeekFromSchedule(weeks){
+  const sorted = (weeks || [])
+    .filter(w => w.week_number != null)
+    .sort((a,b) => a.week_number - b.week_number);
+
+  if(!sorted.length) return null;
+
+  const today = new Date();
+
+  const inRange = sorted.find(w => {
+    if(!w.start_date || !w.end_date) return false;
+    const s = new Date(w.start_date + "T00:00:00");
+    const e = new Date(w.end_date + "T23:59:59");
+    return today >= s && today <= e;
+  });
+
+  if(inRange) return inRange;
+
+  const seasonStart = sorted[0].start_date ? new Date(sorted[0].start_date + "T00:00:00") : null;
+  if(seasonStart && today < seasonStart) return sorted[0];
+
+  return sorted[sorted.length - 1];
+}
+
+function computeCombined(){
+  const you = parseToPar($("playerScore").value);
+  const pro = parseToPar($("proScore").value);
+  if(you === null || pro === null) return null;
+  return you + pro;
+}
+function renderCombined(){
+  const c = computeCombined();
+  $("combinedBadge").textContent = "Combined: " + fmtToPar(c);
+}
+
+async function submitScore(){
+  hideMsg($("submitMsg"));
+
+  if (!currentWeekId) {
+    showMsg($("submitMsg"), "No week loaded yet. Click refresh and try again.", "bad");
+    return;
+  }
+
+  const playerId = $("playerSel").value;
+  const proId = $("proSel").value;
+  const you = parseToPar($("playerScore").value);
+  const pro = parseToPar($("proScore").value);
+
+  if(!playerId || !proId){
+    showMsg($("submitMsg"), "Pick a Player and a Pro.", "bad"); return;
+  }
+  if(you === null){
+    showMsg($("submitMsg"), "Enter your score to par (example: +10).", "bad"); return;
+  }
+
+  const payload = { week_id: currentWeekId, player_id: playerId, pro_id: proId, player_to_par: you };
+  if (pro !== null) payload.pro_to_par = pro;
+
+  try{
+    await getJSON(API.submit, {
+      method:"POST",
+      headers: { "content-type":"application/json" },
+      body: JSON.stringify(payload)
     });
 
-    $("adminClearBtn")?.addEventListener("click", () => {
-      localStorage.removeItem("PROAM_ADMIN_TOKEN");
-      $("adminToken").value = "";
-      showMsg($("adminMsg"), "Cleared admin token.", "ok");
-      updateAdminUI();
-    });
+    showMsg($("submitMsg"), "Saved!", "ok");
+    if (displayedWeek) await loadLeaderboardForWeek(displayedWeek);
+  }catch(e){
+    showMsg($("submitMsg"), "Submit error: " + e.message, "bad");
+  }
+}
 
-    $("resetWeekBtn")?.addEventListener("click", () => {
-      if(confirm("Reset the week? This will delete current week entries.")){
-        adminResetWeek();
-      }
-    });
+async function autoPullProScore(){
+  hideMsg($("submitMsg"));
+  const proId = $("proSel").value;
+  if(!proId){
+    showMsg($("submitMsg"), "Pick a Pro first.", "bad"); return;
+  }
+  try{
+    const data = await getJSON(API.proscore + "?pro_id=" + encodeURIComponent(proId));
+    const val = data.pro_to_par ?? data.to_par ?? data.score_to_par ?? null;
+    if(val === null || val === undefined){
+      showMsg($("submitMsg"), "Auto-pull worked but didn’t return a score field.", "bad"); return;
+    }
+    $("proScore").value = fmtToPar(Number(val));
+    renderCombined();
+    showMsg($("submitMsg"), "Pulled pro score: " + fmtToPar(Number(val)), "ok");
+  }catch(e){
+    showMsg($("submitMsg"), "Auto-pull error: " + e.message, "bad");
+  }
+}
 
-    $("recalcBtn")?.addEventListener("click", adminRecalc);
+function updateAdminUI(){
+  const tok = localStorage.getItem("PROAM_ADMIN_TOKEN");
+  if(tok){
+    $("adminState").textContent = "Token saved (admin actions enabled)";
+    $("lockBadge").textContent = "Admin ready";
+    $("lockBadge").className = "badge";
+  }else{
+    $("adminState").textContent = "Not signed in";
+    $("lockBadge").textContent = "Public";
+    $("lockBadge").className = "badge gray";
+  }
+}
 
-  async function boot(){
+async function adminResetWeek(){
+  hideMsg($("adminMsg"));
+  try{
+    await getJSON(API.adminResetWeek, { method:"POST", headers: { ...authHeaders() } });
+    showMsg($("adminMsg"), "Week reset complete.", "ok");
+    if (displayedWeek) await loadLeaderboardForWeek(displayedWeek);
+  }catch(e){
+    showMsg($("adminMsg"), "Admin reset error: " + e.message, "bad");
+  }
+}
+
+async function adminRecalc(){
+  hideMsg($("adminMsg"));
+  try{
+    await getJSON(API.adminRecalc, { method:"POST", headers: { ...authHeaders() } });
+    showMsg($("adminMsg"), "Recalculation complete.", "ok");
+    if (displayedWeek) await loadLeaderboardForWeek(displayedWeek);
+  }catch(e){
+    showMsg($("adminMsg"), "Admin recalc error: " + e.message, "bad");
+  }
+}
+
+$("playerScore")?.addEventListener("input", renderCombined);
+$("proScore")?.addEventListener("input", renderCombined);
+
+$("submitBtn")?.addEventListener("click", submitScore);
+$("autoProBtn")?.addEventListener("click", autoPullProScore);
+
+$("refreshBtn").onclick = async () => {
+  await boot();
+  await loadSeasonStandings();
+};
+
+$("adminSaveBtn")?.addEventListener("click", () => {
+  const v = $("adminToken").value.trim();
+  if(v){
+    localStorage.setItem("PROAM_ADMIN_TOKEN", v);
+    showMsg($("adminMsg"), "Saved admin token in this browser.", "ok");
+  }else{
+    showMsg($("adminMsg"), "Paste a token first.", "bad");
+  }
+  updateAdminUI();
+});
+
+$("adminClearBtn")?.addEventListener("click", () => {
+  localStorage.removeItem("PROAM_ADMIN_TOKEN");
+  $("adminToken").value = "";
+  showMsg($("adminMsg"), "Cleared admin token.", "ok");
+  updateAdminUI();
+});
+
+$("resetWeekBtn")?.addEventListener("click", () => {
+  if(confirm("Reset the week? This will delete current week entries.")){
+    adminResetWeek();
+  }
+});
+
+$("recalcBtn")?.addEventListener("click", adminRecalc);
+
+async function boot(){
   updateAdminUI();
 
   const tok = localStorage.getItem("PROAM_ADMIN_TOKEN");
