@@ -70,7 +70,7 @@ body::before{
   pointer-events: none;
   z-index: -2;
 
-  background-image: url("./assets/header-banner.jpg");
+  background-image: url("./assets/wellman-logo-clean.png");
   background-repeat: no-repeat;
 
   /* Mobile-first: keep it behind header area */
