@@ -20,27 +20,18 @@
     </div>
 
     <header>
-      <div class="pillrow">
-        <div class="pill" title="Netlify Functions health">
-          <span id="healthDot" class="dot"></span>
-          <span>API:</span>
-          <span id="healthText" class="mono">checking…</span>
-        </div>
-        <div class="pill" title="Current / displayed week">
-          <span class="mono">Week:</span>
-          <span id="weekLabel" class="mono">—</span>
-        </div>
-        <button class="btn secondary" id="refreshBtn">Refresh</button>
-      </div>
+    <div id="siteHeader"></div>
 
-      <div style="width:100%; margin-top:12px;">
-        <div style="display:flex;gap:8px;flex-wrap:wrap;border-top:1px solid var(--border);padding-top:10px;">
-         <a href="./index.html" class="navTab navTabActive">Home</a>
-<a href="/draft.html" class="navTab">Draft</a>
-<a href="/rules.html" class="navTab">Rules</a>
-<a href="/signup.html" class="navTab">Sign Up</a>
-        </div>
-      </div>
+<script>
+  async function loadHeader(activeKey){
+    const host = document.getElementById("siteHeader");
+    const res = await fetch("./partials/header.html");
+    host.innerHTML = await res.text();
+    const active = host.querySelector(`[data-nav="${activeKey}"]`);
+    if(active) active.classList.add("navTabActive");
+  }
+  loadHeader("home");
+</script>
     </header>
 
     <div class="card" id="weekDetailsCard" style="margin-bottom:16px;">
