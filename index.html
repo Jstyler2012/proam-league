@@ -4,7 +4,8 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Wellman Golf Club Pro-Am League</title>
-    <link rel="stylesheet" href="./styles.css"> 
+  <link rel="stylesheet" href="./styles.css">
+
   <style>
     :root{
       --bg:#0b1220;
@@ -136,6 +137,7 @@
       border-bottom:1px solid rgba(255,255,255,.07);
       text-align:left;
       font-size:13px;
+      vertical-align: middle;
     }
     th{ color:var(--muted); font-weight:700; font-size:12px; text-transform:uppercase; letter-spacing:.3px; }
     tr:last-child td{ border-bottom:none; }
@@ -157,7 +159,6 @@
       font-weight:700;
     }
 
-    /* Week pill replaces "Week Details" title */
     .badge.weekPill{
       font-size:13px;
       padding:7px 12px;
@@ -205,7 +206,6 @@
       background:rgba(71,215,172,.10);
     }
 
-    /* Week hero (inside Week card) */
     .weekHero{
       position: relative;
       min-height: 150px;
@@ -340,7 +340,6 @@
       font-weight: 800 !important;
     }
 
-    /* NEW: discreet background behind title + nav + controls */
     .topMasthead{
       position: relative;
       padding: 16px;
@@ -373,21 +372,48 @@
       font-size:13px;
       text-shadow: 0 2px 10px rgba(0,0,0,.55);
     }
+
+    /* Requested: hide the top status pills (API / Week / Refresh), but keep in DOM for JS */
+    .mastheadControls{ display:none !important; }
+
+    /* Requested: nav aligned neatly under season pill */
+    .navRow{
+      margin-top: 10px;
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+    }
+
+    /* Requested: hide Public pill beside Submit title (but keep for JS state updates) */
+    #lockBadge{ display:none !important; }
+
+    /* Leaderboard alignment helpers */
+    .center{ text-align:center !important; }
+    .lbScore, .lbCombined{ text-align:center !important; }
+    .lbCombined b{ display:inline-block; min-width: 42px; text-align:center; }
   </style>
 </head>
 
 <body>
   <div class="wrap">
 
-    <!-- REPLACED big banner with discreet background masthead -->
     <div class="topMasthead">
       <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:14px;flex-wrap:wrap;">
         <div>
           <div class="siteTitle">Wellman Golf Club Pro-Am League</div>
           <div class="seasonPill">Season 1: March 9 - June 21, 2026</div>
+
+          <!-- Nav moved here, under Season pill (where pills used to sit visually) -->
+          <div class="navRow">
+            <a href="./index.html" class="navTab navTabActive">Home</a>
+            <a href="./draft.html" class="navTab">Draft</a>
+            <a href="./rules.html" class="navTab">Rules</a>
+            <a href="./signup.html" class="navTab">Sign Up</a>
+          </div>
         </div>
 
-        <div class="pillrow" aria-label="Top controls">
+        <!-- Kept for JS updates, hidden via .mastheadControls -->
+        <div class="pillrow mastheadControls" aria-label="Top controls">
           <div class="pill" title="Netlify Functions health">
             <span id="healthDot" class="dot"></span>
             <span>API:</span>
@@ -400,20 +426,10 @@
           <button class="btn secondary" id="refreshBtn">Refresh</button>
         </div>
       </div>
-
-      <div style="margin-top:12px; border-top:1px solid var(--border); padding-top:10px;">
-        <div style="display:flex;gap:8px;flex-wrap:wrap;">
-          <a href="./index.html" class="navTab navTabActive">Home</a>
-          <a href="./draft.html" class="navTab">Draft</a>
-          <a href="./rules.html" class="navTab">Rules</a>
-          <a href="./signup.html" class="navTab">Sign Up</a>
-        </div>
-      </div>
     </div>
 
     <div class="card" id="weekDetailsCard" style="margin-bottom:16px;">
       <div class="hd">
-        <!-- Week pill replaces "Week Details" -->
         <span class="badge weekPill" id="tournamentWeekBadge">—</span>
 
         <div class="row" style="justify-content:flex-end;">
@@ -436,7 +452,7 @@
     <div class="grid">
       <div class="card">
         <div class="hd">
-          <h2>Submit your week</h2>
+          <h2>Submit Your Score</h2>
           <span class="badge gray" id="lockBadge">Public</span>
         </div>
         <div class="bd">
@@ -446,7 +462,7 @@
               <select id="playerSel"></select>
             </div>
             <div class="field">
-              <label for="proSel">Drafted Pro</label>
+              <label for="proSel">Pro</label>
               <select id="proSel"></select>
             </div>
           </div>
@@ -469,33 +485,36 @@
 
           <div id="submitMsg" class="msg" style="display:none;"></div>
 
-          <div class="msg" style="margin-top:12px;">
-            <div class="row" style="justify-content:space-between;">
-              <span><b>How it works:</b> Combined = (Your score to par) + (Pro score to par)</span>
-              <span class="badge" id="combinedBadge">Combined: —</span>
-            </div>
+          <!-- Requested: remove How it works box; keep only Combined pill -->
+          <div class="row" style="margin-top:12px; justify-content:flex-end;">
+            <span class="badge" id="combinedBadge">Combined: —</span>
           </div>
         </div>
       </div>
 
       <div class="card">
         <div class="hd">
-          <h2>Leaderboard</h2>
+          <h2 id="leaderboardTitle">Week — Leaderboard</h2>
           <span class="badge" id="lastUpdated">Updated: —</span>
         </div>
         <div class="bd">
           <table>
             <thead>
               <tr>
-                <th class="rank">Rank</th>
+                <th class="rank" rowspan="2">Rank</th>
+                <th class="center" colspan="2">Player</th>
+                <th class="center" colspan="2">Pro</th>
+                <th class="mono center" rowspan="2">Combined</th>
+              </tr>
+              <tr>
                 <th>Player</th>
-                <th class="mono">You</th>
-                <th class="mono">Pro</th>
-                <th class="mono">Combined</th>
+                <th class="mono center">Score</th>
+                <th>Pro</th>
+                <th class="mono center">Score</th>
               </tr>
             </thead>
             <tbody id="lbBody">
-              <tr><td colspan="5" style="color:rgba(233,241,255,.45);">Loading…</td></tr>
+              <tr><td colspan="6" style="color:rgba(233,241,255,.45);">Loading…</td></tr>
             </tbody>
           </table>
           <div id="lbMsg" class="msg" style="display:none;"></div>
@@ -503,27 +522,8 @@
       </div>
     </div>
 
-    <div class="card">
-      <div class="hd">
-        <h2>Season Standings</h2>
-        <span class="badge">Points</span>
-      </div>
-      <div class="bd">
-        <table>
-          <thead>
-            <tr>
-              <th class="rank">Rank</th>
-              <th>Player</th>
-              <th class="mono">Points</th>
-            </tr>
-          </thead>
-          <tbody id="seasonBody">
-            <tr><td colspan="3">Loading…</td></tr>
-          </tbody>
-        </table>
-        <div id="seasonMsg" class="msg" style="display:none;"></div>
-      </div>
-    </div>
+    <!-- Season Standings removed from Home per request.
+         JS is updated to not error if #seasonBody doesn't exist. -->
 
     <div class="card" style="margin-top:16px;">
       <div class="hd">
@@ -586,11 +586,12 @@ const API = {
     const $ = (id) => document.getElementById(id);
 
     function showMsg(el, text, type){
+      if(!el) return;
       el.style.display = "block";
       el.className = "msg" + (type ? " " + type : "");
       el.textContent = text;
     }
-    function hideMsg(el){ el.style.display="none"; }
+    function hideMsg(el){ if(el) el.style.display="none"; }
 
     async function getJSON(url, opts={}){
       const res = await fetch(url, { ...opts, headers: { "accept":"application/json", ...(opts.headers||{}) }});
@@ -626,7 +627,6 @@ const API = {
       return `${s.toLocaleDateString("en-US", opts)} – ${e.toLocaleDateString("en-US", opts)}`;
     }
 
-    /* UPDATED: Players Championship is NOT a major */
     function isMajor(tournamentName){
       const n = (tournamentName || "").toLowerCase();
       return (
@@ -639,8 +639,11 @@ const API = {
       );
     }
 
+    // Safe: only runs if Season Standings exists on the page (removed from Home)
     async function loadSeasonStandings(){
       const body = $("seasonBody");
+      if(!body) return;
+
       try{
         const data = await getJSON(API.seasonStandings);
         const rows = data.rows || [];
@@ -661,11 +664,10 @@ const API = {
     }
 
     function authHeaders(){
-      const token = $("adminToken").value.trim();
+      const token = $("adminToken")?.value?.trim() || "";
       return token ? { "x-admin-token": token } : {};
     }
 
-    // State
     let players = [];
     let pros = [];
     let scheduleWeeks = [];
@@ -766,34 +768,55 @@ const API = {
       });
     }
 
+    function setLeaderboardTitleFromLabel(label, fallbackWeekNumber){
+      const wkNum = Number(String(label).match(/\d+/)?.[0] || fallbackWeekNumber || "");
+      const titleEl = $("leaderboardTitle");
+      if(titleEl) titleEl.textContent = `Week ${wkNum || "—"} Leaderboard`;
+    }
+
     async function loadLeaderboardForWeek(week){
       hideMsg($("lbMsg"));
-      $("lbBody").innerHTML = `<tr><td colspan="5" style="color:rgba(233,241,255,.45);">Loading…</td></tr>`;
+      $("lbBody").innerHTML = `<tr><td colspan="6" style="color:rgba(233,241,255,.45);">Loading…</td></tr>`;
 
       try{
         const url = `${API.leaderboard}?week_id=${encodeURIComponent(week.id)}`;
         const data = await getJSON(url);
 
-        $("weekLabel").textContent = week.label || data.week || "—";
+        const label = week.label || data.week || "—";
+        if($("weekLabel")) $("weekLabel").textContent = label;
+
+        setLeaderboardTitleFromLabel(label, week.week_number);
 
         const rows = data.rows || [];
         if(!Array.isArray(rows) || rows.length === 0){
-          $("lbBody").innerHTML = `<tr><td colspan="5" style="color:rgba(233,241,255,.45);">No scores yet.</td></tr>`;
+          $("lbBody").innerHTML = `<tr><td colspan="6" style="color:rgba(233,241,255,.45);">No scores yet.</td></tr>`;
         }else{
-          $("lbBody").innerHTML = rows.map((r, idx) => `
-            <tr>
-              <td class="rank">#${idx+1}</td>
-              <td>${r.player_name || "—"}</td>
-              <td class="mono">${fmtToPar(r.playerScore)}</td>
-              <td class="mono">${fmtToPar(r.proScore)}</td>
-              <td class="mono"><b>${fmtToPar(r.combined)}</b></td>
-            </tr>
-          `).join("");
+          $("lbBody").innerHTML = rows.map((r, idx) => {
+            // Pro name field: try common variants safely
+            const proName =
+              r.pro_name ??
+              r.proName ??
+              r.pro ??
+              r.drafted_pro_name ??
+              r.draftedProName ??
+              "—";
+
+            return `
+              <tr>
+                <td class="rank">#${idx+1}</td>
+                <td>${r.player_name || "—"}</td>
+                <td class="mono lbScore">${fmtToPar(r.playerScore)}</td>
+                <td>${proName || "—"}</td>
+                <td class="mono lbScore">${fmtToPar(r.proScore)}</td>
+                <td class="mono lbCombined"><b>${fmtToPar(r.combined)}</b></td>
+              </tr>
+            `;
+          }).join("");
         }
 
         $("lastUpdated").textContent = "Updated: " + new Date().toLocaleTimeString();
       }catch(e){
-        $("lbBody").innerHTML = `<tr><td colspan="5" style="color:rgba(233,241,255,.45);">Couldn’t load leaderboard.</td></tr>`;
+        $("lbBody").innerHTML = `<tr><td colspan="6" style="color:rgba(233,241,255,.45);">Couldn’t load leaderboard.</td></tr>`;
         showMsg($("lbMsg"), "Leaderboard error: " + e.message, "bad");
       }
     }
@@ -809,15 +832,16 @@ const API = {
     async function checkHealth(){
       try{
         const data = await getJSON(API.health);
-        $("healthDot").className = "dot ok";
-        $("healthText").textContent = data && data.ok ? "ok" : "unknown";
+        if($("healthDot")) $("healthDot").className = "dot ok";
+        if($("healthText")) $("healthText").textContent = data && data.ok ? "ok" : "unknown";
       }catch(e){
-        $("healthDot").className = "dot bad";
-        $("healthText").textContent = "down";
+        if($("healthDot")) $("healthDot").className = "dot bad";
+        if($("healthText")) $("healthText").textContent = "down";
       }
     }
 
     function populateSelect(sel, items, labelKey="name", valueKey="id"){
+      if(!sel) return;
       sel.innerHTML = "";
       for(const it of items){
         const opt = document.createElement("option");
@@ -866,14 +890,14 @@ const API = {
     }
 
     function computeCombined(){
-      const you = parseToPar($("playerScore").value);
-      const pro = parseToPar($("proScore").value);
+      const you = parseToPar($("playerScore")?.value);
+      const pro = parseToPar($("proScore")?.value);
       if(you === null || pro === null) return null;
       return you + pro;
     }
     function renderCombined(){
       const c = computeCombined();
-      $("combinedBadge").textContent = "Combined: " + fmtToPar(c);
+      if($("combinedBadge")) $("combinedBadge").textContent = "Combined: " + fmtToPar(c);
     }
 
     async function submitScore(){
@@ -884,10 +908,10 @@ const API = {
         return;
       }
 
-      const playerId = $("playerSel").value;
-      const proId = $("proSel").value;
-      const you = parseToPar($("playerScore").value);
-      const pro = parseToPar($("proScore").value);
+      const playerId = $("playerSel")?.value;
+      const proId = $("proSel")?.value;
+      const you = parseToPar($("playerScore")?.value);
+      const pro = parseToPar($("proScore")?.value);
 
       if(!playerId || !proId){
         showMsg($("submitMsg"), "Pick a Player and a Pro.", "bad"); return;
@@ -915,7 +939,7 @@ const API = {
 
     async function autoPullProScore(){
       hideMsg($("submitMsg"));
-      const proId = $("proSel").value;
+      const proId = $("proSel")?.value;
       if(!proId){
         showMsg($("submitMsg"), "Pick a Pro first.", "bad"); return;
       }
@@ -936,13 +960,17 @@ const API = {
     function updateAdminUI(){
       const tok = localStorage.getItem("PROAM_ADMIN_TOKEN");
       if(tok){
-        $("adminState").textContent = "Token saved (admin actions enabled)";
-        $("lockBadge").textContent = "Admin ready";
-        $("lockBadge").className = "badge";
+        if($("adminState")) $("adminState").textContent = "Token saved (admin actions enabled)";
+        if($("lockBadge")){
+          $("lockBadge").textContent = "Admin ready";
+          $("lockBadge").className = "badge";
+        }
       }else{
-        $("adminState").textContent = "Not signed in";
-        $("lockBadge").textContent = "Public";
-        $("lockBadge").className = "badge gray";
+        if($("adminState")) $("adminState").textContent = "Not signed in";
+        if($("lockBadge")){
+          $("lockBadge").textContent = "Public";
+          $("lockBadge").className = "badge gray";
+        }
       }
     }
 
@@ -974,10 +1002,10 @@ const API = {
     $("submitBtn")?.addEventListener("click", submitScore);
     $("autoProBtn")?.addEventListener("click", autoPullProScore);
 
-    $("refreshBtn").onclick = async () => {
+    $("refreshBtn") && ($("refreshBtn").onclick = async () => {
       await boot();
       await loadSeasonStandings();
-    };
+    });
 
     $("adminSaveBtn")?.addEventListener("click", () => {
       const v = $("adminToken").value.trim();
@@ -992,7 +1020,7 @@ const API = {
 
     $("adminClearBtn")?.addEventListener("click", () => {
       localStorage.removeItem("PROAM_ADMIN_TOKEN");
-      $("adminToken").value = "";
+      if($("adminToken")) $("adminToken").value = "";
       showMsg($("adminMsg"), "Cleared admin token.", "ok");
       updateAdminUI();
     });
@@ -1009,7 +1037,7 @@ const API = {
   updateAdminUI();
 
   const tok = localStorage.getItem("PROAM_ADMIN_TOKEN");
-  if (tok) $("adminToken").value = tok;
+  if (tok && $("adminToken")) $("adminToken").value = tok;
 
   await checkHealth();
   await loadPlayersAndPros();
@@ -1034,6 +1062,7 @@ const API = {
     }
   }
 
+  // Season Standings card removed from Home; safe no-op here
   await loadSeasonStandings();
   renderCombined();
 }
