@@ -33,12 +33,6 @@
 
     .wrap{ max-width:1100px; margin:0 auto; padding:28px 18px 60px; }
 
-    header{
-      display:flex; align-items:flex-end; justify-content:space-between;
-      gap:16px; margin-bottom:18px;
-      flex-wrap:wrap;
-    }
-
     .pillrow{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; justify-content:flex-start; }
     .pill{
       border:1px solid var(--border);
@@ -58,8 +52,6 @@
     }
     @media (max-width: 980px){
       .grid{ grid-template-columns:1fr; }
-      header{ flex-direction:column; align-items:flex-start; }
-      .pillrow{ justify-content:flex-start; }
     }
 
     .card{
@@ -97,12 +89,6 @@
       box-shadow:none;
       font-weight:700;
     }
-    .btn.danger{
-      background: rgba(255,90,122,.16);
-      border:1px solid rgba(255,90,122,.35);
-      color:#ffd5dd;
-      box-shadow:none;
-    }
 
     .row{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
     .field{
@@ -127,10 +113,10 @@
     table{
       width:100%;
       border-collapse:collapse;
-      overflow:hidden;
       border-radius: 14px;
       border:1px solid var(--border);
       background: rgba(0,0,0,.18);
+      overflow:hidden;
     }
     th, td{
       padding:10px 10px;
@@ -138,6 +124,7 @@
       text-align:left;
       font-size:13px;
       vertical-align: middle;
+      white-space: nowrap;
     }
     th{ color:var(--muted); font-weight:700; font-size:12px; text-transform:uppercase; letter-spacing:.3px; }
     tr:last-child td{ border-bottom:none; }
@@ -158,7 +145,6 @@
       color: var(--muted);
       font-weight:700;
     }
-
     .badge.weekPill{
       font-size:13px;
       padding:7px 12px;
@@ -206,6 +192,7 @@
       background:rgba(71,215,172,.10);
     }
 
+    /* Week hero */
     .weekHero{
       position: relative;
       min-height: 150px;
@@ -255,8 +242,41 @@
       font-size: 13px;
     }
 
-    .scheduleList{ display:flex; flex-direction:column; gap:10px; }
+    /* Schedule carousel (swipe) */
+    .scheduleCarouselWrap{
+      border-top: 1px solid var(--border);
+      background: rgba(0,0,0,.14);
+      padding: 12px 12px 14px;
+    }
+    .scheduleCarouselHd{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      margin-bottom:10px;
+    }
+    .scheduleCarouselHd .hint{
+      color: rgba(233,241,255,.55);
+      font-size: 12px;
+    }
+    .scheduleCarousel{
+      display:flex;
+      gap:10px;
+      overflow-x:auto;
+      padding-bottom: 6px;
+      scroll-snap-type: x mandatory;
+      -webkit-overflow-scrolling: touch;
+    }
+    .scheduleCarousel::-webkit-scrollbar{ height: 8px; }
+    .scheduleCarousel::-webkit-scrollbar-thumb{
+      background: rgba(255,255,255,.12);
+      border-radius: 999px;
+    }
     .scheduleItem{
+      flex: 0 0 auto;
+      min-width: 260px;
+      max-width: 320px;
+      scroll-snap-align: center;
       display:flex;
       align-items:center;
       justify-content:space-between;
@@ -266,7 +286,7 @@
       border:1px solid var(--border);
       background: rgba(0,0,0,.18);
       cursor:pointer;
-      transition: transform .08s ease, background .12s ease;
+      transition: transform .08s ease, background .12s ease, border-color .12s ease;
     }
     .scheduleItem:active{ transform: translateY(1px); }
     .scheduleItem.active{
@@ -295,6 +315,7 @@
       white-space:nowrap;
       overflow:hidden;
       text-overflow:ellipsis;
+      max-width: 210px;
     }
     .scheduleMeta{ margin-top:2px; color:var(--muted); font-size:12px; }
 
@@ -310,6 +331,7 @@
       font-weight:800;
       font-size:12px;
       flex: 0 0 auto;
+      white-space: nowrap;
     }
     .tag.major{
       border-color: var(--majorBorder);
@@ -340,6 +362,7 @@
       font-weight: 800 !important;
     }
 
+    /* Masthead */
     .topMasthead{
       position: relative;
       padding: 16px;
@@ -372,11 +395,6 @@
       font-size:13px;
       text-shadow: 0 2px 10px rgba(0,0,0,.55);
     }
-
-    /* Requested: hide the top status pills (API / Week / Refresh), but keep in DOM for JS */
-    .mastheadControls{ display:none !important; }
-
-    /* Requested: nav aligned neatly under season pill */
     .navRow{
       margin-top: 10px;
       display:flex;
@@ -384,13 +402,40 @@
       flex-wrap:wrap;
     }
 
-    /* Requested: hide Public pill beside Submit title (but keep for JS state updates) */
+    /* Hide top status pills (API / Week / Refresh) but keep for JS */
+    .mastheadControls{ display:none !important; }
+
+    /* Hide Public pill beside Submit title (keep for JS state updates) */
     #lockBadge{ display:none !important; }
 
-    /* Leaderboard alignment helpers */
+    /* Leaderboard fit + scroll on mobile */
+    #leaderboardTitle{
+      white-space: normal;
+      line-height: 1.15;
+    }
+    .tableWrap{
+      width: 100%;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      border-radius: 14px;
+    }
+    .tableWrap table{
+      min-width: 620px; /* ensures all columns fit without squish */
+    }
+
     .center{ text-align:center !important; }
     .lbScore, .lbCombined{ text-align:center !important; }
     .lbCombined b{ display:inline-block; min-width: 42px; text-align:center; }
+
+    @media (max-width:560px){
+      .card .hd{ padding: 12px 12px; }
+      .card .bd{ padding: 12px; }
+      #leaderboardTitle{ font-size: 13px; }
+      th, td{ padding: 9px 8px; font-size: 12px; }
+      th{ font-size: 11px; }
+      .scheduleItem{ min-width: 240px; }
+      .scheduleName{ max-width: 170px; }
+    }
   </style>
 </head>
 
@@ -403,7 +448,6 @@
           <div class="siteTitle">Wellman Golf Club Pro-Am League</div>
           <div class="seasonPill">Season 1: March 9 - June 21, 2026</div>
 
-          <!-- Nav moved here, under Season pill (where pills used to sit visually) -->
           <div class="navRow">
             <a href="./index.html" class="navTab navTabActive">Home</a>
             <a href="./draft.html" class="navTab">Draft</a>
@@ -447,6 +491,17 @@
           </div>
         </div>
       </div>
+
+      <!-- Schedule moved here (swipe carousel) -->
+      <div class="scheduleCarouselWrap">
+        <div class="scheduleCarouselHd">
+          <div style="font-weight:800; color: rgba(233,241,255,.82); font-size:13px;">Weeks</div>
+          <div class="hint">Swipe to browse • Tap to select</div>
+        </div>
+        <div id="scheduleList" class="scheduleCarousel">
+          <div style="color:rgba(233,241,255,.45); padding: 8px 2px;">Loading schedule…</div>
+        </div>
+      </div>
     </div>
 
     <div class="grid">
@@ -485,7 +540,6 @@
 
           <div id="submitMsg" class="msg" style="display:none;"></div>
 
-          <!-- Requested: remove How it works box; keep only Combined pill -->
           <div class="row" style="margin-top:12px; justify-content:flex-end;">
             <span class="badge" id="combinedBadge">Combined: —</span>
           </div>
@@ -498,70 +552,29 @@
           <span class="badge" id="lastUpdated">Updated: —</span>
         </div>
         <div class="bd">
-          <table>
-            <thead>
-              <tr>
-                <th class="rank" rowspan="2">Rank</th>
-                <th class="center" colspan="2">Player</th>
-                <th class="center" colspan="2">Pro</th>
-                <th class="mono center" rowspan="2">Combined</th>
-              </tr>
-              <tr>
-                <th>Player</th>
-                <th class="mono center">Score</th>
-                <th>Pro</th>
-                <th class="mono center">Score</th>
-              </tr>
-            </thead>
-            <tbody id="lbBody">
-              <tr><td colspan="6" style="color:rgba(233,241,255,.45);">Loading…</td></tr>
-            </tbody>
-          </table>
+          <div class="tableWrap">
+            <table>
+              <thead>
+                <tr>
+                  <th class="rank" rowspan="2">Rank</th>
+                  <th class="center" colspan="2">Player</th>
+                  <th class="center" colspan="2">Pro</th>
+                  <th class="mono center" rowspan="2">Combined</th>
+                </tr>
+                <tr>
+                  <th>Player</th>
+                  <th class="mono center">Score</th>
+                  <th>Pro</th>
+                  <th class="mono center">Score</th>
+                </tr>
+              </thead>
+              <tbody id="lbBody">
+                <tr><td colspan="6" style="color:rgba(233,241,255,.45);">Loading…</td></tr>
+              </tbody>
+            </table>
+          </div>
           <div id="lbMsg" class="msg" style="display:none;"></div>
         </div>
-      </div>
-    </div>
-
-    <!-- Season Standings removed from Home per request.
-         JS is updated to not error if #seasonBody doesn't exist. -->
-
-    <div class="card" style="margin-top:16px;">
-      <div class="hd">
-        <h2>Full Season Schedule</h2>
-        <span class="badge gray">Tap week to view</span>
-      </div>
-      <div class="bd">
-        <div id="scheduleList" class="scheduleList">
-          <div style="color:rgba(233,241,255,.45);">Loading schedule…</div>
-        </div>
-      </div>
-    </div>
-
-    <div class="card" style="margin-top:16px;">
-      <div class="hd">
-        <h2>Admin</h2>
-        <div class="row">
-          <span class="badge gray" id="adminState">Not signed in</span>
-        </div>
-      </div>
-      <div class="bd">
-        <div class="split">
-          <div class="field">
-            <label for="adminToken">Admin token (Netlify env ADMIN_TOKEN)</label>
-            <input id="adminToken" placeholder="paste token here" />
-          </div>
-          <div class="row" style="align-items:flex-end;">
-            <button class="btn secondary" id="adminSaveBtn">Save token</button>
-            <button class="btn danger" id="adminClearBtn">Clear</button>
-          </div>
-        </div>
-
-        <div class="row" style="margin-top:12px;">
-          <button class="btn secondary" id="resetWeekBtn">Reset week (danger)</button>
-          <button class="btn secondary" id="recalcBtn">Recalculate leaderboard</button>
-        </div>
-
-        <div id="adminMsg" class="msg" style="display:none;"></div>
       </div>
     </div>
 
@@ -639,40 +652,38 @@ const API = {
       );
     }
 
-    // Safe: only runs if Season Standings exists on the page (removed from Home)
-    async function loadSeasonStandings(){
-      const body = $("seasonBody");
-      if(!body) return;
-
-      try{
-        const data = await getJSON(API.seasonStandings);
-        const rows = data.rows || [];
-        if(!rows.length){
-          body.innerHTML = `<tr><td colspan="3">No points yet.</td></tr>`;
-          return;
-        }
-        body.innerHTML = rows.map((r,i)=>`
-          <tr>
-            <td class="rank">#${i+1}</td>
-            <td>${r.player_name}</td>
-            <td class="mono">${r.points}</td>
-          </tr>
-        `).join("");
-      }catch(e){
-        body.innerHTML = `<tr><td colspan="3">Error loading standings.</td></tr>`;
-      }
-    }
-
-    function authHeaders(){
-      const token = $("adminToken")?.value?.trim() || "";
-      return token ? { "x-admin-token": token } : {};
-    }
-
+    // State
     let players = [];
     let pros = [];
+    let prosById = new Map();
     let scheduleWeeks = [];
     let displayedWeek = null;
     let currentWeekId = null;
+
+    // For swipe-to-select
+    let scheduleObserver = null;
+    let ignoreAutoSelectUntil = 0;
+
+    function indexPros(list){
+      prosById = new Map();
+      for (const p of (list || [])){
+        const id = p?.id ?? p?.pro_id ?? p?.proId;
+        if(id != null) prosById.set(String(id), p);
+      }
+    }
+
+    function proNameFromRow(r){
+      // prefer what API might already return
+      const direct =
+        r?.pro_name ?? r?.proName ?? r?.pro ?? r?.drafted_pro_name ?? r?.draftedProName ?? null;
+      if(direct && String(direct).trim()) return String(direct);
+
+      // try resolving from pro_id via loaded pros list
+      const pid = r?.pro_id ?? r?.proId ?? r?.proID ?? r?.proid ?? null;
+      if(pid == null) return "—";
+      const p = prosById.get(String(pid));
+      return p?.name ?? p?.full_name ?? p?.player_name ?? "—";
+    }
 
     function renderWeekDetails(week){
       const hero = $("weekHero");
@@ -723,8 +734,65 @@ const API = {
       }
     }
 
+    function attachSwipeAutoSelect(weeks){
+      const root = $("scheduleList");
+      if(!root) return;
+
+      if(scheduleObserver){
+        try{ scheduleObserver.disconnect(); }catch(_){}
+        scheduleObserver = null;
+      }
+
+      // Automatically select the card that's most in view (center-ish)
+      scheduleObserver = new IntersectionObserver((entries) => {
+        if(Date.now() < ignoreAutoSelectUntil) return;
+
+        // pick the most visible intersecting entry
+        let best = null;
+        for(const e of entries){
+          if(!e.isIntersecting) continue;
+          if(!best || e.intersectionRatio > best.intersectionRatio) best = e;
+        }
+        if(!best) return;
+
+        const weekId = best.target.getAttribute("data-week-id");
+        if(!weekId) return;
+
+        const w = weeks.find(x => x.id === weekId);
+        if(!w) return;
+
+        // prevent redundant selects
+        if(displayedWeek?.id === w.id) return;
+
+        setDisplayedWeek(w);
+      }, {
+        root,
+        threshold: [0.55, 0.7, 0.85]
+      });
+
+      root.querySelectorAll(".scheduleItem").forEach(item => scheduleObserver.observe(item));
+    }
+
+    function scrollScheduleToActive(activeWeekId){
+      const root = $("scheduleList");
+      if(!root || !activeWeekId) return;
+      const el = root.querySelector(`.scheduleItem[data-week-id="${CSS.escape(activeWeekId)}"]`);
+      if(!el) return;
+
+      // avoid triggering auto-select while we programmatically scroll
+      ignoreAutoSelectUntil = Date.now() + 700;
+
+      // center it
+      const rootRect = root.getBoundingClientRect();
+      const elRect = el.getBoundingClientRect();
+      const delta = (elRect.left + elRect.width/2) - (rootRect.left + rootRect.width/2);
+      root.scrollBy({ left: delta, behavior: "smooth" });
+    }
+
     function renderSchedule(weeks, activeWeekId){
       const el = $("scheduleList");
+      if(!el) return;
+
       if(!Array.isArray(weeks) || weeks.length === 0){
         el.innerHTML = `<div style="color:rgba(233,241,255,.45);">No weeks found.</div>`;
         return;
@@ -766,6 +834,12 @@ const API = {
           await setDisplayedWeek(w);
         });
       });
+
+      // enable swipe-stop auto select
+      attachSwipeAutoSelect(sorted);
+
+      // keep active week centered
+      scrollScheduleToActive(activeWeekId);
     }
 
     function setLeaderboardTitleFromLabel(label, fallbackWeekNumber){
@@ -784,7 +858,6 @@ const API = {
 
         const label = week.label || data.week || "—";
         if($("weekLabel")) $("weekLabel").textContent = label;
-
         setLeaderboardTitleFromLabel(label, week.week_number);
 
         const rows = data.rows || [];
@@ -792,15 +865,7 @@ const API = {
           $("lbBody").innerHTML = `<tr><td colspan="6" style="color:rgba(233,241,255,.45);">No scores yet.</td></tr>`;
         }else{
           $("lbBody").innerHTML = rows.map((r, idx) => {
-            // Pro name field: try common variants safely
-            const proName =
-              r.pro_name ??
-              r.proName ??
-              r.pro ??
-              r.drafted_pro_name ??
-              r.draftedProName ??
-              "—";
-
+            const proName = proNameFromRow(r);
             return `
               <tr>
                 <td class="rank">#${idx+1}</td>
@@ -855,6 +920,7 @@ const API = {
       const [p, pr] = await Promise.all([ getJSON(API.players), getJSON(API.pros) ]);
       players = Array.isArray(p) ? p : (p.players || []);
       pros = Array.isArray(pr) ? pr : (pr.pros || []);
+      indexPros(pros);
       populateSelect($("playerSel"), players);
       populateSelect($("proSel"), pros);
     }
@@ -957,45 +1023,6 @@ const API = {
       }
     }
 
-    function updateAdminUI(){
-      const tok = localStorage.getItem("PROAM_ADMIN_TOKEN");
-      if(tok){
-        if($("adminState")) $("adminState").textContent = "Token saved (admin actions enabled)";
-        if($("lockBadge")){
-          $("lockBadge").textContent = "Admin ready";
-          $("lockBadge").className = "badge";
-        }
-      }else{
-        if($("adminState")) $("adminState").textContent = "Not signed in";
-        if($("lockBadge")){
-          $("lockBadge").textContent = "Public";
-          $("lockBadge").className = "badge gray";
-        }
-      }
-    }
-
-    async function adminResetWeek(){
-      hideMsg($("adminMsg"));
-      try{
-        await getJSON(API.adminResetWeek, { method:"POST", headers: { ...authHeaders() } });
-        showMsg($("adminMsg"), "Week reset complete.", "ok");
-        if (displayedWeek) await loadLeaderboardForWeek(displayedWeek);
-      }catch(e){
-        showMsg($("adminMsg"), "Admin reset error: " + e.message, "bad");
-      }
-    }
-
-    async function adminRecalc(){
-      hideMsg($("adminMsg"));
-      try{
-        await getJSON(API.adminRecalc, { method:"POST", headers: { ...authHeaders() } });
-        showMsg($("adminMsg"), "Recalculation complete.", "ok");
-        if (displayedWeek) await loadLeaderboardForWeek(displayedWeek);
-      }catch(e){
-        showMsg($("adminMsg"), "Admin recalc error: " + e.message, "bad");
-      }
-    }
-
     $("playerScore")?.addEventListener("input", renderCombined);
     $("proScore")?.addEventListener("input", renderCombined);
 
@@ -1004,71 +1031,37 @@ const API = {
 
     $("refreshBtn") && ($("refreshBtn").onclick = async () => {
       await boot();
-      await loadSeasonStandings();
     });
-
-    $("adminSaveBtn")?.addEventListener("click", () => {
-      const v = $("adminToken").value.trim();
-      if(v){
-        localStorage.setItem("PROAM_ADMIN_TOKEN", v);
-        showMsg($("adminMsg"), "Saved admin token in this browser.", "ok");
-      }else{
-        showMsg($("adminMsg"), "Paste a token first.", "bad");
-      }
-      updateAdminUI();
-    });
-
-    $("adminClearBtn")?.addEventListener("click", () => {
-      localStorage.removeItem("PROAM_ADMIN_TOKEN");
-      if($("adminToken")) $("adminToken").value = "";
-      showMsg($("adminMsg"), "Cleared admin token.", "ok");
-      updateAdminUI();
-    });
-
-    $("resetWeekBtn")?.addEventListener("click", () => {
-      if(confirm("Reset the week? This will delete current week entries.")){
-        adminResetWeek();
-      }
-    });
-
-    $("recalcBtn")?.addEventListener("click", adminRecalc);
 
   async function boot(){
-  updateAdminUI();
+    await checkHealth();
+    await loadPlayersAndPros();
 
-  const tok = localStorage.getItem("PROAM_ADMIN_TOKEN");
-  if (tok && $("adminToken")) $("adminToken").value = tok;
-
-  await checkHealth();
-  await loadPlayersAndPros();
-
-  try{
-    const weeks = await loadSchedule();
-    const wk = pickDisplayedWeekFromSchedule(weeks);
-    if(!wk) throw new Error("No week found in schedule");
-    await setDisplayedWeek(wk);
-  }catch(e){
     try{
-      const cw = await getJSON(API.currentWeek);
-      const wk = cw?.week || null;
-      if (wk) {
-        try { await loadSchedule(); } catch(_){}
-        await setDisplayedWeek(wk);
-      } else {
+      const weeks = await loadSchedule();
+      const wk = pickDisplayedWeekFromSchedule(weeks);
+      if(!wk) throw new Error("No week found in schedule");
+      await setDisplayedWeek(wk);
+    }catch(e){
+      try{
+        const cw = await getJSON(API.currentWeek);
+        const wk = cw?.week || null;
+        if (wk) {
+          try { await loadSchedule(); } catch(_){}
+          await setDisplayedWeek(wk);
+        } else {
+          renderWeekDetails(null);
+        }
+      }catch(_){
         renderWeekDetails(null);
       }
-    }catch(_){
-      renderWeekDetails(null);
     }
+
+    renderCombined();
   }
 
-  // Season Standings card removed from Home; safe no-op here
-  await loadSeasonStandings();
-  renderCombined();
-}
-
-// Start the app
-boot();
+  // Start the app
+  boot();
 </script>
 </body>
 </html>
