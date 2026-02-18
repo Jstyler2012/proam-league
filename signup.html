@@ -3,80 +3,110 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>Sign Up • Wellman Golf Club Pro-Am</title>
-  <style>
-    :root{--bg:#0b1220;--text:#e8eefc;--muted:#a9b7d6;--border:rgba(255,255,255,.10)}
-    body{margin:0;font-family:system-ui;background:linear-gradient(180deg,var(--bg),#060b15);color:var(--text)}
-    .wrap{max-width:900px;margin:0 auto;padding:28px 18px 60px}
-    a{color:var(--text);text-decoration:none}
-    .card{border:1px solid var(--border);border-radius:18px;background:rgba(255,255,255,.04);overflow:hidden}
-    .hd{padding:14px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
-    .bd{padding:16px}
-    .badge{padding:6px 10px;border-radius:999px;border:1px solid var(--border);color:var(--muted);font-size:12px}
-    .btn{border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--text);border-radius:12px;padding:10px 12px;cursor:pointer;font-weight:700}
-    .muted{color:var(--muted);line-height:1.55}
-    ul{color:var(--muted)}
-    input{width:100%;padding:10px 12px;border-radius:12px;border:1px solid var(--border);background:rgba(0,0,0,.25);color:var(--text);outline:none}
-    .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
-  </style>
+  <title>Sign Up • Wellman Golf Club PRO-AM 2026</title>
+  <link rel="stylesheet" href="./styles.css">
 </head>
+
 <body>
   <div class="wrap">
-    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:16px">
-      <div><a href="/">← Home</a></div>
-      <div class="row">
-        <a class="btn" href="/draft.html">Draft</a>
-      </div>
+
+    <!-- Title -->
+    <div>
+      <div class="pageTitle">Sign Up</div>
+      <div class="pageSub">Join the league • confirm handicap • get access</div>
     </div>
 
-    <div class="card">
-      <div class="hd">
-        <div style="font-weight:900">Sign Up / Login</div>
-        <span class="badge">Coming next</span>
-      </div>
-      <div class="bd">
-        <p class="muted">
-          This build is currently using a simple “public submit” flow (select player → submit score).
-          Next step is wiring proper accounts so:
-        </p>
-        <ul>
-          <li>players only submit their own scores</li>
-          <li>draft picks are locked to accounts</li>
-          <li>admin actions are separated from player actions</li>
-        </ul>
+    <!-- Shared Header -->
+    <div id="siteHeader" class="sectionRule"></div>
+    <script src="./partials/header.js"></script>
+    <script>loadHeader("signup");</script>
 
-        <div style="margin-top:18px">
-          <div class="muted" style="margin-bottom:8px">Optional: leave your email to be added to the roster</div>
-          <div class="row">
-            <div style="flex:1;min-width:240px">
-              <input id="email" placeholder="you@example.com" />
+    <!-- Page Controls -->
+    <div class="pillrow sectionRule">
+      <a class="btn secondary" href="./rules.html#handicaps">Handicap rules</a>
+      <a class="btn secondary" href="./rules.html#buyins">Buy-ins</a>
+    </div>
+
+    <!-- Content -->
+    <div class="grid" style="margin-top:16px;">
+      <div class="card">
+        <div class="hd">
+          <h2>Join the League</h2>
+          <span class="badge gray">Setup</span>
+        </div>
+        <div class="bd">
+          <div class="split">
+            <div class="field">
+              <label for="name">Name</label>
+              <input id="name" placeholder="Your name" />
             </div>
-            <button class="btn" id="saveBtn">Save (local only)</button>
+            <div class="field">
+              <label for="email">Email</label>
+              <input id="email" placeholder="you@email.com" />
+            </div>
           </div>
-          <div id="msg" class="muted" style="margin-top:10px"></div>
+
+          <div class="split" style="margin-top:10px;">
+            <div class="field">
+              <label for="ghin">GHIN (optional)</label>
+              <input id="ghin" placeholder="GHIN # (if you have it)" />
+            </div>
+            <div class="field">
+              <label for="handicap">Handicap Index</label>
+              <input id="handicap" placeholder="e.g. 12.4" />
+            </div>
+          </div>
+
+          <div class="row" style="margin-top:12px;">
+            <button class="btn" id="joinBtn">Submit</button>
+            <a class="btn secondary" href="./rules.html">View Rules</a>
+          </div>
+
+          <div id="msg" class="msg" style="display:none;"></div>
+
+          <div class="msg" style="margin-top:12px;">
+            <b>Note:</b> This form is UI-only right now. If you want, next step is wiring this to a Netlify Function + Supabase table.
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="hd">
+          <h2>What happens next</h2>
+          <span class="badge">Info</span>
+        </div>
+        <div class="bd" style="color:var(--muted); line-height:1.6;">
+          <ul style="margin:0; padding-left:18px;">
+            <li>We confirm your starting handicap (GHIN preferred).</li>
+            <li>You show up on the Player dropdown on the Home page.</li>
+            <li>You can draft a PGA pro each week.</li>
+            <li>Buy-ins are due before posting or before tournament lock.</li>
+          </ul>
+          <div class="msg" style="margin-top:12px;">
+            Tip: bookmark <span class="mono">./index.html</span> as your main dashboard.
+          </div>
         </div>
       </div>
     </div>
+
+    <div class="footer">Need to edit handicaps mid-season? See Rules → Handicaps.</div>
   </div>
 
-  <script>
-    const $ = (id) => document.getElementById(id);
-    const KEY = "PROAM_SIGNUP_EMAIL";
+<script>
+const $ = (id) => document.getElementById(id);
 
-    function show(text){ $("msg").textContent = text; }
+function showMsg(text, type){
+  const el = $("msg");
+  el.style.display = "block";
+  el.className = "msg" + (type ? " " + type : "");
+  el.textContent = text;
+}
 
-    $("saveBtn").addEventListener("click", () => {
-      const v = ($("email").value || "").trim();
-      if(!v) return show("Enter an email first.");
-      localStorage.setItem(KEY, v);
-      show("Saved locally in this browser. (Backend signup will come next.)");
-    });
-
-    const existing = localStorage.getItem(KEY);
-    if(existing){
-      $("email").value = existing;
-      show("Loaded your saved email (local only).");
-    }
-  </script>
+$("joinBtn").addEventListener("click", () => {
+  const name = $("name").value.trim();
+  if(!name) return showMsg("Enter your name first.", "bad");
+  showMsg("Saved (UI-only). Next step: wire this to Supabase.", "ok");
+});
+</script>
 </body>
 </html>
