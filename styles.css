@@ -55,25 +55,41 @@ body{
    FIXED WATERMARK IMAGE
    stays still while scrolling
    ========================= */
+/* Fixed watermark (optimized for ultrawide + mobile) */
 body::before{
   content:"";
   position: fixed;
   inset: 0;
-
-  background-image: url("./assets/header-banner.jpg");
-
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-
-  opacity: 0.10;
-  transform: scale(1.03);
-  filter: saturate(.9);
-
   pointer-events: none;
   z-index: -2;
+
+  /* Use contain so it doesn't crop on ultrawide */
+  background-image: url("./assets/header-banner.jpg");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: min(1100px, 78vw) auto; /* desktop default */
+
+  /* Subtle */
+  opacity: 0.085;
+  filter: saturate(.9);
+}
+/* Very large screens (ultrawide): keep it from getting huge */
+@media (min-width: 1600px){
+  body::before{
+    background-size: 1150px auto;
+    background-position: 50% 42%; /* slightly up */
+    opacity: 0.075;
+  }
 }
 
+/* Mobile: smaller + a bit higher so it sits behind header area */
+@media (max-width: 560px){
+  body::before{
+    background-size: min(520px, 92vw) auto;
+    background-position: 50% 22%;
+    opacity: 0.06;
+  }
+}
 
 /* =========================
    DARK VEIL FOR READABILITY
