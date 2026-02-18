@@ -13,19 +13,18 @@
  <div class="wrap">
 
   <header>
-    <div>
-      <div style="font-size:22px; font-weight:900;">League Rules</div>
-      <div style="color:var(--muted); font-size:13px; margin-top:6px;">
-        Everything you need to play the WGC Pro-Am League.
-      </div>
-    </div>
+  <div id="siteHeader"></div>
 
-   <div class="pillrow" aria-label="Navigation">
-  <a class="navTab" href="./index.html">Home</a>
-  <a class="navTab" href="./draft.html">Draft</a>
-  <a class="navTab navTabActive" href="./rules.html">Rules</a>
-  <a class="navTab" href="./signup.html">Sign Up</a>
-</div>
+<script>
+  async function loadHeader(activeKey){
+    const host = document.getElementById("siteHeader");
+    const res = await fetch("./partials/header.html");
+    host.innerHTML = await res.text();
+    const active = host.querySelector(`[data-nav="${activeKey}"]`);
+    if(active) active.classList.add("navTabActive");
+  }
+  loadHeader("rules");
+</script>
   </header>
 
   <main>
