@@ -1,4 +1,4 @@
-/* styles.css — GLOBAL FOUNDATION */
+/* styles.css — GLOBAL FOUNDATION (cleaned + optimized watermark) */
 
 /* =========================
    GLOBAL VARIABLES
@@ -24,9 +24,15 @@
   --radius: 18px;
 }
 
+/* =========================
+   BASE RESET / TYPOGRAPHY
+   ========================= */
+*{ box-sizing:border-box; }
+a{ color:inherit; text-decoration:none; }
 
 /* =========================
    BASE PAGE BACKGROUND
+   (gradient + fixed watermark + readability veil)
    ========================= */
 body{
   position: relative;
@@ -42,6 +48,7 @@ body{
     "Apple Color Emoji",
     "Segoe UI Emoji";
 
+  /* Main background gradient (your original look) */
   background:
     radial-gradient(1200px 600px at 20% 0%, rgba(90,167,255,.22), transparent 55%),
     radial-gradient(900px 500px at 80% 10%, rgba(71,215,172,.18), transparent 55%),
@@ -50,12 +57,12 @@ body{
   color: var(--text);
 }
 
-
 /* =========================
-   FIXED WATERMARK IMAGE
-   stays still while scrolling
+   FIXED WATERMARK (header-banner.jpg)
+   - stays still while scrolling
+   - mobile-first sizing
+   - no weird cropping on ultrawide
    ========================= */
-/* Fixed watermark (optimized for ultrawide + mobile) */
 body::before{
   content:"";
   position: fixed;
@@ -63,106 +70,69 @@ body::before{
   pointer-events: none;
   z-index: -2;
 
-  /* Use contain so it doesn't crop on ultrawide */
   background-image: url("./assets/header-banner.jpg");
   background-repeat: no-repeat;
-  background-position: center center;
-  background-size: min(1100px, 78vw) auto; /* desktop default */
+
+  /* Mobile-first: keep it behind header area */
+  background-position: 50% 22%;
+
+  /*
+    Use "contain-like" behavior by controlling size explicitly.
+    clamp(min, preferred, max) => great on mobile + ultrawide
+  */
+  background-size: clamp(320px, 92vw, 860px) auto;
 
   /* Subtle */
-  opacity: 0.085;
-  filter: saturate(.9);
-}
-/* Very large screens (ultrawide): keep it from getting huge */
-@media (min-width: 1600px){
-  body::before{
-    background-size: 1150px auto;
-    background-position: 50% 42%; /* slightly up */
-    opacity: 0.075;
-  }
+  opacity: 0.065;
+  filter: saturate(.9) contrast(1.04);
 }
 
-/* Mobile: smaller + a bit higher so it sits behind header area */
-@media (max-width: 560px){
+/* Tablet / desktop */
+@media (min-width: 768px){
   body::before{
-    background-size: min(520px, 92vw) auto;
-    background-position: 50% 22%;
+    background-position: 50% 30%;
+    background-size: clamp(520px, 60vw, 980px) auto;
     opacity: 0.06;
   }
 }
 
+/* Ultrawide: cap size */
+@media (min-width: 1600px){
+  body::before{
+    background-position: 50% 34%;
+    background-size: 980px auto;
+    opacity: 0.055;
+  }
+}
+
 /* =========================
-   DARK VEIL FOR READABILITY
+   READABILITY VEIL (one copy only)
    ========================= */
 body::after{
   content:"";
   position: fixed;
   inset: 0;
+  pointer-events: none;
+  z-index: -1;
 
   background:
     radial-gradient(900px 380px at 25% 20%, rgba(90,167,255,.10), transparent 62%),
     radial-gradient(800px 320px at 80% 10%, rgba(71,215,172,.09), transparent 62%),
     linear-gradient(180deg, rgba(0,0,0,.55), rgba(0,0,0,.22));
-
-  pointer-events: none;
-  z-index: -1;
 }
-
 
 /* =========================
    GLOBAL STRUCTURE
    ========================= */
-
 .wrap{
   position: relative;
   z-index: 1;
+  max-width:1100px;
+  margin:0 auto;
+  padding:28px 18px 60px;
 }
 
-/* optional: adds the same subtle dark/gradient veil over the watermark */
-body::after{
-  content:"";
-  position: fixed;
-  inset: 0;
-  background:
-    radial-gradient(900px 380px at 25% 20%, rgba(90,167,255,.10), transparent 62%),
-    radial-gradient(800px 320px at 80% 10%, rgba(71,215,172,.09), transparent 62%),
-    linear-gradient(180deg, rgba(0,0,0,.55), rgba(0,0,0,.22));
-  pointer-events:none;
-  z-index: -1;
-}
-  --bg:#0b1220;
-  --panel:#0f1b33;
-  --panel2:#0c162b;
-  --text:#e8eefc;
-  --muted:#a9b7d6;
-  --brand:#47d7ac;
-  --brand2:#5aa7ff;
-  --danger:#ff5a7a;
-  --warn:#ffcf5a;
-  --ok:#49e28b;
-
-  --majorBorder: rgba(255,207,90,.55);
-  --majorText: #ffe6ad;
-  --majorBg: rgba(255,207,90,.10);
-
-  --border:rgba(255,255,255,.10);
-  --shadow: 0 12px 40px rgba(0,0,0,.35);
-  --radius: 18px;
-}
-
-*{ box-sizing:border-box; }
-body{
-  margin:0;
-  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
-  background: radial-gradient(1200px 600px at 20% 0%, rgba(90,167,255,.22), transparent 55%),
-              radial-gradient(900px 500px at 80% 10%, rgba(71,215,172,.18), transparent 55%),
-              linear-gradient(180deg, var(--bg), #060b15);
-  color:var(--text);
-}
-a{ color:inherit; text-decoration:none; }
-
-.wrap{ max-width:1100px; margin:0 auto; padding:28px 18px 60px; }
-
+/* Optional title/subtitle helpers used on non-home pages */
 .pageTitle{
   font-size:22px;
   font-weight:900;
@@ -180,6 +150,9 @@ a{ color:inherit; text-decoration:none; }
   margin-top:12px;
 }
 
+/* =========================
+   HEADER BANNER (if any page still uses it)
+   ========================= */
 .headerCard{ overflow:hidden; margin-bottom:16px; }
 .headerBanner{
   position:relative;
@@ -219,6 +192,9 @@ a{ color:inherit; text-decoration:none; }
   .headerBanner{ height:190px; }
 }
 
+/* =========================
+   PILLS / BADGES / BUTTONS
+   ========================= */
 .pillrow{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; justify-content:flex-start; }
 .pill{
   border:1px solid var(--border);
@@ -231,6 +207,50 @@ a{ color:inherit; text-decoration:none; }
 .dot.ok{ background:var(--ok); }
 .dot.bad{ background:var(--danger); }
 
+.badge{
+  display:inline-flex; align-items:center; gap:8px;
+  padding:6px 10px; border-radius:999px;
+  background: rgba(71,215,172,.12);
+  border:1px solid rgba(71,215,172,.28);
+  color:#c9fff0;
+  font-weight:700; font-size:12px;
+}
+.badge.gray{
+  background: rgba(255,255,255,.06);
+  border:1px solid var(--border);
+  color: var(--muted);
+  font-weight:700;
+}
+
+.btn{
+  appearance:none; border:none; cursor:pointer;
+  background: linear-gradient(135deg, var(--brand2), var(--brand));
+  color:#04101e; font-weight:800;
+  padding:10px 12px; border-radius:12px;
+  box-shadow: 0 10px 24px rgba(0,0,0,.28);
+  transition: transform .08s ease;
+  font-size:13px;
+}
+.btn:active{ transform: translateY(1px); }
+.btn.secondary{
+  background: rgba(255,255,255,.08);
+  color:var(--text);
+  border:1px solid var(--border);
+  box-shadow:none;
+  font-weight:700;
+}
+.btn.danger{
+  background: rgba(255,90,122,.16);
+  border:1px solid rgba(255,90,122,.35);
+  color:#ffd5dd;
+  box-shadow:none;
+}
+
+.row{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+
+/* =========================
+   LAYOUT / CARDS / TABLES / FORMS
+   ========================= */
 .grid{
   display:grid;
   grid-template-columns: 1.1fr .9fr;
@@ -258,31 +278,6 @@ a{ color:inherit; text-decoration:none; }
 }
 .card .bd{ padding:16px; }
 
-.btn{
-  appearance:none; border:none; cursor:pointer;
-  background: linear-gradient(135deg, var(--brand2), var(--brand));
-  color:#04101e; font-weight:800;
-  padding:10px 12px; border-radius:12px;
-  box-shadow: 0 10px 24px rgba(0,0,0,.28);
-  transition: transform .08s ease;
-  font-size:13px;
-}
-.btn:active{ transform: translateY(1px); }
-.btn.secondary{
-  background: rgba(255,255,255,.08);
-  color:var(--text);
-  border:1px solid var(--border);
-  box-shadow:none;
-  font-weight:700;
-}
-.btn.danger{
-  background: rgba(255,90,122,.16);
-  border:1px solid rgba(255,90,122,.35);
-  color:#ffd5dd;
-  box-shadow:none;
-}
-
-.row{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
 .field{
   display:flex; flex-direction:column; gap:6px;
   min-width: 180px;
@@ -299,6 +294,7 @@ input, select{
   outline:none;
 }
 input::placeholder{ color: rgba(233,241,255,.35); }
+
 .split{ display:grid; grid-template-columns: 1fr 1fr; gap:10px; }
 @media(max-width:560px){ .split{ grid-template-columns:1fr; } }
 
@@ -316,26 +312,20 @@ th, td{
   text-align:left;
   font-size:13px;
 }
-th{ color:var(--muted); font-weight:700; font-size:12px; text-transform:uppercase; letter-spacing:.3px; }
+th{
+  color:var(--muted);
+  font-weight:700;
+  font-size:12px;
+  text-transform:uppercase;
+  letter-spacing:.3px;
+}
 tr:last-child td{ border-bottom:none; }
 .rank{ font-weight:900; color:#d9e6ff; width:56px; }
 .mono{ font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
 
-.badge{
-  display:inline-flex; align-items:center; gap:8px;
-  padding:6px 10px; border-radius:999px;
-  background: rgba(71,215,172,.12);
-  border:1px solid rgba(71,215,172,.28);
-  color:#c9fff0;
-  font-weight:700; font-size:12px;
-}
-.badge.gray{
-  background: rgba(255,255,255,.06);
-  border:1px solid var(--border);
-  color: var(--muted);
-  font-weight:700;
-}
-
+/* =========================
+   MESSAGES / FOOTER
+   ========================= */
 .msg{
   margin-top:10px;
   border:1px solid var(--border);
@@ -356,6 +346,9 @@ tr:last-child td{ border-bottom:none; }
   text-align:center;
 }
 
+/* =========================
+   NAV TABS
+   ========================= */
 .navTab{
   padding:8px 14px;
   border-radius:999px;
@@ -376,6 +369,9 @@ tr:last-child td{ border-bottom:none; }
   background:rgba(71,215,172,.10);
 }
 
+/* =========================
+   WEEK HERO (inside week card)
+   ========================= */
 .weekHero{
   position: relative;
   min-height: 150px;
@@ -412,10 +408,7 @@ tr:last-child td{ border-bottom:none; }
   object-fit: contain;
   flex: 0 0 auto;
 }
-.weekHeroText{
-  flex: 1;
-  min-width: 240px;
-}
+.weekHeroText{ flex: 1; min-width: 240px; }
 .weekHeroTitle{
   font-weight: 900;
   font-size: 18px;
@@ -428,6 +421,9 @@ tr:last-child td{ border-bottom:none; }
   font-size: 13px;
 }
 
+/* =========================
+   SCHEDULE LIST
+   ========================= */
 .scheduleList{ display:flex; flex-direction:column; gap:10px; }
 .scheduleItem{
   display:flex;
@@ -490,6 +486,9 @@ tr:last-child td{ border-bottom:none; }
   background: var(--majorBg);
 }
 
+/* =========================
+   MAJOR WEEK STYLES
+   ========================= */
 .card.weekMajorCard{
   border-color: var(--majorBorder);
   box-shadow:
