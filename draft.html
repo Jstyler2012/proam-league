@@ -4,163 +4,104 @@
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>Draft • Wellman Golf Club PRO-AM 2026</title>
-
-  <!-- Use shared site styles -->
   <link rel="stylesheet" href="./styles.css">
 </head>
 
 <body>
-<div class="wrap">
-<header>
-  <div class="pillrow">
-    <div class="pill">
-      <span class="mono">Draft Portal</span>
-    </div>
-    <button class="btn secondary" id="refreshBtn">Refresh</button>
-  </div>
+  <div class="wrap">
 
-  <div style="width:100%; margin-top:12px;">
-    <div style="display:flex;gap:8px;flex-wrap:wrap;border-top:1px solid var(--border);padding-top:10px;">
-      <a href="./index.html" class="navTab">Home</a>
-      <a href="./draft.html" class="navTab navTabActive">Draft</a>
-      <a href="./rules.html" class="navTab">Rules</a>
-      <a href="./signup.html" class="navTab">Sign Up</a>
-    </div>
-  </div>
-</header>
-  </header>
-
-
-  <!-- Week Details Card -->
-  <div class="card" style="margin-bottom:16px;">
-
-    <div class="hd">
-      <h2>This Week's Draft</h2>
-      <span class="badge gray" id="weekBadge">—</span>
+    <!-- Title -->
+    <div>
+      <div class="pageTitle">Draft</div>
+      <div class="pageSub">Weekly pro selection • draft board • lock rules</div>
     </div>
 
-    <div class="weekHero">
+    <!-- Shared Header -->
+    <div id="siteHeader" class="sectionRule"></div>
+    <script src="./partials/header.js"></script>
+    <script>loadHeader("draft");</script>
 
-      <div class="weekHeroOverlay"></div>
+    <!-- Page Controls -->
+    <div class="pillrow sectionRule">
+      <button class="btn secondary" id="refreshBtn">Refresh</button>
+      <a class="btn secondary" href="./rules.html#draft-rules">Draft rules</a>
+    </div>
 
-      <div class="weekHeroContent">
-
-        <img id="logo"
-             class="weekHeroLogo"
-             alt=""
-             style="display:none;">
-
-        <div class="weekHeroText">
-
-          <div class="weekHeroTitle" id="name">—</div>
-
-          <div class="weekHeroDates" id="dates">—</div>
-
+    <!-- Content -->
+    <div class="card" style="margin-top:16px;">
+      <div class="hd">
+        <h2>This Week</h2>
+        <span class="badge gray" id="weekBadge">—</span>
+      </div>
+      <div class="bd" style="display:flex;gap:14px;align-items:center;flex-wrap:wrap">
+        <img id="logo" alt="" class="weekHeroLogo" style="width:64px;height:64px;display:none;">
+        <div>
+          <div id="name" style="font-weight:900;font-size:18px">—</div>
+          <div id="dates" style="color:var(--muted);margin-top:4px">—</div>
         </div>
-
       </div>
-
     </div>
 
-  </div>
-
-
-  <!-- Draft Board Card -->
-  <div class="card">
-
-    <div class="hd">
-      <h2>Draft Board</h2>
-      <span class="badge gray">Coming Soon</span>
-    </div>
-
-    <div class="bd">
-
-      <div class="msg">
-        This page is connected to the correct weekly tournament.
-
+    <div class="card">
+      <div class="hd">
+        <h2>Draft Board</h2>
+        <span class="badge">Next step</span>
+      </div>
+      <div class="bd" style="color:var(--muted);line-height:1.6;">
+        This page is wired for the correct weekly tournament header.<br><br>
         Next step is implementing:
-
-        • Field list (ordered by odds)  
-        • Draft window rules  
-        • Pick locking  
-        • Live picks board  
-
+        <ul style="margin:10px 0 0; padding-left:18px;">
+          <li>field list (ordered by odds)</li>
+          <li>draft window rules (Mon 12pm → Wed 11:59pm ET)</li>
+          <li>pick locking + “change pick if unclaimed”</li>
+          <li>live picks board</li>
+        </ul>
       </div>
-
     </div>
 
+    <div class="footer">Tip: use the Rules page for official deadlines & tiebreakers.</div>
   </div>
-
-
-  <div class="footer">
-    Draft Portal • Wellman Golf Club Pro-Am League
-  </div>
-
-</div>
-
 
 <script>
-const API = {
-  currentWeek: "/.netlify/functions/public/current-week",
-};
-
+const API = { currentWeek: "/.netlify/functions/public/current-week" };
 const $ = (id) => document.getElementById(id);
 
 async function getJSON(url){
   const r = await fetch(url, { headers: { "accept":"application/json" }});
   const t = await r.text();
-  let j = null;
-  try{ j = t ? JSON.parse(t) : null }catch(e){}
+  let j = null; try{ j = t ? JSON.parse(t) : null }catch(e){}
   if(!r.ok) throw new Error((j && (j.error||j.message)) ? (j.error||j.message) : (t || r.statusText));
   return j;
 }
 
 function fmtDateRange(startISO, endISO){
   if(!startISO || !endISO) return "—";
-
   const opts = { month:"short", day:"numeric", year:"numeric" };
-
   const s = new Date(startISO + "T00:00:00");
   const e = new Date(endISO + "T00:00:00");
-
   return `${s.toLocaleDateString("en-US", opts)} – ${e.toLocaleDateString("en-US", opts)}`;
 }
 
 async function boot(){
-
   const j = await getJSON(API.currentWeek);
-
   const w = j.week;
-
   if(!w) return;
 
   const label = w.label || `Week ${w.week_number || "—"}`;
-
   $("weekBadge").textContent = label;
-
   $("name").textContent = w.tournament_name || "—";
-
   $("dates").textContent = fmtDateRange(w.start_date, w.end_date);
 
   if(w.logo_url){
-
     $("logo").src = w.logo_url;
-
     $("logo").style.display = "block";
-
   } else {
-
     $("logo").style.display = "none";
-
   }
-
 }
 
 $("refreshBtn").addEventListener("click", boot);
-
 boot();
-
 </script>
-
 </body>
 </html>
