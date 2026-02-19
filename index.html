@@ -387,47 +387,51 @@
       font-weight: 800 !important;
     }
 
- .topMasthead{
-  position: relative;
-  padding: 0;
+/* Masthead container */
+.topMasthead{
   border-radius: var(--radius);
   border: 1px solid var(--border);
   overflow: hidden;
   box-shadow: var(--shadow);
   margin-bottom: 16px;
-
-  /* Correct path to your banner */
-  background-image: url("/assets/header-banner.jpg");
-
-  background-size: cover;
-  background-position: center center;
-  background-repeat: no-repeat;
-
-  /* Controls banner height */
-  min-height: 140px;
-
-  display:flex;
-  align-items:flex-end;
+  background: rgba(0,0,0,.18);
 }
 
-/* subtle overlay so nav buttons remain readable */
-.topMasthead::after{
+/* Banner image section */
+.mastBanner{
+  background-image: url("/assets/header-banner.jpg");
+  background-size: cover;
+  background-repeat: no-repeat;
+
+  /* fixes desktop cropping */
+  background-position: top center;
+
+  height: 140px;
+  position: relative;
+}
+
+/* subtle readability overlay */
+.mastBanner::after{
   content:"";
   position:absolute;
   inset:0;
   background: linear-gradient(
-    rgba(0,0,0,0.15),
-    rgba(0,0,0,0.55)
+    rgba(0,0,0,0.12),
+    rgba(0,0,0,0.35)
   );
-  z-index:0;
 }
 
-/* ensure nav buttons appear above banner */
-.topMasthead > *{
-  position:relative;
-  z-index:1;
-  padding: 14px 16px;
-  width:100%;
+/* controls under banner */
+.mastControls{
+  padding: 12px 14px 14px;
+}
+
+/* mobile adjustment */
+@media (max-width:560px){
+  .mastBanner{
+    height: 120px;
+    background-position: center center;
+  }
 }
 
     .siteTitle{
@@ -560,19 +564,36 @@
 
 <body>
   <div class="wrap">
+<div class="topMasthead">
+  <!-- Banner image lives here -->
+  <div class="mastBanner" aria-label="Wellman banner"></div>
 
-    <div class="topMasthead">
-      <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:14px;flex-wrap:wrap;">
-        <div>
-          <div class="seasonPill">Season 1: March 9 - June 21, 2026</div>
+  <!-- Controls live below banner -->
+  <div class="mastControls">
+    <div class="seasonPill">Season 1: March 9 - June 21, 2026</div>
 
-          <div class="navRow">
-            <a href="./index.html" class="navTab navTabActive">Home</a>
-            <a href="./draft.html" class="navTab">Draft</a>
-            <a href="./rules.html" class="navTab">Rules</a>
-            <a href="./signup.html" class="navTab">Sign Up</a>
-          </div>
-        </div>
+    <div class="navRow">
+      <a href="./index.html" class="navTab navTabActive">Home</a>
+      <a href="./draft.html" class="navTab">Draft</a>
+      <a href="./rules.html" class="navTab">Rules</a>
+      <a href="./signup.html" class="navTab">Sign Up</a>
+    </div>
+
+    <!-- Kept for JS updates, hidden via .mastheadControls -->
+    <div class="pillrow mastheadControls" aria-label="Top controls">
+      <div class="pill" title="Netlify Functions health">
+        <span id="healthDot" class="dot"></span>
+        <span>API:</span>
+        <span id="healthText" class="mono">checking…</span>
+      </div>
+      <div class="pill" title="Current / displayed week">
+        <span class="mono">Week:</span>
+        <span id="weekLabel" class="mono">—</span>
+      </div>
+      <button class="btn secondary" id="refreshBtn">Refresh</button>
+    </div>
+  </div>
+</div>
 
         <!-- Kept for JS updates, hidden via .mastheadControls -->
         <div class="pillrow mastheadControls" aria-label="Top controls">
