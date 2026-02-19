@@ -63,19 +63,11 @@
 
   background-color: #0b1220;
 }
-
-/* Mobile: keep strip height, prevent distortion, move image up */
+/* Mobile: SAME strip height as desktop (so it’s not tall) */
 @media (max-width: 700px){
   .mastBanner{
-    height: 88px;                 /* keep same strip height */
-
-    /* KEY FIX: prevent stretching/distortion */
-    background-size: contain;
-
-    /* keep centered horizontally, move upward vertically */
-    background-position: center -15px;
-
-    background-repeat: no-repeat;
+    height: 88px;              /* keep it matched/tight */
+    background-position: 50% 10%;
   }
 }
 /* Fade at bottom so it blends into your UI (optional “pro” touch) */
