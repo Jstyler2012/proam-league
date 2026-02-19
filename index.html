@@ -49,27 +49,28 @@
       margin-bottom: 16px;
       background: rgba(0,0,0,.18);
     }
-
-/* Tight sports-style strip banner (same feel/height as your Season/Nav row) */
 .mastBanner{
   width: 100%;
-  height: 90px;                 /* desktop strip height (tight) */
+  height: 88px;               /* keep your strip height */
   position: relative;
 
-  /* Background art */
   background-image: url("/assets/header-banner.jpg");
   background-repeat: no-repeat;
-
-  /* Fill the strip like Patriots */
   background-size: cover;
 
-  /* Keep logo/words in view + centered */
+  /* MOVE UP: desktop */
   background-position: 50% 0%;
 
-  /* fallback behind image */
   background-color: #0b1220;
 }
 
+/* Mobile: move it up a bit more (no size change) */
+@media (max-width: 700px){
+  .mastBanner{
+    height: 88px;             /* keep same strip height */
+    background-position: 50% -12px; /* nudges the image UP */
+  }
+}
 /* Fade at bottom so it blends into your UI (optional “pro” touch) */
 .mastBanner::after{
   content:"";
@@ -85,13 +86,6 @@
   );
 }
 
-/* Mobile: SAME strip height as desktop (so it’s not tall) */
-@media (max-width: 700px){
-  .mastBanner{
-    height: 88px;              /* keep it matched/tight */
-    background-position: 50% 10%;
-  }
-}
   /* smooth fade into your site background */
   background: linear-gradient(
     to bottom,
