@@ -2,7 +2,7 @@
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "Content-Type, x-admin-token",
+  "Access-Control-Allow-Headers": "Content-Type, x-admin-token, Authorization",
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
 };
 
@@ -23,27 +23,12 @@ function text(statusCode, bodyText) {
 }
 
 function getRoute(event) {
-  // Netlify typically sends: "/.netlify/functions/public/players"
-  // But depending on redirects/build, you can also see: "/public/players" or "/players"
   const raw = (event.path || "").split("?")[0];
-
-  // Normalize and strip leading/trailing slashes
   const cleaned = raw.replace(/^\/+|\/+$/g, "");
-
-  // If it contains "public", take everything after it
-  // e.g. ".netlify/functions/public/players" => "players"
   const parts = cleaned.split("/");
   const idx = parts.lastIndexOf("public");
-  if (idx >= 0) {
-    return parts.slice(idx + 1).join("/"); // "" or "players" etc
-  }
-
-  // Fallback: if the path starts with ".netlify/functions", strip first 3 segments
-  if (parts[0] === ".netlify" && parts[1] === "functions") {
-    return parts.slice(3).join("/");
-  }
-
-  // Last resort: treat whole path as route
+  if (idx >= 0) return parts.slice(idx + 1).join("/");
+  if (parts[0] === ".netlify" && parts[1] === "functions") return parts.slice(3).join("/");
   return cleaned;
 }
 
@@ -90,14 +75,50 @@ exports.handler = async (event) => {
       catch { return { ok: true, json: t }; }
     };
 
-    // players
+    // -------------------------
+    // me (auth -> player row)
+    // -------------------------
+    if (route === "me") {
+      const auth = (event.headers?.authorization || event.headers?.Authorization || "").trim();
+      if (!auth.startsWith("Bearer ")) return json(401, { error: "Not logged in" });
+
+      const meResp = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+        headers: {
+          apikey: SUPABASE_ANON_KEY,
+          Authorization: auth,
+        },
+      });
+
+      const meText = await meResp.text();
+      if (!meResp.ok) return json(meResp.status, { error: meText });
+
+      let user = null;
+      try { user = JSON.parse(meText); } catch { user = null; }
+      const userId = user?.id;
+      if (!userId) return json(401, { error: "Invalid session" });
+
+      const p = await sb(
+        "GET",
+        `players?select=id,name,handicap_index,user_id&user_id=eq.${userId}&limit=1`
+      );
+      if (!p.ok) return text(p.status, p.text);
+
+      const player = (p.json || [])[0] || null;
+      return json(200, { user: { id: userId, email: user?.email || null }, player });
+    }
+
+    // -------------------------
+    // players (includes handicap_index)
+    // -------------------------
     if (route === "players") {
-      const out = await sb("GET", "players?select=id,name&order=name.asc");
+      const out = await sb("GET", "players?select=id,name,handicap_index&order=name.asc");
       if (!out.ok) return text(out.status, out.text);
       return json(200, out.json || []);
     }
 
+    // -------------------------
     // pros (static for now)
+    // -------------------------
     if (route === "pros") {
       const pros = [
         { id: "Rory McIlroy", name: "Rory McIlroy" },
@@ -108,7 +129,9 @@ exports.handler = async (event) => {
       return json(200, pros);
     }
 
+    // -------------------------
     // schedule
+    // -------------------------
     if (route === "schedule") {
       const out = await sb(
         "GET",
@@ -118,7 +141,9 @@ exports.handler = async (event) => {
       return json(200, { weeks: out.json || [] });
     }
 
+    // -------------------------
     // current-week
+    // -------------------------
     if (route === "current-week") {
       const out = await sb(
         "GET",
@@ -144,7 +169,9 @@ exports.handler = async (event) => {
       return json(200, { week });
     }
 
+    // -------------------------
     // season-standings
+    // -------------------------
     if (route === "season-standings") {
       const out = await sb(
         "GET",
@@ -154,7 +181,55 @@ exports.handler = async (event) => {
       return json(200, { rows: out.json || [] });
     }
 
+    // -------------------------
+    // draft-board (week picks + draft order by handicap desc)
+    // -------------------------
+    if (route === "draft-board") {
+      const params = event.queryStringParameters || {};
+      const weekId = params.week_id;
+      if (!weekId) return json(400, { error: "Missing week_id" });
+
+      // Highest handicap picks first (null handicaps go last)
+      const p = await sb(
+        "GET",
+        "players?select=id,name,handicap_index&order=handicap_index.desc.nullslast,name.asc"
+      );
+      if (!p.ok) return text(p.status, p.text);
+      const players = p.json || [];
+
+      const e = await sb(
+        "GET",
+        `week_entries?select=player_id,pga_golfer&week_id=eq.${weekId}`
+      );
+      if (!e.ok) return text(e.status, e.text);
+      const entries = e.json || [];
+
+      const byPlayerId = new Map(entries.map((x) => [x.player_id, x.pga_golfer]));
+
+      const rows = players.map((pl) => ({
+        player_id: pl.id,
+        player_name: pl.name,
+        handicap_index: pl.handicap_index ?? null,
+        pro_id: byPlayerId.get(pl.id) ?? null,
+      }));
+
+      // Stable ordering
+      rows.sort((a, b) => {
+        const ah = a.handicap_index, bh = b.handicap_index;
+        const aNull = ah == null, bNull = bh == null;
+        if (aNull && bNull) return (a.player_name || "").localeCompare(b.player_name || "");
+        if (aNull) return 1;
+        if (bNull) return -1;
+        if (bh !== ah) return bh - ah;
+        return (a.player_name || "").localeCompare(b.player_name || "");
+      });
+
+      return json(200, { week_id: weekId, rows });
+    }
+
+    // -------------------------
     // leaderboard
+    // -------------------------
     if (route === "leaderboard") {
       const params = event.queryStringParameters || {};
       const weekIdParam = params.week_id;
