@@ -2,7 +2,7 @@
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "Content-Type, x-admin-token",
+  "Access-Control-Allow-Headers": "Content-Type, x-admin-token, Authorization",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
@@ -25,6 +25,22 @@ function assertAdmin(event) {
   if (!need) return { ok: false, resp: json(500, { error: "Missing ADMIN_TOKEN env var" }) };
   if (!got || got !== need) return { ok: false, resp: json(401, { error: "Unauthorized" }) };
   return { ok: true };
+}
+
+async function getAuthedUserId(event, SUPABASE_URL, SUPABASE_ANON_KEY) {
+  const auth = (event.headers?.authorization || event.headers?.Authorization || "").trim();
+  if (!auth.startsWith("Bearer ")) return null;
+
+  const r = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+    headers: {
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: auth,
+    },
+  });
+
+  if (!r.ok) return null;
+  const u = await r.json();
+  return u?.id || null;
 }
 
 exports.handler = async (event) => {
@@ -93,13 +109,76 @@ exports.handler = async (event) => {
     }
 
     // -------------------------
+    // draft-pick (PUBLIC, AUTH REQUIRED)
+    // Sets/updates only pga_golfer for the logged-in user's linked player row.
+    // -------------------------
+    if (path === "draft-pick") {
+      const { week_id, pro_id } = body;
+
+      if (!week_id || !pro_id) {
+        return json(400, { error: "Missing week_id or pro_id" });
+      }
+
+      const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
+      if (!SUPABASE_ANON_KEY) {
+        return json(500, { error: "Missing SUPABASE_ANON_KEY" });
+      }
+
+      const userId = await getAuthedUserId(event, SUPABASE_URL, SUPABASE_ANON_KEY);
+      if (!userId) return json(401, { error: "Not logged in" });
+
+      // Find the player row linked to this auth user
+      const findResp = await fetch(
+        `${SUPABASE_URL}/rest/v1/players?select=id&user_id=eq.${userId}&limit=1`,
+        {
+          headers: {
+            apikey: SERVICE_KEY,
+            Authorization: `Bearer ${SERVICE_KEY}`,
+          },
+        }
+      );
+
+      const findText = await findResp.text();
+      if (!findResp.ok) return json(findResp.status, { error: findText });
+
+      let found = null;
+      try { found = JSON.parse(findText || "[]")[0] || null; } catch { found = null; }
+      if (!found?.id) {
+        return json(403, { error: "No player linked to this login (players.user_id not set)." });
+      }
+
+      const row = {
+        week_id,
+        player_id: found.id,
+        pga_golfer: pro_id,
+      };
+
+      const upsertResp = await fetch(`${SUPABASE_URL}/rest/v1/week_entries?on_conflict=week_id,player_id`, {
+        method: "POST",
+        headers: {
+          apikey: SERVICE_KEY,
+          Authorization: `Bearer ${SERVICE_KEY}`,
+          "content-type": "application/json",
+          Prefer: "resolution=merge-duplicates,return=representation",
+        },
+        body: JSON.stringify(row),
+      });
+
+      const upsertText = await upsertResp.text();
+      if (!upsertResp.ok) return json(upsertResp.status, { error: upsertText });
+
+      let saved = null;
+      try { saved = JSON.parse(upsertText)[0]; } catch { saved = null; }
+      return json(200, { ok: true, entry: saved });
+    }
+
+    // -------------------------
     // award-week-points (ADMIN ONLY)
     // -------------------------
     if (path === "award-week-points") {
       const admin = assertAdmin(event);
       if (!admin.ok) return admin.resp;
 
-      // Stub for next step (points rules + schema)
       return json(200, { ok: true, message: "award-week-points stub (next step)" });
     }
 
