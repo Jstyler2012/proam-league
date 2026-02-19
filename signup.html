@@ -10,62 +10,51 @@
 <body>
   <div class="wrap">
 
-    <!-- Title -->
     <div>
       <div class="pageTitle">Sign Up</div>
-      <div class="pageSub">Join the league • confirm handicap • get access</div>
+      <div class="pageSub">Join the league • create your player profile</div>
     </div>
 
-    <!-- Shared Header -->
     <div id="siteHeader" class="sectionRule"></div>
     <script src="./partials/header.js"></script>
     <script>loadHeader("signup");</script>
 
-    <!-- Page Controls -->
     <div class="pillrow sectionRule">
       <a class="btn secondary" href="./rules.html#handicaps">Handicap rules</a>
       <a class="btn secondary" href="./rules.html#buyins">Buy-ins</a>
+      <a class="btn secondary" href="./login.html">Log in</a>
     </div>
 
-    <!-- Content -->
     <div class="grid" style="margin-top:16px;">
       <div class="card">
         <div class="hd">
           <h2>Join the League</h2>
-          <span class="badge gray">Setup</span>
+          <span class="badge gray">Self Signup</span>
         </div>
         <div class="bd">
+          <div id="authWarn" class="msg bad" style="display:none;"></div>
+
           <div class="split">
             <div class="field">
               <label for="name">Name</label>
               <input id="name" placeholder="Your name" />
             </div>
             <div class="field">
-              <label for="email">Email</label>
-              <input id="email" placeholder="you@email.com" />
-            </div>
-          </div>
-
-          <div class="split" style="margin-top:10px;">
-            <div class="field">
-              <label for="ghin">GHIN (optional)</label>
-              <input id="ghin" placeholder="GHIN # (if you have it)" />
-            </div>
-            <div class="field">
-              <label for="handicap">Handicap Index</label>
+              <label for="handicap">Handicap Index (optional for now)</label>
               <input id="handicap" placeholder="e.g. 12.4" />
             </div>
           </div>
 
           <div class="row" style="margin-top:12px;">
-            <button class="btn" id="joinBtn">Submit</button>
-            <a class="btn secondary" href="./rules.html">View Rules</a>
+            <button class="btn" id="joinBtn">Create / Update Profile</button>
+            <a class="btn secondary" href="./draft.html">Go to Draft</a>
           </div>
 
           <div id="msg" class="msg" style="display:none;"></div>
 
           <div class="msg" style="margin-top:12px;">
-            <b>Note:</b> This form is UI-only right now. If you want, next step is wiring this to a Netlify Function + Supabase table.
+            <b>Note:</b> You must be logged in before creating your player profile.
+            Once saved, your name + handicap will appear sitewide.
           </div>
         </div>
       </div>
@@ -77,22 +66,26 @@
         </div>
         <div class="bd" style="color:var(--muted); line-height:1.6;">
           <ul style="margin:0; padding-left:18px;">
-            <li>We confirm your starting handicap (GHIN preferred).</li>
-            <li>You show up on the Player dropdown on the Home page.</li>
+            <li>You appear in Player dropdowns.</li>
             <li>You can draft a PGA pro each week.</li>
-            <li>Buy-ins are due before posting or before tournament lock.</li>
+            <li>Mid-season signups are allowed—your profile works immediately.</li>
           </ul>
           <div class="msg" style="margin-top:12px;">
-            Tip: bookmark <span class="mono">./index.html</span> as your main dashboard.
+            Tip: If you ever need to correct your name/handicap, just submit this form again.
           </div>
         </div>
       </div>
     </div>
 
-    <div class="footer">Need to edit handicaps mid-season? See Rules → Handicaps.</div>
+    <div class="footer">Questions? Check Rules → Handicaps & Buy-ins.</div>
   </div>
 
 <script>
+const API = {
+  me: "/api/me",
+  join: "/api-auth/join",
+};
+
 const $ = (id) => document.getElementById(id);
 
 function showMsg(text, type){
@@ -101,12 +94,73 @@ function showMsg(text, type){
   el.className = "msg" + (type ? " " + type : "");
   el.textContent = text;
 }
+function showAuthWarn(text){
+  const el = $("authWarn");
+  el.style.display = "block";
+  el.textContent = text;
+}
 
-$("joinBtn").addEventListener("click", () => {
-  const name = $("name").value.trim();
-  if(!name) return showMsg("Enter your name first.", "bad");
-  showMsg("Saved (UI-only). Next step: wire this to Supabase.", "ok");
+async function getJSON(url, opts={}){
+  const r = await fetch(url, { ...opts, headers: { "accept":"application/json", ...(opts.headers||{}) }});
+  const t = await r.text();
+  let j = null; try{ j = t ? JSON.parse(t) : null }catch(e){}
+  if(!r.ok) throw new Error((j && (j.error||j.message)) ? (j.error||j.message) : (t || r.statusText));
+  return j;
+}
+
+let token = null;
+
+async function boot(){
+  token = localStorage.getItem("sb_access_token");
+  if(!token){
+    showAuthWarn("You are not logged in. Go to Login first, then come back here.");
+    $("joinBtn").disabled = true;
+    return;
+  }
+
+  // Prefill if already joined
+  try{
+    const me = await getJSON(API.me, { headers: { "authorization":"Bearer " + token }});
+    if(me?.player?.name) $("name").value = me.player.name;
+    if(me?.player?.handicap_index != null) $("handicap").value = me.player.handicap_index;
+  }catch(e){
+    // ignore
+  }
+}
+
+$("joinBtn").addEventListener("click", async () => {
+  try{
+    const name = $("name").value.trim();
+    const handicap = $("handicap").value.trim();
+
+    if(!name) return showMsg("Enter your name.", "bad");
+
+    const payload = { name };
+    if(handicap !== "") payload.handicap_index = handicap;
+
+    const res = await getJSON(API.join, {
+      method:"POST",
+      headers:{
+        "content-type":"application/json",
+        "authorization":"Bearer " + token
+      },
+      body: JSON.stringify(payload)
+    });
+
+    showMsg(
+      res.mode === "created" ? "Profile created and linked to your login!" : "Profile updated!",
+      "ok"
+    );
+
+    // Refresh header mini (name/hcp)
+    if(typeof renderAuthMini === "function") renderAuthMini();
+
+  }catch(e){
+    showMsg("Error: " + e.message, "bad");
+  }
 });
+
+boot();
 </script>
 </body>
 </html>
