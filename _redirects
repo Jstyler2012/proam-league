@@ -1,1 +1,4 @@
-
+/api/* /.netlify/functions/public/:splat 200
+/api-mutate/* /.netlify/functions/mutate/:splat 200
+/api-proscore /.netlify/functions/proscore 200
+/api-auth/* /.netlify/functions/auth/:splat 200
