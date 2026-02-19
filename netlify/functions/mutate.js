@@ -1,4 +1,4 @@
-// netlify/functions/mutate.js
+/ netlify/functions/mutate.js
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -43,14 +43,35 @@ async function getAuthedUserId(event, SUPABASE_URL, SUPABASE_ANON_KEY) {
   return u?.id || null;
 }
 
+async function sbService(SUPABASE_URL, SERVICE_KEY, method, restPath, bodyObj, prefer) {
+  const headers = {
+    apikey: SERVICE_KEY,
+    Authorization: `Bearer ${SERVICE_KEY}`,
+    "content-type": "application/json",
+  };
+  if (prefer) headers.Prefer = prefer;
+
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/${restPath}`, {
+    method,
+    headers,
+    body: bodyObj ? JSON.stringify(bodyObj) : undefined,
+  });
+
+  const t = await r.text();
+  if (!r.ok) throw new Error(t || r.statusText);
+  return t ? JSON.parse(t) : null;
+}
+
 exports.handler = async (event) => {
   if (event.httpMethod === "OPTIONS") return { statusCode: 204, headers: corsHeaders, body: "" };
 
   try {
     const SUPABASE_URL = process.env.SUPABASE_URL;
     const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    if (!SUPABASE_URL || !SERVICE_KEY) {
-      return json(500, { error: "Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY" });
+    const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
+
+    if (!SUPABASE_URL || !SERVICE_KEY || !SUPABASE_ANON_KEY) {
+      return json(500, { error: "Missing SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, or SUPABASE_ANON_KEY" });
     }
 
     const path = (event.path || "")
@@ -61,6 +82,53 @@ exports.handler = async (event) => {
 
     let body = {};
     try { body = JSON.parse(event.body || "{}"); } catch { body = {}; }
+
+    // -------------------------
+    // participate (AUTH REQUIRED)
+    // POST /api-mutate/participate { week_id, participate:true|false }
+    // -------------------------
+    if (path === "participate") {
+      const { week_id, participate } = body;
+      if (!week_id) return json(400, { error: "Missing week_id" });
+
+      const userId = await getAuthedUserId(event, SUPABASE_URL, SUPABASE_ANON_KEY);
+      if (!userId) return json(401, { error: "Not logged in" });
+
+      // Find player linked to auth user
+      const found = await sbService(
+        SUPABASE_URL,
+        SERVICE_KEY,
+        "GET",
+        `players?select=id&user_id=eq.${userId}&limit=1`
+      );
+      const playerId = found?.[0]?.id || null;
+      if (!playerId) return json(403, { error: "No player linked to this login yet. Go to Sign Up and create your profile." });
+
+      const want = (participate === undefined || participate === null) ? true : Boolean(participate);
+
+      if (want) {
+        // Upsert into week_participants
+        const row = { week_id, player_id: playerId };
+        const saved = await sbService(
+          SUPABASE_URL,
+          SERVICE_KEY,
+          "POST",
+          `week_participants?on_conflict=week_id,player_id`,
+          row,
+          "resolution=merge-duplicates,return=representation"
+        );
+        return json(200, { ok: true, mode: "joined", row: saved?.[0] || null });
+      } else {
+        // Delete participation row
+        await sbService(
+          SUPABASE_URL,
+          SERVICE_KEY,
+          "DELETE",
+          `week_participants?week_id=eq.${week_id}&player_id=eq.${playerId}`
+        );
+        return json(200, { ok: true, mode: "left" });
+      }
+    }
 
     // -------------------------
     // submit-score (PUBLIC)
@@ -89,28 +157,20 @@ exports.handler = async (event) => {
         total,
       };
 
-      const insertResp = await fetch(`${SUPABASE_URL}/rest/v1/week_entries?on_conflict=week_id,player_id`, {
-        method: "POST",
-        headers: {
-          apikey: SERVICE_KEY,
-          Authorization: `Bearer ${SERVICE_KEY}`,
-          "content-type": "application/json",
-          Prefer: "resolution=merge-duplicates,return=representation",
-        },
-        body: JSON.stringify(row),
-      });
+      const inserted = await sbService(
+        SUPABASE_URL,
+        SERVICE_KEY,
+        "POST",
+        `week_entries?on_conflict=week_id,player_id`,
+        row,
+        "resolution=merge-duplicates,return=representation"
+      );
 
-      const insertText = await insertResp.text();
-      if (!insertResp.ok) return json(insertResp.status, { error: insertText });
-
-      let inserted = null;
-      try { inserted = JSON.parse(insertText)[0]; } catch { inserted = null; }
-      return json(200, { ok: true, entry: inserted });
+      return json(200, { ok: true, entry: inserted?.[0] || null });
     }
 
     // -------------------------
-    // draft-pick (PUBLIC, AUTH REQUIRED)
-    // Sets/updates only pga_golfer for the logged-in user's linked player row.
+    // draft-pick (AUTH REQUIRED)
     // -------------------------
     if (path === "draft-pick") {
       const { week_id, pro_id } = body;
@@ -119,57 +179,30 @@ exports.handler = async (event) => {
         return json(400, { error: "Missing week_id or pro_id" });
       }
 
-      const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
-      if (!SUPABASE_ANON_KEY) {
-        return json(500, { error: "Missing SUPABASE_ANON_KEY" });
-      }
-
       const userId = await getAuthedUserId(event, SUPABASE_URL, SUPABASE_ANON_KEY);
       if (!userId) return json(401, { error: "Not logged in" });
 
-      // Find the player row linked to this auth user
-      const findResp = await fetch(
-        `${SUPABASE_URL}/rest/v1/players?select=id&user_id=eq.${userId}&limit=1`,
-        {
-          headers: {
-            apikey: SERVICE_KEY,
-            Authorization: `Bearer ${SERVICE_KEY}`,
-          },
-        }
+      const found = await sbService(
+        SUPABASE_URL,
+        SERVICE_KEY,
+        "GET",
+        `players?select=id&user_id=eq.${userId}&limit=1`
+      );
+      const playerId = found?.[0]?.id || null;
+      if (!playerId) return json(403, { error: "No player linked to this login yet. Go to Sign Up and create your profile." });
+
+      const row = { week_id, player_id: playerId, pga_golfer: pro_id };
+
+      const saved = await sbService(
+        SUPABASE_URL,
+        SERVICE_KEY,
+        "POST",
+        `week_entries?on_conflict=week_id,player_id`,
+        row,
+        "resolution=merge-duplicates,return=representation"
       );
 
-      const findText = await findResp.text();
-      if (!findResp.ok) return json(findResp.status, { error: findText });
-
-      let found = null;
-      try { found = JSON.parse(findText || "[]")[0] || null; } catch { found = null; }
-      if (!found?.id) {
-        return json(403, { error: "No player linked to this login (players.user_id not set)." });
-      }
-
-      const row = {
-        week_id,
-        player_id: found.id,
-        pga_golfer: pro_id,
-      };
-
-      const upsertResp = await fetch(`${SUPABASE_URL}/rest/v1/week_entries?on_conflict=week_id,player_id`, {
-        method: "POST",
-        headers: {
-          apikey: SERVICE_KEY,
-          Authorization: `Bearer ${SERVICE_KEY}`,
-          "content-type": "application/json",
-          Prefer: "resolution=merge-duplicates,return=representation",
-        },
-        body: JSON.stringify(row),
-      });
-
-      const upsertText = await upsertResp.text();
-      if (!upsertResp.ok) return json(upsertResp.status, { error: upsertText });
-
-      let saved = null;
-      try { saved = JSON.parse(upsertText)[0]; } catch { saved = null; }
-      return json(200, { ok: true, entry: saved });
+      return json(200, { ok: true, entry: saved?.[0] || null });
     }
 
     // -------------------------
@@ -187,3 +220,4 @@ exports.handler = async (event) => {
     return json(500, { error: err?.message || String(err) });
   }
 };
+
