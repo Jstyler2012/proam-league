@@ -29,10 +29,141 @@
     }
 
     *{ box-sizing:border-box; }
+    html, body { height:100%; }
+    body{
+      margin:0;
+      background: radial-gradient(900px 520px at 20% 0%, rgba(90,167,255,.10), transparent 55%),
+                  radial-gradient(900px 520px at 80% 0%, rgba(71,215,172,.10), transparent 55%),
+                  var(--bg);
+      color: var(--text);
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+    }
     a{ color:inherit; text-decoration:none; }
 
-    .wrap{ max-width:1100px; margin:0 auto; padding:28px 18px 60px; }
+    .wrap{ max-width:1100px; margin:0 auto; padding:22px 16px 56px; }
 
+    /* ---------- Masthead (banner + full-width control bar) ---------- */
+    .masthead{
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      overflow: hidden;
+      box-shadow: var(--shadow);
+      margin-bottom: 16px;
+      background: rgba(0,0,0,.18);
+    }
+
+    .mastBanner{
+      position: relative;
+      width: 100%;
+      /* keeps banner consistent across devices */
+      aspect-ratio: 1100 / 260;
+      min-height: 110px;
+      max-height: 220px;
+      background-image: url("/assets/header-banner.jpg");
+      background-size: cover;
+      background-repeat: no-repeat;
+
+      /* IMPORTANT: keep logo/title readable and avoid “sliding” */
+      background-position: center center;
+    }
+
+    /* readability + prevents controls from visually “covering” title */
+    .mastBanner::before{
+      content:"";
+      position:absolute;
+      inset:0;
+      background:
+        radial-gradient(1200px 260px at 50% 10%, rgba(0,0,0,.05), rgba(0,0,0,.35) 65%, rgba(0,0,0,.55) 100%);
+      pointer-events:none;
+    }
+
+    /* Full-width bar that sits at the bottom of the banner (not floating) */
+    .mastBar{
+      position:absolute;
+      left:0;
+      right:0;
+      bottom:0;
+      z-index:2;
+
+      /* Bar occupies only the lower portion so it won’t cover top logo/text */
+      padding: 12px 12px 14px;
+      background: linear-gradient(180deg, rgba(0,0,0,.00), rgba(0,0,0,.38) 35%, rgba(0,0,0,.55) 100%);
+    }
+
+    .mastBarInner{
+      max-width:1100px;
+      margin:0 auto;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      flex-wrap:wrap;
+
+      border-radius: 16px;
+      padding: 10px 12px;
+      border: 1px solid rgba(255,255,255,.12);
+      background: rgba(0,0,0,.32);
+      backdrop-filter: blur(10px);
+    }
+
+    .seasonPill{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:7px 12px;
+      border-radius:999px;
+      border:1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.06);
+      color: rgba(233,241,255,.86);
+      font-size:13px;
+      white-space: nowrap;
+    }
+
+    .navRow{
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+      justify-content:flex-end;
+    }
+
+    .navTab{
+      padding:8px 14px;
+      border-radius:999px;
+      border:1px solid var(--border);
+      font-size:13px;
+      color:var(--muted);
+      font-weight:700;
+      transition:.15s;
+      background: rgba(255,255,255,.04);
+    }
+    .navTab:hover{
+      border-color:rgba(90,167,255,.45);
+      color:#cfe3ff;
+      background: rgba(255,255,255,.06);
+    }
+    .navTabActive{
+      border-color:rgba(71,215,172,.45);
+      color:#c9fff0;
+      background:rgba(71,215,172,.12);
+    }
+
+    /* Mobile masthead: keep centered and clean */
+    @media (max-width: 700px){
+      .mastBanner{
+        aspect-ratio: 1100 / 340;
+        min-height: 120px;
+        max-height: 220px;
+        background-position: center center;
+      }
+      .mastBarInner{
+        justify-content:center;
+        text-align:center;
+      }
+      .seasonPill{ width: 100%; justify-content:center; white-space: normal; }
+      .navRow{ width:100%; justify-content:center; }
+    }
+
+    /* Kept for JS updates, hidden */
     .pillrow{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; justify-content:flex-start; }
     .pill{
       border:1px solid var(--border);
@@ -44,28 +175,17 @@
     .dot{ width:8px; height:8px; border-radius:50%; background:var(--warn); }
     .dot.ok{ background:var(--ok); }
     .dot.bad{ background:var(--danger); }
+    .mastheadControls{ display:none !important; }
 
+    /* ---------- Cards + layout ---------- */
     .grid{
-  display:grid;
-  grid-template-columns: 1fr 1.4fr; /* leaderboard wider */
-  gap:16px;
-}
-
-/* Mobile: still side-by-side */
-@media (max-width: 980px){
-  .grid{
-    grid-template-columns: .9fr 1.1fr;
-    gap:10px;
-  }
-}
-
-/* Very small phones */
-@media (max-width: 600px){
-  .grid{
-    grid-template-columns: .85fr 1.15fr;
-    gap:8px;
-  }
-}
+      display:grid;
+      grid-template-columns: 1fr 1.4fr; /* leaderboard wider on desktop */
+      gap:16px;
+    }
+    @media (max-width: 980px){
+      .grid{ grid-template-columns: 1fr; gap:12px; } /* stack on mobile/tablet for clean fit */
+    }
 
     .card{
       background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
@@ -81,9 +201,18 @@
       border-bottom:1px solid var(--border);
     }
     .card .hd h2{
-      margin:0; font-size:14px; letter-spacing:.3px; text-transform:uppercase; color:var(--muted);
+      margin:0;
+      font-size:14px;
+      letter-spacing:.3px;
+      text-transform:uppercase;
+      color:var(--muted);
     }
     .card .bd{ padding:16px; }
+
+    @media (max-width:560px){
+      .card .hd{ padding: 10px 12px; }
+      .card .bd{ padding: 12px; }
+    }
 
     .btn{
       appearance:none; border:none; cursor:pointer;
@@ -120,29 +249,21 @@
       outline:none;
     }
     input::placeholder{ color: rgba(233,241,255,.35); }
+
     .split{ display:grid; grid-template-columns: 1fr 1fr; gap:10px; }
     @media(max-width:560px){ .split{ grid-template-columns:1fr; } }
 
-    table{
-      width:100%;
-      border-collapse:collapse;
-      border-radius: 14px;
-      border:1px solid var(--border);
-      background: rgba(0,0,0,.18);
-      overflow:hidden;
+    /* Make submit card buttons clean on mobile */
+    .submitActions{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      margin-top:12px;
     }
-    th, td{
-      padding:10px 10px;
-      border-bottom:1px solid rgba(255,255,255,.07);
-      text-align:left;
-      font-size:13px;
-      vertical-align: middle;
-      white-space: nowrap;
+    @media(max-width:560px){
+      .submitActions{ flex-direction:column; }
+      .submitActions .btn{ width:100%; }
     }
-    th{ color:var(--muted); font-weight:700; font-size:12px; text-transform:uppercase; letter-spacing:.3px; }
-    tr:last-child td{ border-bottom:none; }
-    .rank{ font-weight:900; color:#d9e6ff; width:56px; }
-    .mono{ font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
 
     .badge{
       display:inline-flex; align-items:center; gap:8px;
@@ -151,6 +272,7 @@
       border:1px solid rgba(71,215,172,.28);
       color:#c9fff0;
       font-weight:700; font-size:12px;
+      white-space: nowrap;
     }
     .badge.gray{
       background: rgba(255,255,255,.06);
@@ -185,27 +307,10 @@
       text-align:center;
     }
 
-    .navTab{
-      padding:8px 14px;
-      border-radius:999px;
-      border:1px solid var(--border);
-      text-decoration:none;
-      font-size:13px;
-      color:var(--muted);
-      font-weight:700;
-      transition:.15s;
-    }
-    .navTab:hover{
-      border-color:rgba(90,167,255,.45);
-      color:#cfe3ff;
-    }
-    .navTabActive{
-      border-color:rgba(71,215,172,.45);
-      color:#c9fff0;
-      background:rgba(71,215,172,.10);
-    }
+    /* Hide Public pill beside Submit title (keep for JS state updates) */
+    #lockBadge{ display:none !important; }
 
-    /* Week hero */
+    /* ---------- Week hero ---------- */
     .weekHero{
       position: relative;
       min-height: 150px;
@@ -255,7 +360,7 @@
       font-size: 13px;
     }
 
-    /* Schedule carousel (swipe) */
+    /* ---------- Schedule carousel ---------- */
     .scheduleCarouselWrap{
       border-top: 1px solid var(--border);
       background: rgba(0,0,0,.14);
@@ -272,52 +377,44 @@
       color: rgba(233,241,255,.55);
       font-size: 12px;
     }
-   .scheduleCarousel{
-  display:flex;
-  gap:10px;
-  overflow-x:auto;
-  padding-bottom: 6px;
+    .scheduleCarousel{
+      display:flex;
+      gap:10px;
+      overflow-x:auto;
+      padding-bottom: 6px;
+      scroll-snap-type: x mandatory;
+      scroll-padding: 0 50%;
+      scroll-behavior: smooth;
+      -webkit-overflow-scrolling: touch;
+    }
+    .scheduleCarousel::-webkit-scrollbar{ height: 8px; }
+    .scheduleCarousel::-webkit-scrollbar-thumb{
+      background: rgba(255,255,255,.12);
+      border-radius: 999px;
+    }
+    .scheduleItem{
+      flex: 0 0 auto;
+      min-width: 260px;
+      max-width: 340px;
+      scroll-snap-align: center;
+      scroll-snap-stop: always;
 
-  /* Better snapping + center target */
-  scroll-snap-type: x mandatory;
-  scroll-padding: 0 50%;
-  scroll-behavior: smooth;
-
-  -webkit-overflow-scrolling: touch;
-}
-
-.scheduleCarousel::-webkit-scrollbar{ height: 8px; }
-.scheduleCarousel::-webkit-scrollbar-thumb{
-  background: rgba(255,255,255,.12);
-  border-radius: 999px;
-}
-
-.scheduleItem{
-  flex: 0 0 auto;
-  min-width: 260px;
-  max-width: 320px;
-
-  /* Stronger snap behavior */
-  scroll-snap-align: center;
-  scroll-snap-stop: always;
-
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:12px;
-  padding:12px 12px;
-  border-radius:14px;
-  border:1px solid var(--border);
-  background: rgba(0,0,0,.18);
-  cursor:pointer;
-  transition: transform .08s ease, background .12s ease, border-color .12s ease;
-}
-
-.scheduleItem:active{ transform: translateY(1px); }
-.scheduleItem.active{
-  border-color: rgba(71,215,172,.35);
-  background: rgba(71,215,172,.08);
-}
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      padding:12px 12px;
+      border-radius:14px;
+      border:1px solid var(--border);
+      background: rgba(0,0,0,.18);
+      cursor:pointer;
+      transition: transform .08s ease, background .12s ease, border-color .12s ease;
+    }
+    .scheduleItem:active{ transform: translateY(1px); }
+    .scheduleItem.active{
+      border-color: rgba(71,215,172,.35);
+      background: rgba(71,215,172,.08);
+    }
     .scheduleLeft{
       display:flex;
       align-items:center;
@@ -340,7 +437,7 @@
       white-space:nowrap;
       overflow:hidden;
       text-overflow:ellipsis;
-      max-width: 210px;
+      max-width: 230px;
     }
     .scheduleMeta{ margin-top:2px; color:var(--muted); font-size:12px; }
 
@@ -371,9 +468,7 @@
         0 0 0 1px rgba(255,207,90,.12),
         0 0 26px rgba(255,207,90,.14);
     }
-    .card.weekMajorCard .hd{
-      border-bottom-color: rgba(255,207,90,.25);
-    }
+    .card.weekMajorCard .hd{ border-bottom-color: rgba(255,207,90,.25); }
     .badge.majorBadge{
       border-color: var(--majorBorder) !important;
       color: var(--majorText) !important;
@@ -387,132 +482,35 @@
       font-weight: 800 !important;
     }
 
-/* Masthead container */
-.topMasthead{
-  border-radius: var(--radius);
-  border: 1px solid var(--border);
-  overflow: hidden;
-  box-shadow: var(--shadow);
-  margin-bottom: 16px;
-  background: rgba(0,0,0,.18);
-}
-
-.mastBanner{
-  background-image: url("/assets/header-banner.jpg");
-  background-size: cover;
-  background-repeat: no-repeat;
-
-  /* anchor logo properly */
-  background-position: center;
-
-  /* ESPN-style responsive scaling */
-  width: 100%;
-  aspect-ratio: 1100 / 240;
-
-  /* prevents excessive height on huge monitors */
-  max-height: 180px;
-
-  /* prevents banner from getting too short on small screens */
-  min-height: 90px;
-
-  position: relative;
-}
-
-/* subtle readability overlay */
-.mastBanner::after{
-  content:"";
-  position:absolute;
-  inset:0;
-  background: linear-gradient(
-    rgba(0,0,0,0.12),
-    rgba(0,0,0,0.35)
-  );
-}
-
-/* controls under banner (OVERLAY on banner) */
-.mastControls{
-  padding: 12px 14px 14px;
-
-  /* pull up over the banner */
-  margin-top: -64px;
-
-  position: relative;
-  z-index: 2;
-}
-
-/* translucent panel behind Season + Nav so it reads on the banner */
-.mastControlsInner{
-  display: inline-block;
-  border-radius: 16px;
-  padding: 10px 12px 12px;
-  background: rgba(0,0,0,.35);
-  border: 1px solid rgba(255,255,255,.10);
-  backdrop-filter: blur(8px);
-}
-
-/* mobile adjustment */
-@media (max-width:560px){
-  .mastBanner{
-    aspect-ratio: 1100 / 300;
-    min-height: 80px;
-    max-height: 140px;
-    background-position: center;
-  }
-}
-
-    .siteTitle{
-      font-size:22px;
-      font-weight:900;
-      letter-spacing:.2px;
-      margin:0;
-      line-height:1.15;
-    }
-    .seasonPill{
-      margin-top:8px;
-      display:inline-flex;
-      align-items:center;
-      gap:8px;
-      padding:7px 12px;
-      border-radius:999px;
-      border:1px solid rgba(255,255,255,.12);
-      background: rgba(0,0,0,.18);
-      color: rgba(233,241,255,.82);
-      font-size:13px;
-      text-shadow: 0 2px 10px rgba(0,0,0,.55);
-    }
-    .navRow{
-      margin-top: 10px;
-      display:flex;
-      gap:8px;
-      flex-wrap:wrap;
-    }
-
-    /* Hide top status pills (API / Week / Refresh) but keep for JS */
-    .mastheadControls{ display:none !important; }
-
-    /* Hide Public pill beside Submit title (keep for JS state updates) */
-    #lockBadge{ display:none !important; }
-
-    /* Leaderboard fit + scroll on mobile */
-    #leaderboardTitle{
-      white-space: normal;
-      line-height: 1.15;
-    }
-    .tableWrap{
-      width: 100%;
-      overflow-x: auto;
-      -webkit-overflow-scrolling: touch;
+    /* ---------- Leaderboard: no horizontal scroll on mobile ---------- */
+    table{
+      width:100%;
+      border-collapse:collapse;
       border-radius: 14px;
+      border:1px solid var(--border);
+      background: rgba(0,0,0,.18);
+      overflow:hidden;
     }
-      .tableWrap table{
-      width: 100%;
-      min-width: 0; /* allow shrink on mobile */
+    th, td{
+      padding:10px 10px;
+      border-bottom:1px solid rgba(255,255,255,.07);
+      text-align:left;
+      font-size:13px;
+      vertical-align: middle;
     }
+    th{
+      color:var(--muted);
+      font-weight:700;
+      font-size:12px;
+      text-transform:uppercase;
+      letter-spacing:.3px;
+      white-space: nowrap;
+    }
+    tr:last-child td{ border-bottom:none; }
 
+    .mono{ font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
     .center{ text-align:center !important; }
-    .lbScore, .lbCombined{ text-align:center !important; }
-    .lbCombined b{ display:inline-block; min-width: 42px; text-align:center; }
-    /* ESPN-style compact leaderboard chips */
+
     .rankPill{
       display:inline-flex;
       align-items:center;
@@ -523,8 +521,8 @@
       background: rgba(255,255,255,.06);
       border:1px solid var(--border);
       font-weight:900;
+      white-space: nowrap;
     }
-
     .totalPill{
       display:inline-flex;
       align-items:center;
@@ -535,98 +533,106 @@
       background: rgba(71,215,172,.10);
       border:1px solid rgba(71,215,172,.24);
       font-weight:900;
+      white-space: nowrap;
     }
-      @media (max-width:560px){
-      /* keep cards compact */
-      .card .hd{ padding: 10px 10px; }
-      .card .bd{ padding: 10px; }
 
-      /* leaderboard title tighter */
-      #leaderboardTitle{ font-size: 12.5px; letter-spacing:.2px; }
+    /* Desktop table wrap is fine, but mobile uses “stacked rows” so everything fits cleanly */
+    .tableWrap{ width:100%; }
 
-      /* ESPN-ish density */
-      th, td{ padding: 7px 6px; font-size: 12px; }
-      th{ font-size: 10.5px; letter-spacing:.35px; }
-
-      /* player name truncation */
-      .playerCell{
-        max-width: 110px;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-        font-weight: 800;
-      }
-
-      /* submit section compact (THIS is your Step 3) */
+    @media (max-width:560px){
+      /* denser inputs + buttons */
       .field label{ font-size:11px; }
-      input, select{ padding:7px 8px; font-size:12px; }
-      .btn{ padding:7px 8px; font-size:12px; }
+      input, select{ padding:8px 10px; font-size:12px; }
+      .btn{ padding:9px 10px; font-size:12px; }
 
-      /* carousel tweaks */
+      /* compact schedule cards */
       .scheduleItem{ min-width: 240px; }
-      .scheduleName{ max-width: 170px; }
-    }
-      @media (max-width: 600px){
+      .scheduleName{ max-width: 175px; }
 
-  /* tighten submit card */
-  .field label{
-    font-size:11px;
-  }
+      /* Stacked leaderboard rows (no horizontal scroll, no tiny text) */
+      .tableWrap table,
+      .tableWrap thead,
+      .tableWrap tbody,
+      .tableWrap th,
+      .tableWrap td,
+      .tableWrap tr{
+        display:block;
+        width:100%;
+      }
+      .tableWrap thead{ display:none; }
 
-  input, select{
-    padding:7px 8px;
-    font-size:12px;
-  }
-
-  .btn{
-    padding:7px 8px;
-    font-size:12px;
-  }
-
-}
+      .tableWrap tbody tr{
+        border:1px solid rgba(255,255,255,.08);
+        background: rgba(0,0,0,.16);
+        border-radius: 14px;
+        padding:10px 10px;
+        margin-bottom:10px;
+      }
+      .tableWrap td{
+        border:none;
+        padding:6px 0;
+        display:flex;
+        align-items:center;
+        justify-content:space-between;
+        gap:12px;
+        font-size:12.5px;
+      }
+      .tableWrap td::before{
+        content: attr(data-label);
+        color: rgba(233,241,255,.55);
+        font-weight:800;
+        text-transform:uppercase;
+        letter-spacing:.25px;
+        font-size:10.5px;
+        flex: 0 0 auto;
+      }
+      .tableWrap td > span,
+      .tableWrap td > b,
+      .tableWrap td > div{
+        text-align:right;
+      }
     }
   </style>
 </head>
 
 <body>
   <div class="wrap">
-<div class="topMasthead">
-  <!-- Banner image lives here -->
-  <div class="mastBanner" aria-label="Wellman banner"></div>
+    <!-- Masthead -->
+    <div class="masthead">
+      <div class="mastBanner" aria-label="Wellman banner">
+        <div class="mastBar">
+          <div class="mastBarInner">
+            <div class="seasonPill">Season 1: March 9 - June 21, 2026</div>
 
-  <!-- Controls live below banner -->
-<div class="mastControls">
-  <div class="mastControlsInner">
-    <div class="seasonPill">Season 1: March 9 - June 21, 2026</div>
+            <div class="navRow">
+              <a href="./index.html" class="navTab navTabActive">Home</a>
+              <a href="./draft.html" class="navTab">Draft</a>
+              <a href="./rules.html" class="navTab">Rules</a>
+              <a href="./signup.html" class="navTab">Sign Up</a>
+            </div>
 
-    <div class="navRow">
-      <a href="./index.html" class="navTab navTabActive">Home</a>
-      <a href="./draft.html" class="navTab">Draft</a>
-      <a href="./rules.html" class="navTab">Rules</a>
-      <a href="./signup.html" class="navTab">Sign Up</a>
-    </div>
-  </div>
-
-        <!-- Kept for JS updates, hidden via .mastheadControls -->
-        <div class="pillrow mastheadControls" aria-label="Top controls">
-          <div class="pill" title="Netlify Functions health">
-            <span id="healthDot" class="dot"></span>
-            <span>API:</span>
-            <span id="healthText" class="mono">checking…</span>
+            <!-- Kept for JS updates, hidden via .mastheadControls -->
+            <div class="pillrow mastheadControls" aria-label="Top controls">
+              <div class="pill" title="Netlify Functions health">
+                <span id="healthDot" class="dot"></span>
+                <span>API:</span>
+                <span id="healthText" class="mono">checking…</span>
+              </div>
+              <div class="pill" title="Current / displayed week">
+                <span class="mono">Week:</span>
+                <span id="weekLabel" class="mono">—</span>
+              </div>
+              <button class="btn secondary" id="refreshBtn">Refresh</button>
+            </div>
           </div>
-          <div class="pill" title="Current / displayed week">
-            <span class="mono">Week:</span>
-            <span id="weekLabel" class="mono">—</span>
-          </div>
-          <button class="btn secondary" id="refreshBtn">Refresh</button>
         </div>
       </div>
     </div>
 
+    <!-- Week details -->
     <div class="card" id="weekDetailsCard" style="margin-bottom:16px;">
       <div class="hd">
         <span class="badge weekPill" id="tournamentWeekBadge">—</span>
-
         <div class="row" style="justify-content:flex-end;">
           <span class="badge gray" id="majorPtsBadge" style="display:none;">Major 2X Pts</span>
         </div>
@@ -643,7 +649,6 @@
         </div>
       </div>
 
-      <!-- Schedule moved here (swipe carousel) -->
       <div class="scheduleCarouselWrap">
         <div class="scheduleCarouselHd">
           <div style="font-weight:800; color: rgba(233,241,255,.82); font-size:13px;">Weeks</div>
@@ -655,12 +660,14 @@
       </div>
     </div>
 
+    <!-- Submit + leaderboard -->
     <div class="grid">
       <div class="card">
         <div class="hd">
           <h2>Submit Your Score</h2>
           <span class="badge gray" id="lockBadge">Public</span>
         </div>
+
         <div class="bd">
           <div class="split">
             <div class="field">
@@ -684,7 +691,7 @@
             </div>
           </div>
 
-          <div class="row" style="margin-top:12px;">
+          <div class="submitActions">
             <button class="btn" id="submitBtn">Submit</button>
             <button class="btn secondary" id="autoProBtn">Auto-pull Pro Score</button>
           </div>
@@ -702,30 +709,30 @@
           <h2 id="leaderboardTitle">Week — Leaderboard</h2>
           <span class="badge" id="lastUpdated">Updated: —</span>
         </div>
+
         <div class="bd">
           <div class="tableWrap">
             <table>
               <thead>
-                
-  <tr>
-    <th class="rank" rowspan="2">Rank</th>
-    <th class="mono center" rowspan="2">Score Total</th>
-    <th class="center" colspan="2">Player</th>
-    <th class="center" colspan="2">Pro</th>
-  </tr>
-  <tr>
-    <th>Player</th>
-    <th class="mono center">Score</th>
-    <th>Pro</th>
-    <th class="mono center">Score</th>
-  </tr>
-</thead>
+                <tr>
+                  <th rowspan="2">Rank</th>
+                  <th class="mono center" rowspan="2">Score Total</th>
+                  <th class="center" colspan="2">Player</th>
+                  <th class="center" colspan="2">Pro</th>
+                </tr>
+                <tr>
+                  <th>Player</th>
+                  <th class="mono center">Score</th>
+                  <th>Pro</th>
+                  <th class="mono center">Score</th>
+                </tr>
               </thead>
               <tbody id="lbBody">
                 <tr><td colspan="6" style="color:rgba(233,241,255,.45);">Loading…</td></tr>
               </tbody>
             </table>
           </div>
+
           <div id="lbMsg" class="msg" style="display:none;"></div>
         </div>
       </div>
@@ -813,56 +820,55 @@ const API = {
     let displayedWeek = null;
     let currentWeekId = null;
 
-  // For swipe-to-select (scroll-stop based)
-let ignoreAutoSelectUntil = 0;
-let scheduleScrollTimer = null;
+    // Swipe-to-select (scroll-stop based)
+    let ignoreAutoSelectUntil = 0;
+    let scheduleScrollTimer = null;
 
-function pickCenteredWeekId(){
-  const root = $("scheduleList");
-  if(!root) return null;
+    function pickCenteredWeekId(){
+      const root = $("scheduleList");
+      if(!root) return null;
 
-  const rootRect = root.getBoundingClientRect();
-  const centerX = rootRect.left + rootRect.width / 2;
+      const rootRect = root.getBoundingClientRect();
+      const centerX = rootRect.left + rootRect.width / 2;
 
-  let bestId = null;
-  let bestDist = Infinity;
+      let bestId = null;
+      let bestDist = Infinity;
 
-  root.querySelectorAll(".scheduleItem").forEach(el => {
-    const r = el.getBoundingClientRect();
-    const elCenter = r.left + r.width / 2;
-    const dist = Math.abs(elCenter - centerX);
-    if(dist < bestDist){
-      bestDist = dist;
-      bestId = el.getAttribute("data-week-id");
+      root.querySelectorAll(".scheduleItem").forEach(el => {
+        const r = el.getBoundingClientRect();
+        const elCenter = r.left + r.width / 2;
+        const dist = Math.abs(elCenter - centerX);
+        if(dist < bestDist){
+          bestDist = dist;
+          bestId = el.getAttribute("data-week-id");
+        }
+      });
+
+      return bestId;
     }
-  });
 
-  return bestId;
-}
+    function attachScheduleScrollStop(weeks){
+      const root = $("scheduleList");
+      if(!root) return;
 
-function attachScheduleScrollStop(weeks){
-  const root = $("scheduleList");
-  if(!root) return;
+      root.onscroll = null;
 
-  // Avoid stacking handlers across renders
-  root.onscroll = null;
+      root.onscroll = () => {
+        if(Date.now() < ignoreAutoSelectUntil) return;
 
-  root.onscroll = () => {
-    if(Date.now() < ignoreAutoSelectUntil) return;
+        clearTimeout(scheduleScrollTimer);
+        scheduleScrollTimer = setTimeout(() => {
+          const id = pickCenteredWeekId();
+          if(!id) return;
 
-    clearTimeout(scheduleScrollTimer);
-    scheduleScrollTimer = setTimeout(() => {
-      const id = pickCenteredWeekId();
-      if(!id) return;
+          const w = weeks.find(x => x.id === id);
+          if(!w) return;
+          if(displayedWeek?.id === w.id) return;
 
-      const w = weeks.find(x => x.id === id);
-      if(!w) return;
-      if(displayedWeek?.id === w.id) return;
-
-      setDisplayedWeek(w);
-    }, 140); // adjust 120–180ms if you want
-  };
-}
+          setDisplayedWeek(w);
+        }, 140);
+      };
+    }
 
     function indexPros(list){
       prosById = new Map();
@@ -873,12 +879,10 @@ function attachScheduleScrollStop(weeks){
     }
 
     function proNameFromRow(r){
-      // prefer what API might already return
       const direct =
         r?.pro_name ?? r?.proName ?? r?.pro ?? r?.drafted_pro_name ?? r?.draftedProName ?? null;
       if(direct && String(direct).trim()) return String(direct);
 
-      // try resolving from pro_id via loaded pros list
       const pid = r?.pro_id ?? r?.proId ?? r?.proID ?? r?.proid ?? null;
       if(pid == null) return "—";
       const p = prosById.get(String(pid));
@@ -934,18 +938,14 @@ function attachScheduleScrollStop(weeks){
       }
     }
 
-    
-
     function scrollScheduleToActive(activeWeekId){
       const root = $("scheduleList");
       if(!root || !activeWeekId) return;
       const el = root.querySelector(`.scheduleItem[data-week-id="${CSS.escape(activeWeekId)}"]`);
       if(!el) return;
 
-      // avoid triggering auto-select while we programmatically scroll
       ignoreAutoSelectUntil = Date.now() + 700;
 
-      // center it
       const rootRect = root.getBoundingClientRect();
       const elRect = el.getBoundingClientRect();
       const delta = (elRect.left + elRect.width/2) - (rootRect.left + rootRect.width/2);
@@ -998,10 +998,7 @@ function attachScheduleScrollStop(weeks){
         });
       });
 
-      // NEW: select the week after scrolling stops (less sticky)
-attachScheduleScrollStop(sorted);
-
-      // keep active week centered
+      attachScheduleScrollStop(sorted);
       scrollScheduleToActive(activeWeekId);
     }
 
@@ -1029,16 +1026,19 @@ attachScheduleScrollStop(sorted);
         }else{
           $("lbBody").innerHTML = rows.map((r, idx) => {
             const proName = proNameFromRow(r);
-    return `
-  <tr>
-    <td class="rank"><span class="rankPill">#${idx+1}</span></td>
-<td class="mono lbCombined"><span class="totalPill">${fmtToPar(r.combined)}</span></td>
-<td class="playerCell">${r.player_name || "—"}</td>
-    <td class="mono lbScore">${fmtToPar(r.playerScore)}</td>
-    <td>${proName || "—"}</td>
-    <td class="mono lbScore">${fmtToPar(r.proScore)}</td>
-  </tr>
-`;
+            const playerName = r.player_name || "—";
+
+            // data-label values make the mobile “stacked rows” layout work cleanly
+            return `
+              <tr>
+                <td data-label="Rank"><span class="rankPill">#${idx+1}</span></td>
+                <td data-label="Total" class="mono center"><span class="totalPill">${fmtToPar(r.combined)}</span></td>
+                <td data-label="Player">${playerName}</td>
+                <td data-label="Player Score" class="mono center">${fmtToPar(r.playerScore)}</td>
+                <td data-label="Pro">${proName || "—"}</td>
+                <td data-label="Pro Score" class="mono center">${fmtToPar(r.proScore)}</td>
+              </tr>
+            `;
           }).join("");
         }
 
@@ -1196,35 +1196,34 @@ attachScheduleScrollStop(sorted);
       await boot();
     });
 
-  async function boot(){
-    await checkHealth();
-    await loadPlayersAndPros();
+    async function boot(){
+      await checkHealth();
+      await loadPlayersAndPros();
 
-    try{
-      const weeks = await loadSchedule();
-      const wk = pickDisplayedWeekFromSchedule(weeks);
-      if(!wk) throw new Error("No week found in schedule");
-      await setDisplayedWeek(wk);
-    }catch(e){
       try{
-        const cw = await getJSON(API.currentWeek);
-        const wk = cw?.week || null;
-        if (wk) {
-          try { await loadSchedule(); } catch(_){}
-          await setDisplayedWeek(wk);
-        } else {
+        const weeks = await loadSchedule();
+        const wk = pickDisplayedWeekFromSchedule(weeks);
+        if(!wk) throw new Error("No week found in schedule");
+        await setDisplayedWeek(wk);
+      }catch(e){
+        try{
+          const cw = await getJSON(API.currentWeek);
+          const wk = cw?.week || null;
+          if (wk) {
+            try { await loadSchedule(); } catch(_){}
+            await setDisplayedWeek(wk);
+          } else {
+            renderWeekDetails(null);
+          }
+        }catch(_){
           renderWeekDetails(null);
         }
-      }catch(_){
-        renderWeekDetails(null);
       }
+
+      renderCombined();
     }
 
-    renderCombined();
-  }
-
-  // Start the app
-  boot();
-</script>
+    boot();
+  </script>
 </body>
 </html>
