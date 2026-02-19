@@ -9,10 +9,9 @@
 
 <body>
   <div class="wrap">
-
     <div>
       <div class="pageTitle">Sign Up</div>
-      <div class="pageSub">Join the league • create your player profile</div>
+      <div class="pageSub">Create your account • set your handicap • start drafting</div>
     </div>
 
     <div id="siteHeader" class="sectionRule"></div>
@@ -32,29 +31,44 @@
           <span class="badge gray">Self Signup</span>
         </div>
         <div class="bd">
-          <div id="authWarn" class="msg bad" style="display:none;"></div>
-
           <div class="split">
             <div class="field">
-              <label for="name">Name</label>
-              <input id="name" placeholder="Your name" />
+              <label for="name">Full Name</label>
+              <input id="name" placeholder="Name used site-wide" />
             </div>
             <div class="field">
-              <label for="handicap">Handicap Index (optional for now)</label>
+              <label for="handicap">Handicap</label>
               <input id="handicap" placeholder="e.g. 12.4" />
             </div>
           </div>
 
-          <div class="row" style="margin-top:12px;">
-            <button class="btn" id="joinBtn">Create / Update Profile</button>
-            <a class="btn secondary" href="./draft.html">Go to Draft</a>
+          <div class="split" style="margin-top:10px;">
+            <div class="field">
+              <label for="email">Email</label>
+              <input id="email" placeholder="you@email.com" />
+            </div>
+            <div class="field">
+              <label for="pw">Create Password</label>
+              <input id="pw" type="password" placeholder="Create a password" />
+            </div>
+          </div>
+
+          <div class="split" style="margin-top:10px;">
+            <div class="field">
+              <label for="pw2">Confirm Password</label>
+              <input id="pw2" type="password" placeholder="Repeat password" />
+            </div>
+            <div class="field">
+              <label>&nbsp;</label>
+              <button class="btn" id="signupBtn" style="width:100%;">Create Account</button>
+            </div>
           </div>
 
           <div id="msg" class="msg" style="display:none;"></div>
 
           <div class="msg" style="margin-top:12px;">
-            <b>Note:</b> You must be logged in before creating your player profile.
-            Once saved, your name + handicap will appear sitewide.
+            <b>Confidence check:</b> Handicap rules and buy-in deadlines live in <span class="mono">Rules</span>.
+            This form only captures your starting handicap and profile info.
           </div>
         </div>
       </div>
@@ -66,12 +80,13 @@
         </div>
         <div class="bd" style="color:var(--muted); line-height:1.6;">
           <ul style="margin:0; padding-left:18px;">
-            <li>You appear in Player dropdowns.</li>
-            <li>You can draft a PGA pro each week.</li>
-            <li>Mid-season signups are allowed—your profile works immediately.</li>
+            <li>Your account is created (email + password).</li>
+            <li>Your player profile is created and linked to your login.</li>
+            <li>Your name <b>(handicap)</b> displays everywhere after login.</li>
+            <li>Mid-season signups are allowed — your profile works immediately.</li>
           </ul>
           <div class="msg" style="margin-top:12px;">
-            Tip: If you ever need to correct your name/handicap, just submit this form again.
+            Tip: If your name or handicap needs correction later, come back here and update it (after logging in).
           </div>
         </div>
       </div>
@@ -80,87 +95,88 @@
     <div class="footer">Questions? Check Rules → Handicaps & Buy-ins.</div>
   </div>
 
-<script>
-const API = {
-  me: "/api/me",
-  join: "/api-auth/join",
-};
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    // IMPORTANT: Use your REAL anon public key (not "publishable")
+    const SUPABASE_URL = "https://pgeiloiymvhhnuirudn.supabase.co";
+    const SUPABASE_ANON_KEY = "PASTE_YOUR_SUPABASE_ANON_PUBLIC_KEY_HERE";
 
-const $ = (id) => document.getElementById(id);
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-function showMsg(text, type){
-  const el = $("msg");
-  el.style.display = "block";
-  el.className = "msg" + (type ? " " + type : "");
-  el.textContent = text;
-}
-function showAuthWarn(text){
-  const el = $("authWarn");
-  el.style.display = "block";
-  el.textContent = text;
-}
+    const API = { join: "/api-auth/join" };
+    const $ = (id) => document.getElementById(id);
 
-async function getJSON(url, opts={}){
-  const r = await fetch(url, { ...opts, headers: { "accept":"application/json", ...(opts.headers||{}) }});
-  const t = await r.text();
-  let j = null; try{ j = t ? JSON.parse(t) : null }catch(e){}
-  if(!r.ok) throw new Error((j && (j.error||j.message)) ? (j.error||j.message) : (t || r.statusText));
-  return j;
-}
+    function show(text, type){
+      const el = $("msg");
+      el.style.display = "block";
+      el.className = "msg" + (type ? " " + type : "");
+      el.textContent = text;
+    }
 
-let token = null;
+    async function getJSON(url, opts={}){
+      const r = await fetch(url, { ...opts, headers: { "accept":"application/json", ...(opts.headers||{}) }});
+      const t = await r.text();
+      let j = null; try{ j = t ? JSON.parse(t) : null }catch(e){}
+      if(!r.ok) throw new Error((j && (j.error||j.message)) ? (j.error||j.message) : (t || r.statusText));
+      return j;
+    }
 
-async function boot(){
-  token = localStorage.getItem("sb_access_token");
-  if(!token){
-    showAuthWarn("You are not logged in. Go to Login first, then come back here.");
-    $("joinBtn").disabled = true;
-    return;
-  }
+    $("signupBtn").addEventListener("click", async () => {
+      try{
+        const name = $("name").value.trim();
+        const handicap = $("handicap").value.trim();
+        const email = $("email").value.trim();
+        const pw = $("pw").value;
+        const pw2 = $("pw2").value;
 
-  // Prefill if already joined
-  try{
-    const me = await getJSON(API.me, { headers: { "authorization":"Bearer " + token }});
-    if(me?.player?.name) $("name").value = me.player.name;
-    if(me?.player?.handicap_index != null) $("handicap").value = me.player.handicap_index;
-  }catch(e){
-    // ignore
-  }
-}
+        if(!name) return show("Enter your full name.", "bad");
+        if(!email) return show("Enter your email.", "bad");
+        if(!pw) return show("Create a password.", "bad");
+        if(pw.length < 6) return show("Password must be at least 6 characters.", "bad");
+        if(pw !== pw2) return show("Passwords do not match.", "bad");
 
-$("joinBtn").addEventListener("click", async () => {
-  try{
-    const name = $("name").value.trim();
-    const handicap = $("handicap").value.trim();
+        // 1) Create auth user (email+password)
+        const { data, error } = await supabase.auth.signUp({ email, password: pw });
+        if(error) return show("Signup failed: " + error.message, "bad");
 
-    if(!name) return showMsg("Enter your name.", "bad");
+        const token = data?.session?.access_token || null;
 
-    const payload = { name };
-    if(handicap !== "") payload.handicap_index = handicap;
+        // If your Supabase project requires email confirmation, session may be null here.
+        if(!token){
+          show(
+            "Account created. Check your email to confirm, then log in. After login, return here to finish profile linking.",
+            "ok"
+          );
+          return;
+        }
 
-    const res = await getJSON(API.join, {
-      method:"POST",
-      headers:{
-        "content-type":"application/json",
-        "authorization":"Bearer " + token
-      },
-      body: JSON.stringify(payload)
+        // 2) Link/create player profile using service role via Netlify Function
+        const payload = { name };
+        if(handicap !== "") payload.handicap_index = handicap;
+
+        const res = await getJSON(API.join, {
+          method:"POST",
+          headers:{
+            "content-type":"application/json",
+            "authorization":"Bearer " + token
+          },
+          body: JSON.stringify(payload)
+        });
+
+        localStorage.setItem("sb_access_token", token);
+
+        show(
+          res.mode === "created"
+            ? "Account created + profile linked! You’re ready to draft."
+            : "Account created + profile updated!",
+          "ok"
+        );
+
+        if(typeof renderAuthMini === "function") renderAuthMini();
+      }catch(e){
+        show("Error: " + e.message, "bad");
+      }
     });
-
-    showMsg(
-      res.mode === "created" ? "Profile created and linked to your login!" : "Profile updated!",
-      "ok"
-    );
-
-    // Refresh header mini (name/hcp)
-    if(typeof renderAuthMini === "function") renderAuthMini();
-
-  }catch(e){
-    showMsg("Error: " + e.message, "bad");
-  }
-});
-
-boot();
-</script>
+  </script>
 </body>
 </html>
