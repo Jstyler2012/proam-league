@@ -54,7 +54,6 @@
       width: 100%;
       /* Use a fixed “title box” height so the image fits the box exactly */
       height: 100px;
-      background-size: cover;
       background-image: url("/assets/header-banner.jpg");
       background-repeat: no-repeat;
 
@@ -63,7 +62,7 @@
         - contain ensures the ENTIRE image (including top logo) is visible (no crop)
         - center keeps it aligned
       */
-      background-size: contain;
+      background-size: cover;
       background-position: center center;
 
       /* prevent tiling if contain leaves space */
