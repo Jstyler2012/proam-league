@@ -389,16 +389,41 @@
 
     /* Masthead */
     .topMasthead{
-      position: relative;
-      padding: 16px;
-      border-radius: var(--radius);
-      border: 1px solid var(--border);
-      overflow: hidden;
-      background: rgba(0,0,0,.22);
-      box-shadow: var(--shadow);
-      margin-bottom: 16px;
-    }
-    .topMasthead > *{ position:relative; z-index:1; }
+  position: relative;
+  padding: 0; /* remove padding so banner fills fully */
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  overflow: hidden;
+  box-shadow: var(--shadow);
+  margin-bottom: 16px;
+
+  /* Banner image */
+  background-image: url("./header-banner.jpg");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+
+  /* height of banner */
+  min-height: 110px;
+}
+
+/* optional dark overlay so nav buttons remain readable */
+.topMasthead::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  background: linear-gradient(
+    rgba(0,0,0,.35),
+    rgba(0,0,0,.45)
+  );
+  z-index:0;
+}
+
+.topMasthead > *{
+  position:relative;
+  z-index:1;
+  padding: 14px 16px;
+}
 
     .siteTitle{
       font-size:22px;
@@ -534,7 +559,6 @@
     <div class="topMasthead">
       <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:14px;flex-wrap:wrap;">
         <div>
-          <div class="siteTitle">Wellman Golf Club Pro-Am League</div>
           <div class="seasonPill">Season 1: March 9 - June 21, 2026</div>
 
           <div class="navRow">
