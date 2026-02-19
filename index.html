@@ -397,16 +397,24 @@
   background: rgba(0,0,0,.18);
 }
 
-/* Banner image section */
 .mastBanner{
   background-image: url("/assets/header-banner.jpg");
   background-size: cover;
   background-repeat: no-repeat;
 
-  /* fixes desktop cropping */
-  background-position: top center;
+  /* anchor logo properly */
+  background-position: center top;
 
-  height: 140px;
+  /* ESPN-style responsive scaling */
+  width: 100%;
+  aspect-ratio: 1100 / 240;
+
+  /* prevents excessive height on huge monitors */
+  max-height: 180px;
+
+  /* prevents banner from getting too short on small screens */
+  min-height: 90px;
+
   position: relative;
 }
 
@@ -429,8 +437,10 @@
 /* mobile adjustment */
 @media (max-width:560px){
   .mastBanner{
-    height: 120px;
-    background-position: center center;
+    aspect-ratio: 1100 / 300;
+    min-height: 80px;
+    max-height: 140px;
+    background-position: center top;
   }
 }
 
