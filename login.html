@@ -10,7 +10,7 @@
   <div class="wrap">
     <div>
       <div class="pageTitle">Log In</div>
-      <div class="pageSub">Magic link email login</div>
+      <div class="pageSub">Email + password login</div>
     </div>
 
     <div id="siteHeader" class="sectionRule"></div>
@@ -19,34 +19,42 @@
 
     <div class="card" style="margin-top:16px;">
       <div class="hd">
-        <h2>Magic Link</h2>
+        <h2>Login</h2>
         <span class="badge gray">Auth</span>
       </div>
       <div class="bd">
-        <div class="field">
-          <label for="email">Email</label>
-          <input id="email" placeholder="you@email.com" />
+        <div class="split">
+          <div class="field">
+            <label for="email">Email</label>
+            <input id="email" placeholder="you@email.com" />
+          </div>
+          <div class="field">
+            <label for="pw">Password</label>
+            <input id="pw" type="password" placeholder="Your password" />
+          </div>
         </div>
 
         <div class="row" style="margin-top:12px;">
-          <button class="btn" id="sendBtn">Send Magic Link</button>
-          <button class="btn secondary" id="logoutBtn">Log out</button>
+          <button class="btn" id="loginBtn">Log In</button>
+          <a class="btn secondary" href="./signup.html">Create Account</a>
         </div>
 
         <div id="msg" class="msg" style="display:none;"></div>
       </div>
     </div>
 
-    <div class="footer">After login, Draft will be enabled and your handicap will show next to your name.</div>
+    <div class="footer">After login, your name (handicap) shows in the header everywhere.</div>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
+    // IMPORTANT: Use your REAL anon public key (not "publishable")
     const SUPABASE_URL = "https://pgeiloiymvhhnuirudn.supabase.co";
-    const SUPABASE_ANON_KEY = "sb_publishable_N3_mDqjkytg1Hu8vC724xw_nkFy6PeH";
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const SUPABASE_ANON_KEY = "PASTE_YOUR_SUPABASE_ANON_PUBLIC_KEY_HERE";
 
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     const $ = (id) => document.getElementById(id);
+
     function show(text, type){
       const el = $("msg");
       el.style.display = "block";
@@ -54,38 +62,25 @@
       el.textContent = text;
     }
 
-    // Handle magic-link callback
-    (async function handleCallback(){
-      const { data, error } = await supabase.auth.getSession();
-      if (error) return;
-
-      const session = data?.session || null;
-      if (session?.access_token){
-        localStorage.setItem("sb_access_token", session.access_token);
-        show("Logged in. Go to Draft.", "ok");
-      }
-    })();
-
-    $("sendBtn").addEventListener("click", async () => {
+    $("loginBtn").addEventListener("click", async () => {
       const email = $("email").value.trim();
+      const password = $("pw").value;
+
       if(!email) return show("Enter your email.", "bad");
+      if(!password) return show("Enter your password.", "bad");
 
-      const { error } = await supabase.auth.signInWithOtp({
-        email,
-        options: {
-          emailRedirectTo: window.location.origin + "/login.html"
-        }
-      });
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      if(error) return show("Login failed: " + error.message, "bad");
 
-      if(error) return show("Error: " + error.message, "bad");
-      show("Magic link sent. Check your email.", "ok");
-    });
+      const token = data?.session?.access_token || null;
+      if(!token) return show("Logged in, but no session token returned.", "bad");
 
-    $("logoutBtn").addEventListener("click", async () => {
-      await supabase.auth.signOut();
-      localStorage.removeItem("sb_access_token");
-      show("Logged out.", "ok");
+      localStorage.setItem("sb_access_token", token);
+      show("Logged in! Go to Draft or Sign Up (profile).", "ok");
+
+      if(typeof renderAuthMini === "function") renderAuthMini();
     });
   </script>
 </body>
 </html>
+
