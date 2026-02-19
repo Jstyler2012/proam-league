@@ -387,42 +387,47 @@
       font-weight: 800 !important;
     }
 
-    /* Masthead */
-    .topMasthead{
+ .topMasthead{
   position: relative;
-  padding: 0; /* remove padding so banner fills fully */
+  padding: 0;
   border-radius: var(--radius);
   border: 1px solid var(--border);
   overflow: hidden;
   box-shadow: var(--shadow);
   margin-bottom: 16px;
 
-  /* Banner image */
- background-image: url("/header-banner.jpg");
+  /* Correct path to your banner */
+  background-image: url("/assets/header-banner.jpg");
+
   background-size: cover;
-  background-position: center;
+  background-position: center center;
   background-repeat: no-repeat;
 
-  /* height of banner */
-  min-height: 110px;
+  /* Controls banner height */
+  min-height: 140px;
+
+  display:flex;
+  align-items:flex-end;
 }
 
-/* optional dark overlay so nav buttons remain readable */
+/* subtle overlay so nav buttons remain readable */
 .topMasthead::after{
   content:"";
   position:absolute;
   inset:0;
   background: linear-gradient(
-    rgba(0,0,0,.35),
-    rgba(0,0,0,.45)
+    rgba(0,0,0,0.15),
+    rgba(0,0,0,0.55)
   );
   z-index:0;
 }
 
+/* ensure nav buttons appear above banner */
 .topMasthead > *{
   position:relative;
   z-index:1;
   padding: 14px 16px;
+  width:100%;
 }
 
     .siteTitle{
