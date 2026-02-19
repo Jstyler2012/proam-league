@@ -429,9 +429,25 @@
   );
 }
 
-/* controls under banner */
+/* controls under banner (OVERLAY on banner) */
 .mastControls{
   padding: 12px 14px 14px;
+
+  /* pull up over the banner */
+  margin-top: -64px;
+
+  position: relative;
+  z-index: 2;
+}
+
+/* translucent panel behind Season + Nav so it reads on the banner */
+.mastControlsInner{
+  display: inline-block;
+  border-radius: 16px;
+  padding: 10px 12px 12px;
+  background: rgba(0,0,0,.35);
+  border: 1px solid rgba(255,255,255,.10);
+  backdrop-filter: blur(8px);
 }
 
 /* mobile adjustment */
