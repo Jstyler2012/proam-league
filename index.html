@@ -969,9 +969,9 @@ attachScheduleScrollStop(sorted);
             const proName = proNameFromRow(r);
     return `
   <tr>
-    <td class="rank">#${idx+1}</td>
-    <td class="mono lbCombined"><b>${fmtToPar(r.combined)}</b></td>
-    <td>${r.player_name || "—"}</td>
+    <td class="rank"><span class="rankPill">#${idx+1}</span></td>
+<td class="mono lbCombined"><span class="totalPill">${fmtToPar(r.combined)}</span></td>
+<td class="playerCell">${r.player_name || "—"}</td>
     <td class="mono lbScore">${fmtToPar(r.playerScore)}</td>
     <td>${proName || "—"}</td>
     <td class="mono lbScore">${fmtToPar(r.proScore)}</td>
