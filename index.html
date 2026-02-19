@@ -725,23 +725,21 @@
 
   <script>
 const API = {
-  // Existing endpoints (unchanged)
-  health: "/.netlify/functions/public/health",
-  players: "/.netlify/functions/public/players",
-  pros: "/.netlify/functions/public/pros",
-  currentWeek: "/.netlify/functions/public/current-week",
-  schedule: "/.netlify/functions/public/schedule",
-  leaderboard: "/.netlify/functions/public/leaderboard",
-  seasonStandings: "/.netlify/functions/public/season-standings",
-  submit: "/.netlify/functions/mutate/submit-score",
-  proscore: "/.netlify/functions/proscore",
-  adminResetWeek: "/.netlify/functions/admin/reset-week",
-  adminRecalc: "/.netlify/functions/admin/recalc",
+  health: "/api/health",
+  players: "/api/players",
+  pros: "/api/pros",
+  currentWeek: "/api/current-week",
+  schedule: "/api/schedule",
+  leaderboard: "/api/leaderboard",
+  seasonStandings: "/api/season-standings",
 
-  // Required new Home endpoints
+  submit: "/api-mutate/submit-score",
+  participate: "/api-mutate/participate",
+
   me: "/api/me",
   participants: "/api/participants",
-  participate: "/api-mutate/participate"
+
+  proscore: "/api-proscore"
 };
 
     const $ = (id) => document.getElementById(id);
@@ -800,11 +798,8 @@ const API = {
       );
     }
 
-    // -----------------------------
-    // Auth (EXACT for your login.html)
-    // -----------------------------
+    // Auth (exact key from your login.html)
     function getAccessToken(){
-      // Your login.html stores access_token here:
       const t = localStorage.getItem("sb_access_token");
       return (t && String(t).trim()) ? String(t).trim() : null;
     }
@@ -814,26 +809,24 @@ const API = {
     }
 
     // State
-    let players = [];
     let pros = [];
     let prosById = new Map();
     let scheduleWeeks = [];
     let displayedWeek = null;
     let currentWeekId = null;
 
-    // Participation state
-    let me = null;               // { user, player } or null
-    let participantRows = [];    // [{ player_id, player_name, handicap_index, created_at }]
+    // Participation
+    let me = null;               // { user, player }
+    let participantRows = [];    // [{player_id, player_name, handicap_index, ...}]
     let isMeParticipating = false;
 
-    // Swipe-to-select (scroll-stop based)
+    // Swipe-to-select
     let ignoreAutoSelectUntil = 0;
     let scheduleScrollTimer = null;
 
     function pickCenteredWeekId(){
       const root = $("scheduleList");
       if(!root) return null;
-
       const rootRect = root.getBoundingClientRect();
       const centerX = rootRect.left + rootRect.width / 2;
 
@@ -856,7 +849,6 @@ const API = {
     function attachScheduleScrollStop(weeks){
       const root = $("scheduleList");
       if(!root) return;
-
       root.onscroll = null;
 
       root.onscroll = () => {
@@ -1052,9 +1044,6 @@ const API = {
       }
     }
 
-    // -----------------------------
-    // Participation (NEW)
-    // -----------------------------
     function setParticipationUI(ready){
       const badge = $("participationBadge");
       const btn = $("participateBtn");
@@ -1086,11 +1075,10 @@ const API = {
     async function loadMe(){
       const token = getAccessToken();
       if(!token){ me = null; return null; }
-
       try{
         me = await getJSON(API.me, { headers: authedHeaders() });
         return me;
-      }catch(e){
+      }catch{
         me = null;
         return null;
       }
@@ -1130,10 +1118,8 @@ const API = {
         sel.appendChild(opt);
       }
 
-      // keep old selection if still valid
       if(prev && items.some(x => x.id === prev)) sel.value = prev;
 
-      // requirement: auto-select logged-in user if they’re participating
       const myPlayerId = me?.player?.id ? String(me.player.id) : null;
       if(myPlayerId && isMeParticipating && items.some(x => x.id === myPlayerId)){
         sel.value = myPlayerId;
@@ -1200,7 +1186,7 @@ const API = {
       const btn = $("participateBtn");
       if(btn) btn.disabled = true;
 
-      const next = !isMeParticipating; // join if currently off; leave if on
+      const next = !isMeParticipating;
 
       try{
         await getJSON(API.participate, {
@@ -1209,13 +1195,11 @@ const API = {
           body: JSON.stringify({ week_id: currentWeekId, participate: next })
         });
 
-        // requirement: refresh dropdown AND leaderboard
         await refreshParticipationAndPlayers();
         if(displayedWeek) await loadLeaderboardForWeek(displayedWeek);
-
       }catch(e){
         showMsg($("participationMsg"), "Participation error: " + e.message, "bad");
-      } finally {
+      }finally{
         if(btn) btn.disabled = false;
       }
     }
@@ -1231,25 +1215,21 @@ const API = {
       }
     }
 
-    function populateSelect(sel, items, labelKey="name", valueKey="id"){
-      if(!sel) return;
-      sel.innerHTML = "";
-      for(const it of items){
-        const opt = document.createElement("option");
-        opt.value = it[valueKey];
-        opt.textContent = it[labelKey];
-        sel.appendChild(opt);
-      }
-    }
-
-    async function loadPlayersAndPros(){
-      // Keep existing calls, but Player dropdown is now participants-only.
-      const [p, pr] = await Promise.all([ getJSON(API.players), getJSON(API.pros) ]);
-      players = Array.isArray(p) ? p : (p.players || []);
+    async function loadPros(){
+      const pr = await getJSON(API.pros);
       pros = Array.isArray(pr) ? pr : (pr.pros || []);
       indexPros(pros);
-
-      populateSelect($("proSel"), pros);
+      // Pro dropdown uses full list (unchanged behavior)
+      const sel = $("proSel");
+      if(sel){
+        sel.innerHTML = "";
+        for(const p of pros){
+          const opt = document.createElement("option");
+          opt.value = p.id;
+          opt.textContent = p.name;
+          sel.appendChild(opt);
+        }
+      }
     }
 
     async function loadSchedule(){
@@ -1357,16 +1337,14 @@ const API = {
       renderWeekDetails(week);
       renderSchedule(scheduleWeeks, week.id);
 
-      // requirement: populate player dropdown from participants for displayed week
+      // participation + participants-only player dropdown
       await refreshParticipationAndPlayers();
 
-      // requirement: leaderboard refresh (already participants-only server side)
       await loadLeaderboardForWeek(week);
     }
 
     $("playerScore")?.addEventListener("input", renderCombined);
     $("proScore")?.addEventListener("input", renderCombined);
-
     $("submitBtn")?.addEventListener("click", submitScore);
     $("autoProBtn")?.addEventListener("click", autoPullProScore);
     $("participateBtn")?.addEventListener("click", toggleParticipate);
@@ -1377,7 +1355,7 @@ const API = {
 
     async function boot(){
       await checkHealth();
-      await loadPlayersAndPros();
+      await loadPros();
 
       try{
         const weeks = await loadSchedule();
