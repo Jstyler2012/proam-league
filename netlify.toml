@@ -17,8 +17,9 @@
   to = "/.netlify/functions/proscore"
   status = 200
 
-# NEW: auth join (self-signup)
+# Auth / profile join
 [[redirects]]
   from = "/api-auth/*"
   to = "/.netlify/functions/auth/:splat"
   status = 200
+
