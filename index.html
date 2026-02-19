@@ -50,41 +50,33 @@
       background: rgba(0,0,0,.18);
     }
 
-    /* Banner: gradient fills the box, image is NEVER cropped */
+   /* Patriots-style banner — fills strip, protects top logo/text */
 .mastBanner{
   width: 100%;
-  height: 170px; /* desktop banner height */
 
-  /* Layer 1 = grey gradient fill | Layer 2 = your banner image */
-  background-image:
-    linear-gradient(90deg,
-      rgba(15, 22, 32, 0.95) 0%,
-      rgba(120, 120, 120, 0.95) 22%,
-      rgba(170, 170, 170, 0.95) 50%,
-      rgba(120, 120, 120, 0.95) 78%,
-      rgba(15, 22, 32, 0.95) 100%
-    ),
-    url("/assets/header-banner.jpg");
+  /* responsive height similar to sports sites */
+  height: clamp(120px, 15vw, 180px);
 
-  /* Gradient fills; image fits entirely */
-  background-size: cover, contain;
+  background-image: url("/assets/header-banner.jpg");
+  background-repeat: no-repeat;
 
-  /* Center both layers */
-  background-position: center center, center center;
+  /* fills entire banner */
+  background-size: cover;
 
-  /* No tiling */
-  background-repeat: no-repeat, no-repeat;
+  /* CRITICAL: anchor to top so logo/text never get cropped */
+  background-position: center top;
 
-  /* Helps avoid harsh edges if any transparency */
-  background-color: rgba(0,0,0,.18);
+  /* fallback background so cropped gray edges blend cleanly */
+  background-color: #0b1220;
+
+  position: relative;
 }
 
-/* Mobile: give the image a bit more vertical room so text/logo fit comfortably */
+/* Mobile: slightly taller so logo + title always fit */
 @media (max-width: 700px){
   .mastBanner{
-    height: 210px;
-    background-size: cover, contain;
-    background-position: center center, center center;
+    height: 190px;
+    background-position: center top;
   }
 }
     /* Bar is BELOW the banner (never covers/blurs the banner) */
