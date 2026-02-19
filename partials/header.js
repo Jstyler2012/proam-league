@@ -53,23 +53,25 @@ async function renderAuthMini(){
     const hText =
       (h === null || h === undefined || Number.isNaN(Number(h)))
         ? ""
-        : `<small class="hcpInline">(${Number(h).toFixed(1)})</small>`;
+        : `<small>(${Number(h).toFixed(1)})</small>`;
 
     slot.innerHTML = `
-      <div class="userMini">
-        <span class="userMiniName">${name}${hText}</span>
-        <a class="navTab" href="./login.html" id="logoutLink">Log out</a>
+      <div class="userMiniActions">
+        <div class="userMini">${name}${hText}</div>
+        <a class="userMiniLink" href="./login.html" id="logoutLink">Log out</a>
       </div>
     `;
 
-    const logout = document.getElementById("logoutLink");
-    if(logout){
-      logout.addEventListener("click", (e) => {
+    // make logoutLink actually log out (no supabase-js needed)
+    const logoutLink = document.getElementById("logoutLink");
+    if(logoutLink){
+      logoutLink.addEventListener("click", async (e) => {
         e.preventDefault();
         localStorage.removeItem("sb_access_token");
         window.location.href = "./login.html";
       });
     }
+
   }catch(e){
     localStorage.removeItem("sb_access_token");
     slot.innerHTML = `<a class="navTab" href="./login.html">Log in</a>`;
