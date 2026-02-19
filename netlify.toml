@@ -2,7 +2,6 @@
   publish = "."
   functions = "netlify/functions"
 
-# Friendly API aliases (recommended)
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/public/:splat"
@@ -13,8 +12,13 @@
   to = "/.netlify/functions/mutate/:splat"
   status = 200
 
-# Optional: alias proscore too (so you can call /api-proscore?pro_id=...)
 [[redirects]]
   from = "/api-proscore"
   to = "/.netlify/functions/proscore"
+  status = 200
+
+# NEW: auth join (self-signup)
+[[redirects]]
+  from = "/api-auth/*"
+  to = "/.netlify/functions/auth/:splat"
   status = 200
