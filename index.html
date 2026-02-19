@@ -9,8 +9,6 @@
   <style>
     :root{
       --bg:#0b1220;
-      --panel:#0f1b33;
-      --panel2:#0c162b;
       --text:#e8eefc;
       --muted:#a9b7d6;
       --brand:#47d7ac;
@@ -42,7 +40,7 @@
 
     .wrap{ max-width:1100px; margin:0 auto; padding:22px 16px 56px; }
 
-    /* ---------- Masthead (banner + full-width control bar) ---------- */
+    /* ---------- Masthead (NO overlay over the banner) ---------- */
     .masthead{
       border-radius: var(--radius);
       border: 1px solid var(--border);
@@ -53,46 +51,44 @@
     }
 
     .mastBanner{
-      position: relative;
       width: 100%;
-      /* keeps banner consistent across devices */
-      aspect-ratio: 1100 / 260;
-      min-height: 110px;
-      max-height: 220px;
+      /* Use a fixed “title box” height so the image fits the box exactly */
+      height: 180px;
       background-image: url("/assets/header-banner.jpg");
-      background-size: cover;
       background-repeat: no-repeat;
 
-      /* IMPORTANT: keep logo/title readable and avoid “sliding” */
+      /*
+        KEY CHANGE:
+        - contain ensures the ENTIRE image (including top logo) is visible (no crop)
+        - center keeps it aligned
+      */
+      background-size: contain;
       background-position: center center;
+
+      /* prevent tiling if contain leaves space */
+      background-color: rgba(0,0,0,.18);
     }
 
-    /* readability + prevents controls from visually “covering” title */
-    .mastBanner::before{
-      content:"";
-      position:absolute;
-      inset:0;
-      background:
-        radial-gradient(1200px 260px at 50% 10%, rgba(0,0,0,.05), rgba(0,0,0,.35) 65%, rgba(0,0,0,.55) 100%);
-      pointer-events:none;
+    /* Mobile: a bit taller so the logo/title stays readable */
+    @media (max-width: 700px){
+      .mastBanner{
+        height: 210px;
+        background-size: contain;
+        background-position: center center;
+      }
     }
 
-    /* Full-width bar that sits at the bottom of the banner (not floating) */
+    /* Bar is BELOW the banner (never covers/blurs the banner) */
     .mastBar{
-      position:absolute;
-      left:0;
-      right:0;
-      bottom:0;
-      z-index:2;
-
-      /* Bar occupies only the lower portion so it won’t cover top logo/text */
+      border-top: 1px solid rgba(255,255,255,.08);
       padding: 12px 12px 14px;
-      background: linear-gradient(180deg, rgba(0,0,0,.00), rgba(0,0,0,.38) 35%, rgba(0,0,0,.55) 100%);
+      background: rgba(0,0,0,.16);
     }
 
     .mastBarInner{
       max-width:1100px;
       margin:0 auto;
+
       display:flex;
       align-items:center;
       justify-content:space-between;
@@ -102,8 +98,10 @@
       border-radius: 16px;
       padding: 10px 12px;
       border: 1px solid rgba(255,255,255,.12);
-      background: rgba(0,0,0,.32);
-      backdrop-filter: blur(10px);
+      background: rgba(0,0,0,.24);
+
+      /* IMPORTANT: remove blur so it doesn't blur anything behind it */
+      backdrop-filter: none;
     }
 
     .seasonPill{
@@ -147,20 +145,20 @@
       background:rgba(71,215,172,.12);
     }
 
-    /* Mobile masthead: keep centered and clean */
     @media (max-width: 700px){
-      .mastBanner{
-        aspect-ratio: 1100 / 340;
-        min-height: 120px;
-        max-height: 220px;
-        background-position: center center;
-      }
       .mastBarInner{
         justify-content:center;
         text-align:center;
       }
-      .seasonPill{ width: 100%; justify-content:center; white-space: normal; }
-      .navRow{ width:100%; justify-content:center; }
+      .seasonPill{
+        width: 100%;
+        justify-content:center;
+        white-space: normal;
+      }
+      .navRow{
+        width:100%;
+        justify-content:center;
+      }
     }
 
     /* Kept for JS updates, hidden */
@@ -184,7 +182,7 @@
       gap:16px;
     }
     @media (max-width: 980px){
-      .grid{ grid-template-columns: 1fr; gap:12px; } /* stack on mobile/tablet for clean fit */
+      .grid{ grid-template-columns: 1fr; gap:12px; } /* stack on mobile for clean fit */
     }
 
     .card{
@@ -253,7 +251,6 @@
     .split{ display:grid; grid-template-columns: 1fr 1fr; gap:10px; }
     @media(max-width:560px){ .split{ grid-template-columns:1fr; } }
 
-    /* Make submit card buttons clean on mobile */
     .submitActions{
       display:flex;
       gap:10px;
@@ -482,7 +479,7 @@
       font-weight: 800 !important;
     }
 
-    /* ---------- Leaderboard: no horizontal scroll on mobile ---------- */
+    /* ---------- Leaderboard (KEEP desktop look on mobile) ---------- */
     table{
       width:100%;
       border-collapse:collapse;
@@ -497,6 +494,7 @@
       text-align:left;
       font-size:13px;
       vertical-align: middle;
+      white-space: nowrap;
     }
     th{
       color:var(--muted);
@@ -504,7 +502,6 @@
       font-size:12px;
       text-transform:uppercase;
       letter-spacing:.3px;
-      white-space: nowrap;
     }
     tr:last-child td{ border-bottom:none; }
 
@@ -521,7 +518,6 @@
       background: rgba(255,255,255,.06);
       border:1px solid var(--border);
       font-weight:900;
-      white-space: nowrap;
     }
     .totalPill{
       display:inline-flex;
@@ -533,63 +529,26 @@
       background: rgba(71,215,172,.10);
       border:1px solid rgba(71,215,172,.24);
       font-weight:900;
-      white-space: nowrap;
     }
 
-    /* Desktop table wrap is fine, but mobile uses “stacked rows” so everything fits cleanly */
-    .tableWrap{ width:100%; }
+    /* Let the table stay “desktop style”; allow horizontal scroll ONLY if needed */
+    .tableWrap{
+      width:100%;
+      overflow-x:auto;
+      -webkit-overflow-scrolling: touch;
+      border-radius: 14px;
+    }
 
     @media (max-width:560px){
-      /* denser inputs + buttons */
-      .field label{ font-size:11px; }
-      input, select{ padding:8px 10px; font-size:12px; }
-      .btn{ padding:9px 10px; font-size:12px; }
+      th, td{ padding: 7px 6px; font-size: 12px; }
+      th{ font-size: 10.5px; letter-spacing:.35px; }
 
-      /* compact schedule cards */
-      .scheduleItem{ min-width: 240px; }
-      .scheduleName{ max-width: 175px; }
-
-      /* Stacked leaderboard rows (no horizontal scroll, no tiny text) */
-      .tableWrap table,
-      .tableWrap thead,
-      .tableWrap tbody,
-      .tableWrap th,
-      .tableWrap td,
-      .tableWrap tr{
-        display:block;
-        width:100%;
-      }
-      .tableWrap thead{ display:none; }
-
-      .tableWrap tbody tr{
-        border:1px solid rgba(255,255,255,.08);
-        background: rgba(0,0,0,.16);
-        border-radius: 14px;
-        padding:10px 10px;
-        margin-bottom:10px;
-      }
-      .tableWrap td{
-        border:none;
-        padding:6px 0;
-        display:flex;
-        align-items:center;
-        justify-content:space-between;
-        gap:12px;
-        font-size:12.5px;
-      }
-      .tableWrap td::before{
-        content: attr(data-label);
-        color: rgba(233,241,255,.55);
-        font-weight:800;
-        text-transform:uppercase;
-        letter-spacing:.25px;
-        font-size:10.5px;
-        flex: 0 0 auto;
-      }
-      .tableWrap td > span,
-      .tableWrap td > b,
-      .tableWrap td > div{
-        text-align:right;
+      .playerCell{
+        max-width: 110px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-weight: 800;
       }
     }
   </style>
@@ -599,31 +558,32 @@
   <div class="wrap">
     <!-- Masthead -->
     <div class="masthead">
-      <div class="mastBanner" aria-label="Wellman banner">
-        <div class="mastBar">
-          <div class="mastBarInner">
-            <div class="seasonPill">Season 1: March 9 - June 21, 2026</div>
+      <div class="mastBanner" aria-label="Wellman banner"></div>
 
-            <div class="navRow">
-              <a href="./index.html" class="navTab navTabActive">Home</a>
-              <a href="./draft.html" class="navTab">Draft</a>
-              <a href="./rules.html" class="navTab">Rules</a>
-              <a href="./signup.html" class="navTab">Sign Up</a>
-            </div>
+      <!-- Bar below banner: never covers/blurs the logo image -->
+      <div class="mastBar">
+        <div class="mastBarInner">
+          <div class="seasonPill">Season 1: March 9 - June 21, 2026</div>
 
-            <!-- Kept for JS updates, hidden via .mastheadControls -->
-            <div class="pillrow mastheadControls" aria-label="Top controls">
-              <div class="pill" title="Netlify Functions health">
-                <span id="healthDot" class="dot"></span>
-                <span>API:</span>
-                <span id="healthText" class="mono">checking…</span>
-              </div>
-              <div class="pill" title="Current / displayed week">
-                <span class="mono">Week:</span>
-                <span id="weekLabel" class="mono">—</span>
-              </div>
-              <button class="btn secondary" id="refreshBtn">Refresh</button>
+          <div class="navRow">
+            <a href="./index.html" class="navTab navTabActive">Home</a>
+            <a href="./draft.html" class="navTab">Draft</a>
+            <a href="./rules.html" class="navTab">Rules</a>
+            <a href="./signup.html" class="navTab">Sign Up</a>
+          </div>
+
+          <!-- Kept for JS updates, hidden via .mastheadControls -->
+          <div class="pillrow mastheadControls" aria-label="Top controls">
+            <div class="pill" title="Netlify Functions health">
+              <span id="healthDot" class="dot"></span>
+              <span>API:</span>
+              <span id="healthText" class="mono">checking…</span>
             </div>
+            <div class="pill" title="Current / displayed week">
+              <span class="mono">Week:</span>
+              <span id="weekLabel" class="mono">—</span>
+            </div>
+            <button class="btn secondary" id="refreshBtn">Refresh</button>
           </div>
         </div>
       </div>
@@ -715,7 +675,7 @@
             <table>
               <thead>
                 <tr>
-                  <th rowspan="2">Rank</th>
+                  <th class="rank" rowspan="2">Rank</th>
                   <th class="mono center" rowspan="2">Score Total</th>
                   <th class="center" colspan="2">Player</th>
                   <th class="center" colspan="2">Pro</th>
@@ -1026,17 +986,14 @@ const API = {
         }else{
           $("lbBody").innerHTML = rows.map((r, idx) => {
             const proName = proNameFromRow(r);
-            const playerName = r.player_name || "—";
-
-            // data-label values make the mobile “stacked rows” layout work cleanly
             return `
               <tr>
-                <td data-label="Rank"><span class="rankPill">#${idx+1}</span></td>
-                <td data-label="Total" class="mono center"><span class="totalPill">${fmtToPar(r.combined)}</span></td>
-                <td data-label="Player">${playerName}</td>
-                <td data-label="Player Score" class="mono center">${fmtToPar(r.playerScore)}</td>
-                <td data-label="Pro">${proName || "—"}</td>
-                <td data-label="Pro Score" class="mono center">${fmtToPar(r.proScore)}</td>
+                <td><span class="rankPill">#${idx+1}</span></td>
+                <td class="mono center"><span class="totalPill">${fmtToPar(r.combined)}</span></td>
+                <td class="playerCell">${r.player_name || "—"}</td>
+                <td class="mono center">${fmtToPar(r.playerScore)}</td>
+                <td>${proName || "—"}</td>
+                <td class="mono center">${fmtToPar(r.proScore)}</td>
               </tr>
             `;
           }).join("");
