@@ -1,1 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Log In • Wellman Golf Club PRO-AM 2026</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <div class="wrap">
+    <div>
+      <div class="pageTitle">Log In</div>
+      <div class="pageSub">Magic link email login</div>
+    </div>
 
+    <div id="siteHeader" class="sectionRule"></div>
+    <script src="./partials/header.js"></script>
+    <script>loadHeader("login");</script>
+
+    <div class="card" style="margin-top:16px;">
+      <div class="hd">
+        <h2>Magic Link</h2>
+        <span class="badge gray">Auth</span>
+      </div>
+      <div class="bd">
+        <div class="field">
+          <label for="email">Email</label>
+          <input id="email" placeholder="you@email.com" />
+        </div>
+
+        <div class="row" style="margin-top:12px;">
+          <button class="btn" id="sendBtn">Send Magic Link</button>
+          <button class="btn secondary" id="logoutBtn">Log out</button>
+        </div>
+
+        <div id="msg" class="msg" style="display:none;"></div>
+      </div>
+    </div>
+
+    <div class="footer">After login, Draft will be enabled and your handicap will show next to your name.</div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    const SUPABASE_URL = "YOUR_SUPABASE_URL";
+    const SUPABASE_ANON_KEY = "YOUR_SUPABASE_ANON_KEY";
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    const $ = (id) => document.getElementById(id);
+    function show(text, type){
+      const el = $("msg");
+      el.style.display = "block";
+      el.className = "msg" + (type ? " " + type : "");
+      el.textContent = text;
+    }
+
+    // Handle magic-link callback
+    (async function handleCallback(){
+      const { data, error } = await supabase.auth.getSession();
+      if (error) return;
+
+      const session = data?.session || null;
+      if (session?.access_token){
+        localStorage.setItem("sb_access_token", session.access_token);
+        show("Logged in. Go to Draft.", "ok");
+      }
+    })();
+
+    $("sendBtn").addEventListener("click", async () => {
+      const email = $("email").value.trim();
+      if(!email) return show("Enter your email.", "bad");
+
+      const { error } = await supabase.auth.signInWithOtp({
+        email,
+        options: {
+          emailRedirectTo: window.location.origin + "/login.html"
+        }
+      });
+
+      if(error) return show("Error: " + error.message, "bad");
+      show("Magic link sent. Check your email.", "ok");
+    });
+
+    $("logoutBtn").addEventListener("click", async () => {
+      await supabase.auth.signOut();
+      localStorage.removeItem("sb_access_token");
+      show("Logged out.", "ok");
+    });
+  </script>
+</body>
+</html>
