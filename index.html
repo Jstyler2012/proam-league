@@ -40,37 +40,43 @@
 
     .wrap{ max-width:1100px; margin:0 auto; padding:22px 16px 56px; }
 
-    /* ---------- Masthead (NO overlay over the banner) ---------- */
-    .masthead{
-      border-radius: var(--radius);
-      border: 1px solid var(--border);
-      overflow: hidden;
-      box-shadow: var(--shadow);
-      margin-bottom: 16px;
-      background: rgba(0,0,0,.18);
-    }
 .mastBanner{
   width: 100%;
-  height: 110px;               /* keep your strip height */
+  height: 110px;               /* KEEP desktop height */
   position: relative;
 
-  background-image: url("/assets/header-banner.jpg");
-  background-repeat: no-repeat;
-  background-size: 75% 75%;
+  /* Layer 1: fills the whole strip cleanly
+     Layer 2: your banner image, never distorted */
+  background-image:
+    radial-gradient(120% 140% at 50% 40%,
+      rgba(190,190,190,.55) 0%,
+      rgba(120,120,120,.40) 35%,
+      rgba(11,18,32,.90) 78%,
+      rgba(11,18,32,1) 100%
+    ),
+    url("/assets/header-banner.jpg");
 
-  /* MOVE UP: desktop */
-  background-position: 50% 50%;
+  /* gradient fills; image keeps aspect ratio (no stretching) */
+  background-size: cover, contain;
 
+  /* gradient centered; image centered + slightly up */
+  background-position: center, 50% 42%;
+
+  background-repeat: no-repeat, no-repeat;
   background-color: #0b1220;
 }
-/* Mobile: SAME strip height as desktop (so it’s not tall) */
+
+/* Mobile: KEEP height the same as your current mobile (88px)
+   Only move the image up a bit more */
 @media (max-width: 700px){
   .mastBanner{
-    height: 88px;              /* keep it matched/tight */
-    background-position: 50% 10%;
+    height: 88px;              /* KEEP mobile height */
+    background-size: cover, contain;
+    background-position: center, 50% 30%; /* move up on mobile */
   }
 }
-/* Fade at bottom so it blends into your UI (optional “pro” touch) */
+
+/* Fade at bottom so it blends into your UI */
 .mastBanner::after{
   content:"";
   position:absolute;
