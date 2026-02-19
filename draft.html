@@ -15,7 +15,6 @@
       <div class="pageSub">Weekly pro selection • draft board • lock rules</div>
     </div>
 
-    <!-- Shared Header -->
     <div id="siteHeader" class="sectionRule"></div>
     <script src="./partials/header.js"></script>
     <script>loadHeader("draft");</script>
@@ -32,9 +31,14 @@
       </div>
       <div class="bd" style="display:flex;gap:14px;align-items:center;flex-wrap:wrap">
         <img id="logo" alt="" class="weekHeroLogo" style="width:64px;height:64px;display:none;">
-        <div>
+        <div style="flex:1;">
           <div id="name" style="font-weight:900;font-size:18px">—</div>
           <div id="dates" style="color:var(--muted);margin-top:4px">—</div>
+        </div>
+
+        <div class="row" style="justify-content:flex-end;">
+          <button class="btn" id="participateBtn">Participate this week</button>
+          <span class="badge gray" id="participateState">—</span>
         </div>
       </div>
     </div>
@@ -74,6 +78,10 @@
         </div>
 
         <div id="pickMsg" class="msg" style="display:none;"></div>
+
+        <div class="msg" style="margin-top:12px;">
+          <b>Confidence check:</b> Draft timing and lock rules are governed by the <span class="mono">Rules</span> page.
+        </div>
       </div>
     </div>
 
@@ -108,9 +116,11 @@
 <script>
 const API = {
   currentWeek: "/api/current-week",
+  participants: "/api/participants",
   draftBoard: "/api/draft-board",
   pros: "/api/pros",
   me: "/api/me",
+  participate: "/api-mutate/participate",
   draftPick: "/api-mutate/draft-pick",
 };
 
@@ -159,9 +169,8 @@ function fmtET(d){
   }
 }
 
+// Draft window: Monday 12:00 PM ET -> Wednesday 11:59 PM ET (based on week.start_date)
 function getDraftWindow(week){
-  // Option A: fixed league draft window (per your vision)
-  // Opens Monday 12:00 PM ET, closes Wednesday 11:59 PM ET.
   const start = new Date(week.start_date + "T00:00:00");
   const open = new Date(start); open.setHours(12,0,0,0);
   const close = new Date(start); close.setDate(start.getDate() + 2); close.setHours(23,59,59,0);
@@ -205,6 +214,8 @@ let me = null;
 let currentWeek = null;
 let boardRows = [];
 let pros = [];
+let participants = [];
+let isParticipating = false;
 let timer = null;
 
 function setWeekHeader(w){
@@ -228,10 +239,16 @@ function computeDraftContext(){
   return { nextIdx, nextPlayer, allDrafted, claimed };
 }
 
+function renderParticipateUI(){
+  $("participateState").textContent = isParticipating ? "Participating" : "Not participating";
+  $("participateState").className = isParticipating ? "badge" : "badge gray";
+  $("participateBtn").textContent = isParticipating ? "Leave this week" : "Participate this week";
+}
+
 function renderBoard(){
   const ctx = computeDraftContext();
   $("boardMeta").textContent =
-    `Order: highest handicap → lowest • ${ctx.allDrafted ? "All drafted" : "On pick #" + (ctx.nextIdx+1)}`;
+    `Participants: ${boardRows.length} • Order: highest handicap → lowest • ${ctx.allDrafted ? "All drafted" : "On pick #" + (ctx.nextIdx+1)}`;
 
   $("boardBody").innerHTML = boardRows.map((r, i) => {
     const isOnClock = (!ctx.allDrafted && i === ctx.nextIdx);
@@ -304,13 +321,15 @@ function renderDraftStatus(){
 }
 
 function canPickNow(){
+  if(!isParticipating) return { ok:false, reason:"You are not marked as participating this week. Click “Participate this week” first." };
+
   const st = getDraftState(currentWeek);
   if(st.state !== "open") return { ok:false, reason:"Draft is not open." };
 
   const ctx = computeDraftContext();
   const myPlayerId = me?.player?.id;
   const myRow = boardRows.find(r => String(r.player_id) === String(myPlayerId));
-  if(!myRow) return { ok:false, reason:"Your login is not linked to a player row." };
+  if(!myRow) return { ok:false, reason:"You are not in the participant list for this week." };
 
   if(!ctx.allDrafted){
     if(String(ctx.nextPlayer?.player_id) !== String(myPlayerId)){
@@ -363,6 +382,10 @@ async function loadMe(){
   const h = me?.player?.handicap_index;
   const hText = (h === null || h === undefined || Number.isNaN(Number(h))) ? "" : ` (${Number(h).toFixed(1)})`;
   $("youBox").textContent = name + hText;
+
+  if(!me?.player?.id){
+    throw new Error("No player profile linked yet. Go to Sign Up and create your player profile.");
+  }
 }
 
 async function loadPros(){
@@ -370,9 +393,38 @@ async function loadPros(){
   pros = Array.isArray(list) ? list : (list.pros || []);
 }
 
+async function loadParticipants(){
+  const data = await getJSON(`${API.participants}?week_id=${encodeURIComponent(currentWeek.id)}`);
+  participants = data.rows || [];
+  const myId = me?.player?.id;
+  isParticipating = !!participants.find(r => String(r.player_id) === String(myId));
+  renderParticipateUI();
+}
+
 async function loadBoard(){
   const data = await getJSON(`${API.draftBoard}?week_id=${encodeURIComponent(currentWeek.id)}`);
   boardRows = data.rows || [];
+}
+
+async function toggleParticipate(){
+  hideMsg($("pickMsg"));
+  try{
+    const want = !isParticipating;
+    await getJSON(API.participate, {
+      method:"POST",
+      headers:{
+        "content-type":"application/json",
+        "authorization":"Bearer " + token
+      },
+      body: JSON.stringify({ week_id: currentWeek.id, participate: want })
+    });
+    await loadParticipants();
+    await loadBoard();
+    renderBoard();
+    showMsg($("pickMsg"), want ? "You are participating this week." : "You left this week.", "ok");
+  }catch(e){
+    showMsg($("pickMsg"), "Participation error: " + e.message, "bad");
+  }
 }
 
 async function boot(){
@@ -384,6 +436,7 @@ async function boot(){
     $("authWarn").style.display = "block";
     $("authWarn").innerHTML = `You must be logged in to draft. Go to <b>Login</b>: ./login.html`;
     $("pickBtn").disabled = true;
+    $("participateBtn").disabled = true;
     return;
   }
 
@@ -393,9 +446,14 @@ async function boot(){
     if(!currentWeek) throw new Error("No current week found.");
     setWeekHeader(currentWeek);
 
-    await Promise.all([ loadMe(), loadPros(), loadBoard() ]);
+    await loadMe();
+    await Promise.all([ loadPros(), loadParticipants(), loadBoard() ]);
+
     renderBoard();
     renderDraftStatus();
+
+    $("participateBtn").disabled = false;
+    $("participateBtn").onclick = toggleParticipate;
 
     $("pickBtn").disabled = false;
     $("pickBtn").onclick = submitPick;
