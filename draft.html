@@ -10,7 +10,6 @@
 <body>
   <div class="wrap">
 
-    <!-- Title -->
     <div>
       <div class="pageTitle">Draft</div>
       <div class="pageSub">Weekly pro selection • draft board • lock rules</div>
@@ -21,13 +20,11 @@
     <script src="./partials/header.js"></script>
     <script>loadHeader("draft");</script>
 
-    <!-- Page Controls -->
     <div class="pillrow sectionRule">
       <button class="btn secondary" id="refreshBtn">Refresh</button>
       <a class="btn secondary" href="./rules.html#draft-rules">Draft rules</a>
     </div>
 
-    <!-- Content -->
     <div class="card" style="margin-top:16px;">
       <div class="hd">
         <h2>This Week</h2>
@@ -44,34 +41,99 @@
 
     <div class="card">
       <div class="hd">
-        <h2>Draft Board</h2>
-        <span class="badge">Next step</span>
+        <h2>Draft Status</h2>
+        <span class="badge gray" id="draftStateBadge">Loading…</span>
       </div>
-      <div class="bd" style="color:var(--muted);line-height:1.6;">
-        This page is wired for the correct weekly tournament header.<br><br>
-        Next step is implementing:
-        <ul style="margin:10px 0 0; padding-left:18px;">
-          <li>field list (ordered by odds)</li>
-          <li>draft window rules (Mon 12pm → Wed 11:59pm ET)</li>
-          <li>pick locking + “change pick if unclaimed”</li>
-          <li>live picks board</li>
-        </ul>
+      <div class="bd">
+        <div id="windowText" style="color:var(--muted); line-height:1.55;">—</div>
+        <div id="countdownMsg" class="msg" style="display:none;"></div>
+        <div id="authWarn" class="msg bad" style="display:none;"></div>
       </div>
     </div>
 
-    <div class="footer">Tip: use the Rules page for official deadlines & tiebreakers.</div>
+    <div class="card">
+      <div class="hd">
+        <h2>Your Pick</h2>
+        <span class="badge">Live</span>
+      </div>
+      <div class="bd">
+        <div class="split">
+          <div class="field">
+            <label>You</label>
+            <div class="msg" style="margin-top:0;" id="youBox">—</div>
+          </div>
+          <div class="field">
+            <label for="proSel">Choose an unclaimed PGA pro</label>
+            <select id="proSel"></select>
+          </div>
+        </div>
+
+        <div class="row" style="margin-top:12px;">
+          <button class="btn" id="pickBtn">Draft / Change Pick</button>
+          <span class="pill"><span class="dot" id="turnDot"></span><span id="turnText">—</span></span>
+        </div>
+
+        <div id="pickMsg" class="msg" style="display:none;"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="hd">
+        <h2>Draft Board</h2>
+        <span class="badge gray" id="boardMeta">—</span>
+      </div>
+      <div class="bd">
+        <div style="width:100%; overflow-x:auto; -webkit-overflow-scrolling:touch;">
+          <table>
+            <thead>
+              <tr>
+                <th class="center">Pick</th>
+                <th>Player</th>
+                <th class="mono center">HCP</th>
+                <th>Pro</th>
+              </tr>
+            </thead>
+            <tbody id="boardBody">
+              <tr><td colspan="4" style="color:rgba(233,241,255,.45);">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div id="boardMsg" class="msg" style="display:none;"></div>
+      </div>
+    </div>
+
+    <div class="footer">Draft opens Monday 12:00 PM ET • closes Wednesday 11:59 PM ET.</div>
   </div>
 
 <script>
-const API = { currentWeek: "/.netlify/functions/public/current-week" };
+const API = {
+  currentWeek: "/api/current-week",
+  draftBoard: "/api/draft-board",
+  pros: "/api/pros",
+  me: "/api/me",
+  draftPick: "/api-mutate/draft-pick",
+};
+
 const $ = (id) => document.getElementById(id);
 
-async function getJSON(url){
-  const r = await fetch(url, { headers: { "accept":"application/json" }});
-  const t = await r.text();
-  let j = null; try{ j = t ? JSON.parse(t) : null }catch(e){}
-  if(!r.ok) throw new Error((j && (j.error||j.message)) ? (j.error||j.message) : (t || r.statusText));
-  return j;
+function showMsg(el, text, type){
+  if(!el) return;
+  el.style.display = "block";
+  el.className = "msg" + (type ? " " + type : "");
+  el.textContent = text;
+}
+function hideMsg(el){ if(el) el.style.display = "none"; }
+
+async function getJSON(url, opts={}){
+  const res = await fetch(url, { ...opts, headers: { "accept":"application/json", ...(opts.headers||{}) }});
+  const text = await res.text();
+  let data = null;
+  try { data = text ? JSON.parse(text) : null; } catch(e) {}
+  if(!res.ok){
+    const msg = (data && (data.error || data.message)) ? (data.error || data.message) : (text || res.statusText);
+    throw new Error(msg);
+  }
+  return data;
 }
 
 function fmtDateRange(startISO, endISO){
@@ -82,21 +144,264 @@ function fmtDateRange(startISO, endISO){
   return `${s.toLocaleDateString("en-US", opts)} – ${e.toLocaleDateString("en-US", opts)}`;
 }
 
-async function boot(){
-  const j = await getJSON(API.currentWeek);
-  const w = j.week;
-  if(!w) return;
+function fmtET(d){
+  try{
+    return new Intl.DateTimeFormat("en-US", {
+      timeZone: "America/New_York",
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit"
+    }).format(d) + " ET";
+  }catch{
+    return d.toLocaleString() + " ET";
+  }
+}
 
+function getDraftWindow(week){
+  // Option A: fixed league draft window (per your vision)
+  // Opens Monday 12:00 PM ET, closes Wednesday 11:59 PM ET.
+  const start = new Date(week.start_date + "T00:00:00");
+  const open = new Date(start); open.setHours(12,0,0,0);
+  const close = new Date(start); close.setDate(start.getDate() + 2); close.setHours(23,59,59,0);
+  return { open, close };
+}
+function getDraftState(week){
+  const { open, close } = getDraftWindow(week);
+  const now = new Date();
+  if(now < open) return { state:"not_open", open, close, now };
+  if(now > close) return { state:"locked", open, close, now };
+  return { state:"open", open, close, now };
+}
+
+function msToParts(ms){
+  const s = Math.max(0, Math.floor(ms/1000));
+  const dd = Math.floor(s / 86400);
+  const hh = Math.floor((s % 86400)/3600);
+  const mm = Math.floor((s % 3600)/60);
+  const ss = s % 60;
+  return { dd, hh, mm, ss };
+}
+function partsToStr(p){
+  const pad = (n)=>String(n).padStart(2,"0");
+  if(p.dd > 0) return `${p.dd}d ${pad(p.hh)}:${pad(p.mm)}:${pad(p.ss)}`;
+  return `${pad(p.hh)}:${pad(p.mm)}:${pad(p.ss)}`;
+}
+
+function populateSelect(sel, items){
+  sel.innerHTML = "";
+  for(const it of items){
+    const opt = document.createElement("option");
+    opt.value = it.id;
+    opt.textContent = it.name;
+    sel.appendChild(opt);
+  }
+}
+
+// State
+let token = null;
+let me = null;
+let currentWeek = null;
+let boardRows = [];
+let pros = [];
+let timer = null;
+
+function setWeekHeader(w){
   const label = w.label || `Week ${w.week_number || "—"}`;
   $("weekBadge").textContent = label;
   $("name").textContent = w.tournament_name || "—";
   $("dates").textContent = fmtDateRange(w.start_date, w.end_date);
-
   if(w.logo_url){
     $("logo").src = w.logo_url;
     $("logo").style.display = "block";
   } else {
     $("logo").style.display = "none";
+  }
+}
+
+function computeDraftContext(){
+  const nextIdx = boardRows.findIndex(r => !r.pro_id);
+  const allDrafted = nextIdx === -1;
+  const nextPlayer = allDrafted ? null : boardRows[nextIdx];
+  const claimed = new Set(boardRows.filter(r => r.pro_id).map(r => String(r.pro_id)));
+  return { nextIdx, nextPlayer, allDrafted, claimed };
+}
+
+function renderBoard(){
+  const ctx = computeDraftContext();
+  $("boardMeta").textContent =
+    `Order: highest handicap → lowest • ${ctx.allDrafted ? "All drafted" : "On pick #" + (ctx.nextIdx+1)}`;
+
+  $("boardBody").innerHTML = boardRows.map((r, i) => {
+    const isOnClock = (!ctx.allDrafted && i === ctx.nextIdx);
+    const pill = isOnClock ? `<span class="badge">On the clock</span>` : "";
+    return `
+      <tr>
+        <td class="center mono">${i+1}</td>
+        <td>${r.player_name} ${pill}</td>
+        <td class="mono center">${r.handicap_index ?? "—"}</td>
+        <td>${r.pro_id ? String(r.pro_id) : "—"}</td>
+      </tr>
+    `;
+  }).join("");
+
+  if(ctx.allDrafted){
+    $("turnDot").className = "dot ok";
+    $("turnText").textContent = "All drafted • swaps allowed (until lock)";
+  } else {
+    $("turnDot").className = "dot";
+    $("turnText").textContent = `On the clock: ${ctx.nextPlayer?.player_name || "—"}`;
+  }
+
+  const myPlayerId = me?.player?.id;
+  const myRow = boardRows.find(r => String(r.player_id) === String(myPlayerId));
+  const myCurrentPro = myRow?.pro_id ? String(myRow.pro_id) : null;
+
+  const proOptions = pros.filter(p => {
+    const id = String(p.id);
+    if(!ctx.claimed.has(id)) return true;
+    return myCurrentPro && id === myCurrentPro;
+  });
+
+  populateSelect($("proSel"), proOptions);
+
+  if(myCurrentPro){
+    const opt = Array.from($("proSel").options).find(o => String(o.value) === myCurrentPro);
+    if(opt) $("proSel").value = myCurrentPro;
+  }
+}
+
+function renderDraftStatus(){
+  const st = getDraftState(currentWeek);
+  $("windowText").textContent = `Opens: ${fmtET(st.open)} • Closes: ${fmtET(st.close)}`;
+
+  if(st.state === "not_open"){
+    $("draftStateBadge").textContent = "Not Open";
+    $("draftStateBadge").className = "badge gray";
+  } else if(st.state === "open"){
+    $("draftStateBadge").textContent = "Open";
+    $("draftStateBadge").className = "badge";
+  } else {
+    $("draftStateBadge").textContent = "Locked";
+    $("draftStateBadge").className = "badge gray";
+  }
+
+  if(timer) clearInterval(timer);
+  const tick = () => {
+    const now = new Date();
+    const st2 = getDraftState(currentWeek);
+    if(st2.state === "not_open"){
+      showMsg($("countdownMsg"), `Draft opens in: ${partsToStr(msToParts(st2.open - now))}`, "");
+    } else if(st2.state === "open"){
+      showMsg($("countdownMsg"), `Draft locks in: ${partsToStr(msToParts(st2.close - now))}`, "");
+    } else {
+      showMsg($("countdownMsg"), `Draft is locked.`, "bad");
+    }
+  };
+  tick();
+  timer = setInterval(tick, 1000);
+}
+
+function canPickNow(){
+  const st = getDraftState(currentWeek);
+  if(st.state !== "open") return { ok:false, reason:"Draft is not open." };
+
+  const ctx = computeDraftContext();
+  const myPlayerId = me?.player?.id;
+  const myRow = boardRows.find(r => String(r.player_id) === String(myPlayerId));
+  if(!myRow) return { ok:false, reason:"Your login is not linked to a player row." };
+
+  if(!ctx.allDrafted){
+    if(String(ctx.nextPlayer?.player_id) !== String(myPlayerId)){
+      return { ok:false, reason:`Not your turn. On the clock: ${ctx.nextPlayer?.player_name || "—"}.` };
+    }
+    return { ok:true, mode:"draft" };
+  }
+
+  return { ok:true, mode:"swap" };
+}
+
+async function submitPick(){
+  hideMsg($("pickMsg"));
+
+  const gate = canPickNow();
+  if(!gate.ok) return showMsg($("pickMsg"), gate.reason, "bad");
+
+  const ctx = computeDraftContext();
+  const proId = $("proSel").value;
+
+  const myPlayerId = me.player.id;
+  const myRow = boardRows.find(r => String(r.player_id) === String(myPlayerId));
+  const myCurrentPro = myRow?.pro_id ? String(myRow.pro_id) : null;
+
+  if(ctx.claimed.has(String(proId)) && String(proId) !== myCurrentPro){
+    return showMsg($("pickMsg"), "That pro is already claimed. Choose an unclaimed pro.", "bad");
+  }
+
+  try{
+    await getJSON(API.draftPick, {
+      method:"POST",
+      headers:{
+        "content-type":"application/json",
+        "authorization":"Bearer " + token
+      },
+      body: JSON.stringify({ week_id: currentWeek.id, pro_id: proId })
+    });
+
+    showMsg($("pickMsg"), gate.mode === "draft" ? "Draft pick saved!" : "Pick updated!", "ok");
+    await loadBoard();
+    renderBoard();
+  }catch(e){
+    showMsg($("pickMsg"), "Save failed: " + e.message, "bad");
+  }
+}
+
+async function loadMe(){
+  me = await getJSON(API.me, { headers: { "authorization":"Bearer " + token }});
+  const name = me?.player?.name || me?.user?.email || "Account";
+  const h = me?.player?.handicap_index;
+  const hText = (h === null || h === undefined || Number.isNaN(Number(h))) ? "" : ` (${Number(h).toFixed(1)})`;
+  $("youBox").textContent = name + hText;
+}
+
+async function loadPros(){
+  const list = await getJSON(API.pros);
+  pros = Array.isArray(list) ? list : (list.pros || []);
+}
+
+async function loadBoard(){
+  const data = await getJSON(`${API.draftBoard}?week_id=${encodeURIComponent(currentWeek.id)}`);
+  boardRows = data.rows || [];
+}
+
+async function boot(){
+  hideMsg($("boardMsg"));
+  hideMsg($("authWarn"));
+
+  token = localStorage.getItem("sb_access_token");
+  if(!token){
+    $("authWarn").style.display = "block";
+    $("authWarn").innerHTML = `You must be logged in to draft. Go to <b>Login</b>: ./login.html`;
+    $("pickBtn").disabled = true;
+    return;
+  }
+
+  try{
+    const j = await getJSON(API.currentWeek);
+    currentWeek = j.week;
+    if(!currentWeek) throw new Error("No current week found.");
+    setWeekHeader(currentWeek);
+
+    await Promise.all([ loadMe(), loadPros(), loadBoard() ]);
+    renderBoard();
+    renderDraftStatus();
+
+    $("pickBtn").disabled = false;
+    $("pickBtn").onclick = submitPick;
+
+  }catch(e){
+    showMsg($("boardMsg"), "Draft page error: " + e.message, "bad");
   }
 }
 
