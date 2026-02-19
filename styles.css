@@ -527,3 +527,21 @@ tr:last-child td{ border-bottom:none; }
   font-size: 11px;
   margin-left: 6px;
 }
+/* --- Auth mini (header right side) --- */
+.userMini{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  flex-wrap:wrap;
+  justify-content:flex-end;
+}
+.userMiniName{
+  font-weight:900;
+  color: var(--text);
+}
+.hcpInline{
+  font-size: 12px;
+  font-weight: 800;
+  color: rgba(233,241,255,.70);
+  margin-left:6px;
+}
