@@ -59,9 +59,6 @@ body{
 
 /* =========================
    FIXED WATERMARK (header-banner.jpg)
-   - stays still while scrolling
-   - mobile-first sizing
-   - no weird cropping on ultrawide
    ========================= */
 body::before{
   content:"";
@@ -70,38 +67,29 @@ body::before{
   pointer-events: none;
   z-index: -2;
 
-  /* YOUR EXACT SITE BACKGROUND GRADIENT */
   background:
     radial-gradient(1200px 600px at 20% 0%, rgba(90,167,255,.22), transparent 55%),
     radial-gradient(900px 500px at 80% 10%, rgba(71,215,172,.18), transparent 55%),
     linear-gradient(180deg, #0b1220, #060b15),
-
-    /* logo layered on top */
     url("./assets/header-banner.jpg");
 
   background-repeat: no-repeat, no-repeat, no-repeat, no-repeat;
 
-  /* first 3 gradients fill screen */
   background-size:
     100% 100%,
     100% 100%,
     100% 100%,
-
-    /* logo size */
     min(1100px, 78vw) auto;
 
   background-position:
     center center,
     center center,
     center center,
-
-    /* logo position */
     center center;
 
   opacity: .25;
 }
 
-/* Tablet / desktop */
 @media (min-width: 768px){
   body::before{
     background-position: 50% 30%;
@@ -110,7 +98,6 @@ body::before{
   }
 }
 
-/* Ultrawide: cap size */
 @media (min-width: 1600px){
   body::before{
     background-position: 50% 34%;
@@ -120,7 +107,7 @@ body::before{
 }
 
 /* =========================
-   READABILITY VEIL (one copy only)
+   READABILITY VEIL
    ========================= */
 body::after{
   content:"";
@@ -146,7 +133,6 @@ body::after{
   padding:28px 18px 60px;
 }
 
-/* Optional title/subtitle helpers used on non-home pages */
 .pageTitle{
   font-size:22px;
   font-weight:900;
@@ -165,7 +151,7 @@ body::after{
 }
 
 /* =========================
-   HEADER BANNER (if any page still uses it)
+   HEADER BANNER
    ========================= */
 .headerCard{ overflow:hidden; margin-bottom:16px; }
 .headerBanner{
@@ -384,7 +370,7 @@ tr:last-child td{ border-bottom:none; }
 }
 
 /* =========================
-   WEEK HERO (inside week card)
+   WEEK HERO
    ========================= */
 .weekHero{
   position: relative;
@@ -524,4 +510,20 @@ tr:last-child td{ border-bottom:none; }
   color: #ffe6ad !important;
   background: rgba(255,207,90,.10) !important;
   font-weight: 800 !important;
+}
+
+/* =========================
+   Logged-in user mini (name + handicap)
+   ========================= */
+.userMini{
+  color: rgba(233,241,255,.82);
+  font-weight: 900;
+  font-size: 12.5px;
+  white-space: nowrap;
+}
+.userMini small{
+  color: var(--muted);
+  font-weight: 800;
+  font-size: 11px;
+  margin-left: 6px;
 }
