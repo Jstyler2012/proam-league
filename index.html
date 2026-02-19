@@ -444,22 +444,86 @@
       -webkit-overflow-scrolling: touch;
       border-radius: 14px;
     }
-    .tableWrap table{
-      min-width: 620px; /* ensures all columns fit without squish */
+      .tableWrap table{
+      width: 100%;
+      min-width: 0; /* allow shrink on mobile */
     }
 
     .center{ text-align:center !important; }
     .lbScore, .lbCombined{ text-align:center !important; }
     .lbCombined b{ display:inline-block; min-width: 42px; text-align:center; }
+    /* ESPN-style compact leaderboard chips */
+    .rankPill{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      min-width:34px;
+      padding:6px 8px;
+      border-radius:999px;
+      background: rgba(255,255,255,.06);
+      border:1px solid var(--border);
+      font-weight:900;
+    }
 
-    @media (max-width:560px){
-      .card .hd{ padding: 12px 12px; }
-      .card .bd{ padding: 12px; }
-      #leaderboardTitle{ font-size: 13px; }
-      th, td{ padding: 9px 8px; font-size: 12px; }
-      th{ font-size: 11px; }
+    .totalPill{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      min-width:54px;
+      padding:6px 8px;
+      border-radius:999px;
+      background: rgba(71,215,172,.10);
+      border:1px solid rgba(71,215,172,.24);
+      font-weight:900;
+    }
+      @media (max-width:560px){
+      /* keep cards compact */
+      .card .hd{ padding: 10px 10px; }
+      .card .bd{ padding: 10px; }
+
+      /* leaderboard title tighter */
+      #leaderboardTitle{ font-size: 12.5px; letter-spacing:.2px; }
+
+      /* ESPN-ish density */
+      th, td{ padding: 7px 6px; font-size: 12px; }
+      th{ font-size: 10.5px; letter-spacing:.35px; }
+
+      /* player name truncation */
+      .playerCell{
+        max-width: 110px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-weight: 800;
+      }
+
+      /* submit section compact (THIS is your Step 3) */
+      .field label{ font-size:11px; }
+      input, select{ padding:7px 8px; font-size:12px; }
+      .btn{ padding:7px 8px; font-size:12px; }
+
+      /* carousel tweaks */
       .scheduleItem{ min-width: 240px; }
       .scheduleName{ max-width: 170px; }
+    }
+      @media (max-width: 600px){
+
+  /* tighten submit card */
+  .field label{
+    font-size:11px;
+  }
+
+  input, select{
+    padding:7px 8px;
+    font-size:12px;
+  }
+
+  .btn{
+    padding:7px 8px;
+    font-size:12px;
+  }
+
+}
     }
   </style>
 </head>
