@@ -644,6 +644,13 @@
         </div>
 
         <div class="bd">
+          <!-- Participation (NEW) -->
+          <div class="row" style="justify-content:space-between; gap:10px; margin-bottom:10px;">
+            <span class="badge gray" id="participationBadge">Participation: —</span>
+            <button class="btn secondary" id="participateBtn" type="button" disabled>Participate this week</button>
+          </div>
+          <div id="participationMsg" class="msg" style="display:none;"></div>
+
           <div class="split">
             <div class="field">
               <label for="playerSel">Player</label>
@@ -718,6 +725,7 @@
 
   <script>
 const API = {
+  // Existing endpoints (unchanged)
   health: "/.netlify/functions/public/health",
   players: "/.netlify/functions/public/players",
   pros: "/.netlify/functions/public/pros",
@@ -728,7 +736,12 @@ const API = {
   submit: "/.netlify/functions/mutate/submit-score",
   proscore: "/.netlify/functions/proscore",
   adminResetWeek: "/.netlify/functions/admin/reset-week",
-  adminRecalc: "/.netlify/functions/admin/recalc"
+  adminRecalc: "/.netlify/functions/admin/recalc",
+
+  // Required new Home endpoints
+  me: "/api/me",
+  participants: "/api/participants",
+  participate: "/api-mutate/participate"
 };
 
     const $ = (id) => document.getElementById(id);
@@ -787,6 +800,19 @@ const API = {
       );
     }
 
+    // -----------------------------
+    // Auth (EXACT for your login.html)
+    // -----------------------------
+    function getAccessToken(){
+      // Your login.html stores access_token here:
+      const t = localStorage.getItem("sb_access_token");
+      return (t && String(t).trim()) ? String(t).trim() : null;
+    }
+    function authedHeaders(extra={}){
+      const token = getAccessToken();
+      return token ? { ...extra, Authorization: `Bearer ${token}` } : { ...extra };
+    }
+
     // State
     let players = [];
     let pros = [];
@@ -794,6 +820,11 @@ const API = {
     let scheduleWeeks = [];
     let displayedWeek = null;
     let currentWeekId = null;
+
+    // Participation state
+    let me = null;               // { user, player } or null
+    let participantRows = [];    // [{ player_id, player_name, handicap_index, created_at }]
+    let isMeParticipating = false;
 
     // Swipe-to-select (scroll-stop based)
     let ignoreAutoSelectUntil = 0;
@@ -858,10 +889,10 @@ const API = {
         r?.pro_name ?? r?.proName ?? r?.pro ?? r?.drafted_pro_name ?? r?.draftedProName ?? null;
       if(direct && String(direct).trim()) return String(direct);
 
-      const pid = r?.pro_id ?? r?.proId ?? r?.proID ?? r?.proid ?? null;
+      const pid = r?.pro_id ?? r?.proId ?? r?.proID ?? r?.proid ?? r?.pga_golfer ?? null;
       if(pid == null) return "—";
       const p = prosById.get(String(pid));
-      return p?.name ?? p?.full_name ?? p?.player_name ?? "—";
+      return p?.name ?? p?.full_name ?? p?.player_name ?? String(pid);
     }
 
     function renderWeekDetails(week){
@@ -1021,12 +1052,172 @@ const API = {
       }
     }
 
-    async function setDisplayedWeek(week){
-      displayedWeek = week;
-      currentWeekId = week.id;
-      renderWeekDetails(week);
-      renderSchedule(scheduleWeeks, week.id);
-      await loadLeaderboardForWeek(week);
+    // -----------------------------
+    // Participation (NEW)
+    // -----------------------------
+    function setParticipationUI(ready){
+      const badge = $("participationBadge");
+      const btn = $("participateBtn");
+      const token = getAccessToken();
+      const loggedIn = !!token;
+
+      if(!ready){
+        if(badge){ badge.textContent = "Participation: —"; badge.className = "badge gray"; }
+        if(btn){ btn.disabled = true; btn.textContent = "Participate this week"; }
+        return;
+      }
+
+      if(!loggedIn){
+        if(badge){ badge.textContent = "Participation: Login required"; badge.className = "badge gray"; }
+        if(btn){ btn.disabled = true; btn.textContent = "Participate this week"; }
+        return;
+      }
+
+      if(badge){
+        badge.textContent = "Participation: " + (isMeParticipating ? "ON" : "OFF");
+        badge.className = "badge " + (isMeParticipating ? "" : "gray");
+      }
+      if(btn){
+        btn.disabled = false;
+        btn.textContent = isMeParticipating ? "You're participating (tap to remove)" : "Participate this week";
+      }
+    }
+
+    async function loadMe(){
+      const token = getAccessToken();
+      if(!token){ me = null; return null; }
+
+      try{
+        me = await getJSON(API.me, { headers: authedHeaders() });
+        return me;
+      }catch(e){
+        me = null;
+        return null;
+      }
+    }
+
+    async function loadParticipantsForWeek(weekId){
+      const data = await getJSON(`${API.participants}?week_id=${encodeURIComponent(weekId)}`);
+      participantRows = Array.isArray(data?.rows) ? data.rows : [];
+      return participantRows;
+    }
+
+    function recomputeMeParticipating(){
+      const myPlayerId = me?.player?.id ? String(me.player.id) : null;
+      if(!myPlayerId){
+        isMeParticipating = false;
+        return false;
+      }
+      isMeParticipating = participantRows.some(r => String(r.player_id) === myPlayerId);
+      return isMeParticipating;
+    }
+
+    function populatePlayersFromParticipants(){
+      const sel = $("playerSel");
+      if(!sel) return;
+
+      const prev = sel.value ? String(sel.value) : null;
+      const items = (participantRows || []).map(r => ({
+        id: String(r.player_id),
+        name: r.player_name || "—"
+      }));
+
+      sel.innerHTML = "";
+      for(const it of items){
+        const opt = document.createElement("option");
+        opt.value = it.id;
+        opt.textContent = it.name;
+        sel.appendChild(opt);
+      }
+
+      // keep old selection if still valid
+      if(prev && items.some(x => x.id === prev)) sel.value = prev;
+
+      // requirement: auto-select logged-in user if they’re participating
+      const myPlayerId = me?.player?.id ? String(me.player.id) : null;
+      if(myPlayerId && isMeParticipating && items.some(x => x.id === myPlayerId)){
+        sel.value = myPlayerId;
+      }
+    }
+
+    async function refreshParticipationAndPlayers(){
+      hideMsg($("participationMsg"));
+      setParticipationUI(false);
+
+      const weekId = currentWeekId;
+      if(!weekId){
+        participantRows = [];
+        me = null;
+        isMeParticipating = false;
+        populatePlayersFromParticipants();
+        setParticipationUI(true);
+        return;
+      }
+
+      await loadMe();
+
+      try{
+        await loadParticipantsForWeek(weekId);
+      }catch(e){
+        participantRows = [];
+        recomputeMeParticipating();
+        populatePlayersFromParticipants();
+        setParticipationUI(true);
+        showMsg($("participationMsg"), "Couldn’t load participants: " + e.message, "bad");
+        return;
+      }
+
+      recomputeMeParticipating();
+      populatePlayersFromParticipants();
+      setParticipationUI(true);
+
+      const token = getAccessToken();
+      if(!token){
+        showMsg($("participationMsg"), "Log in to join the field and auto-select yourself.", "");
+      } else if(!me?.player?.id){
+        showMsg($("participationMsg"), "No player linked to this login yet. Go to Sign Up and create your profile.", "bad");
+      } else if(isMeParticipating){
+        showMsg($("participationMsg"), "You're participating for this week.", "ok");
+      } else {
+        showMsg($("participationMsg"), "Tap “Participate this week” to join the field.", "");
+      }
+    }
+
+    async function toggleParticipate(){
+      hideMsg($("participationMsg"));
+
+      if(!currentWeekId){
+        showMsg($("participationMsg"), "No week loaded yet. Click refresh and try again.", "bad");
+        return;
+      }
+
+      const token = getAccessToken();
+      if(!token){
+        showMsg($("participationMsg"), "You must be logged in to toggle participation.", "bad");
+        return;
+      }
+
+      const btn = $("participateBtn");
+      if(btn) btn.disabled = true;
+
+      const next = !isMeParticipating; // join if currently off; leave if on
+
+      try{
+        await getJSON(API.participate, {
+          method: "POST",
+          headers: authedHeaders({ "content-type":"application/json" }),
+          body: JSON.stringify({ week_id: currentWeekId, participate: next })
+        });
+
+        // requirement: refresh dropdown AND leaderboard
+        await refreshParticipationAndPlayers();
+        if(displayedWeek) await loadLeaderboardForWeek(displayedWeek);
+
+      }catch(e){
+        showMsg($("participationMsg"), "Participation error: " + e.message, "bad");
+      } finally {
+        if(btn) btn.disabled = false;
+      }
     }
 
     async function checkHealth(){
@@ -1052,11 +1243,12 @@ const API = {
     }
 
     async function loadPlayersAndPros(){
+      // Keep existing calls, but Player dropdown is now participants-only.
       const [p, pr] = await Promise.all([ getJSON(API.players), getJSON(API.pros) ]);
       players = Array.isArray(p) ? p : (p.players || []);
       pros = Array.isArray(pr) ? pr : (pr.pros || []);
       indexPros(pros);
-      populateSelect($("playerSel"), players);
+
       populateSelect($("proSel"), pros);
     }
 
@@ -1158,11 +1350,26 @@ const API = {
       }
     }
 
+    async function setDisplayedWeek(week){
+      displayedWeek = week;
+      currentWeekId = week.id;
+
+      renderWeekDetails(week);
+      renderSchedule(scheduleWeeks, week.id);
+
+      // requirement: populate player dropdown from participants for displayed week
+      await refreshParticipationAndPlayers();
+
+      // requirement: leaderboard refresh (already participants-only server side)
+      await loadLeaderboardForWeek(week);
+    }
+
     $("playerScore")?.addEventListener("input", renderCombined);
     $("proScore")?.addEventListener("input", renderCombined);
 
     $("submitBtn")?.addEventListener("click", submitScore);
     $("autoProBtn")?.addEventListener("click", autoPullProScore);
+    $("participateBtn")?.addEventListener("click", toggleParticipate);
 
     $("refreshBtn") && ($("refreshBtn").onclick = async () => {
       await boot();
