@@ -44,108 +44,78 @@
     <div class="footer">After login, your name (handicap) shows in the header everywhere.</div>
   </div>
 
-  <!-- Load header AFTER the placeholder div exists -->
+  <!-- Header -->
   <script src="./partials/header.js"></script>
   <script>
-    // Render header first (doesn't require Supabase to exist)
-    if (typeof loadHeader === "function") loadHeader("login");
+    try { if (typeof loadHeader === "function") loadHeader("login"); } catch(e) {}
   </script>
 
-  <!-- Supabase CDN (global is window.supabase) -->
+  <!-- Supabase -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <script>
-    // --- CONFIG ---
-    const SUPABASE_URL = "const SUPABASE_URL = "const SUPABASE_URL = "https://pgeiloiymvhhnuirudn.supabase.co";
-    const SUPABASE_ANON_KEY = "sb_publishable_N3_mDqjkytg1Hu8vC724xw_nkFy6PeH";
+    (function () {
+      const SUPABASE_URL = "https://pgeiloiymvhhnuirudn.supabase.co";
+      const SUPABASE_ANON_KEY = "sb_publishable_N3_mDqjkytg1Hu8vC724xw_nkFy6PeH";
 
-    // --- HELPERS ---
-    const $ = (id) => document.getElementById(id);
-
-    function show(text, type) {
-      const el = $("msg");
-      el.style.display = "block";
-      el.className = "msg" + (type ? " " + type : "");
-      el.textContent = text;
-    }
-
-    function setBusy(isBusy) {
-      $("loginBtn").disabled = isBusy;
-      $("loginBtn").textContent = isBusy ? "Logging in..." : "Log In";
-    }
-
-    // --- CREATE/REUSE A SINGLE SUPABASE CLIENT ---
-    // IMPORTANT: do NOT declare `const supabase = ...` because other scripts may also declare it.
-    // Use a shared instance on window.sb instead.
-    function getClient() {
-      if (!window.supabase || typeof window.supabase.createClient !== "function") {
-        throw new Error("Supabase library not loaded. Check the CDN script.");
+      const $ = (id) => document.getElementById(id);
+      function show(text, type) {
+        const el = $("msg");
+        el.style.display = "block";
+        el.className = "msg" + (type ? " " + type : "");
+        el.textContent = text;
       }
-      if (!window.sb) {
-        window.sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      function setBusy(on) {
+        $("loginBtn").disabled = on;
+        $("loginBtn").textContent = on ? "Logging in..." : "Log In";
       }
-      return window.sb;
-    }
 
-    async function doLogin() {
-      const email = $("email").value.trim();
-      const password = $("pw").value;
-
-      if (!email) return show("Enter your email.", "bad");
-      if (!password) return show("Enter your password.", "bad");
-
-      setBusy(true);
-      try {
-        const sb = getClient();
-
-        const { data, error } = await sb.auth.signInWithPassword({ email, password });
-        if (error) return show("Login failed: " + error.message, "bad");
-
-        const accessToken = data?.session?.access_token || null;
-        const refreshToken = data?.session?.refresh_token || null;
-
-        if (!accessToken) return show("Logged in, but no session token returned.", "bad");
-
-        localStorage.setItem("sb_access_token", accessToken);
-        if (refreshToken) localStorage.setItem("sb_refresh_token", refreshToken);
-
-        // If your header has a mini-auth widget, refresh it
-        if (typeof renderAuthMini === "function") renderAuthMini();
-
-        show("Logged in! Redirecting…", "ok");
-
-        // Redirect somewhere useful (change if you want)
-        setTimeout(() => {
-          window.location.href = "./draft.html";
-        }, 400);
-
-      } catch (e) {
-        show("Login error: " + (e?.message || String(e)), "bad");
-      } finally {
-        setBusy(false);
-      }
-    }
-
-    // Button click
-    $("loginBtn").addEventListener("click", doLogin);
-
-    // Enter key submits
-    $("email").addEventListener("keydown", (e) => { if (e.key === "Enter") doLogin(); });
-    $("pw").addEventListener("keydown", (e) => { if (e.key === "Enter") doLogin(); });
-
-    // Optional: if already logged in, go straight to draft
-    (async () => {
-      try {
-        const token = localStorage.getItem("sb_access_token");
-        if (!token) return;
-
-        // Light sanity check: token exists, attempt /api/me to confirm it's valid
-        const res = await fetch("/api/me", { headers: { Authorization: "Bearer " + token } });
-        if (res.ok) {
-          // already authenticated
-          // window.location.href = "./draft.html";
+      function getClient() {
+        if (!window.supabase || typeof window.supabase.createClient !== "function") {
+          throw new Error("Supabase library not loaded.");
         }
-      } catch (_) {}
+        if (!window.sb) {
+          window.sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        }
+        return window.sb;
+      }
+
+      async function doLogin() {
+        const email = $("email").value.trim();
+        const password = $("pw").value;
+
+        if (!email) return show("Enter your email.", "bad");
+        if (!password) return show("Enter your password.", "bad");
+
+        setBusy(true);
+        try {
+          const sb = getClient();
+          const { data, error } = await sb.auth.signInWithPassword({ email, password });
+          if (error) return show("Login failed: " + error.message, "bad");
+
+          const accessToken = data && data.session && data.session.access_token ? data.session.access_token : null;
+          const refreshToken = data && data.session && data.session.refresh_token ? data.session.refresh_token : null;
+
+          if (!accessToken) return show("Logged in, but no session token returned.", "bad");
+
+          localStorage.setItem("sb_access_token", accessToken);
+          if (refreshToken) localStorage.setItem("sb_refresh_token", refreshToken);
+
+          if (typeof renderAuthMini === "function") renderAuthMini();
+
+          show("Logged in! Redirecting…", "ok");
+          setTimeout(() => { window.location.href = "./draft.html"; }, 300);
+        } catch (e) {
+          show("Login error: " + (e && e.message ? e.message : String(e)), "bad");
+        } finally {
+          setBusy(false);
+        }
+      }
+
+      $("loginBtn").addEventListener("click", doLogin);
+      $("pw").addEventListener("keydown", (e) => { if (e.key === "Enter") doLogin(); });
+      $("email").addEventListener("keydown", (e) => { if (e.key === "Enter") doLogin(); });
+
     })();
   </script>
 </body>
