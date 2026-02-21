@@ -15,8 +15,6 @@
     </div>
 
     <div id="siteHeader" class="sectionRule"></div>
-    <script src="./partials/header.js"></script>
-    <script>loadHeader("signup");</script>
 
     <div class="pillrow sectionRule">
       <a class="btn secondary" href="./rules.html#handicaps">Handicap rules</a>
@@ -34,29 +32,29 @@
           <div class="split">
             <div class="field">
               <label for="name">Full Name</label>
-              <input id="name" placeholder="Name used site-wide" />
+              <input id="name" placeholder="Name used site-wide" autocomplete="name" />
             </div>
             <div class="field">
               <label for="handicap">Handicap</label>
-              <input id="handicap" placeholder="e.g. 12.4" />
+              <input id="handicap" placeholder="e.g. 12.4" inputmode="decimal" />
             </div>
           </div>
 
           <div class="split" style="margin-top:10px;">
             <div class="field">
               <label for="email">Email</label>
-              <input id="email" placeholder="you@email.com" />
+              <input id="email" placeholder="you@email.com" autocomplete="email" />
             </div>
             <div class="field">
               <label for="pw">Create Password</label>
-              <input id="pw" type="password" placeholder="Create a password" />
+              <input id="pw" type="password" placeholder="Create a password" autocomplete="new-password" />
             </div>
           </div>
 
           <div class="split" style="margin-top:10px;">
             <div class="field">
               <label for="pw2">Confirm Password</label>
-              <input id="pw2" type="password" placeholder="Repeat password" />
+              <input id="pw2" type="password" placeholder="Repeat password" autocomplete="new-password" />
             </div>
             <div class="field">
               <label>&nbsp;</label>
@@ -95,34 +93,63 @@
     <div class="footer">Questions? Check Rules → Handicaps & Buy-ins.</div>
   </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- Header -->
+  <script src="./partials/header.js"></script>
   <script>
-    // IMPORTANT: Use your REAL anon public key (not "publishable")
-    const SUPABASE_URL = "const SUPABASE_URL = "const SUPABASE_URL = "https://pgeiloiymvhhnuirudn.supabase.co";
-    const SUPABASE_ANON_KEY = "sb_publishable_N3_mDqjkytg1Hu8vC724xw_nkFy6PeH";
+    try { if (typeof loadHeader === "function") loadHeader("signup"); } catch(e) {}
+  </script>
 
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  <!-- Supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-    const API = { join: "/api-auth/join" };
-    const $ = (id) => document.getElementById(id);
+  <script>
+    (function () {
+      // --- CONFIG ---
+      const SUPABASE_URL = "https://pgeiloiymvhhnuirudn.supabase.co";
+      // Use the publishable/anon key intended for browser usage
+      const SUPABASE_ANON_KEY = ""sb_publishable_N3_mDqjkytg1Hu8vC724xw_nkFy6PeH";
 
-    function show(text, type){
-      const el = $("msg");
-      el.style.display = "block";
-      el.className = "msg" + (type ? " " + type : "");
-      el.textContent = text;
-    }
+      const API = { join: "/api-auth/join" };
 
-    async function getJSON(url, opts={}){
-      const r = await fetch(url, { ...opts, headers: { "accept":"application/json", ...(opts.headers||{}) }});
-      const t = await r.text();
-      let j = null; try{ j = t ? JSON.parse(t) : null }catch(e){}
-      if(!r.ok) throw new Error((j && (j.error||j.message)) ? (j.error||j.message) : (t || r.statusText));
-      return j;
-    }
+      const $ = (id) => document.getElementById(id);
 
-    $("signupBtn").addEventListener("click", async () => {
-      try{
+      function show(text, type){
+        const el = $("msg");
+        el.style.display = "block";
+        el.className = "msg" + (type ? " " + type : "");
+        el.textContent = text;
+      }
+
+      function setBusy(on){
+        $("signupBtn").disabled = on;
+        $("signupBtn").textContent = on ? "Creating…" : "Create Account";
+      }
+
+      function getClient() {
+        if (!window.supabase || typeof window.supabase.createClient !== "function") {
+          throw new Error("Supabase library not loaded.");
+        }
+        if (!window.sb) {
+          window.sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        }
+        return window.sb;
+      }
+
+      async function getJSON(url, opts={}){
+        const r = await fetch(url, {
+          ...opts,
+          headers: { "accept":"application/json", ...(opts.headers||{}) }
+        });
+        const t = await r.text();
+        let j = null;
+        try { j = t ? JSON.parse(t) : null; } catch(e) {}
+        if(!r.ok) {
+          throw new Error((j && (j.error || j.message)) ? (j.error || j.message) : (t || r.statusText));
+        }
+        return j;
+      }
+
+      async function doSignup() {
         const name = $("name").value.trim();
         const handicap = $("handicap").value.trim();
         const email = $("email").value.trim();
@@ -135,48 +162,76 @@
         if(pw.length < 6) return show("Password must be at least 6 characters.", "bad");
         if(pw !== pw2) return show("Passwords do not match.", "bad");
 
-        // 1) Create auth user (email+password)
-        const { data, error } = await supabase.auth.signUp({ email, password: pw });
-        if(error) return show("Signup failed: " + error.message, "bad");
-
-        const token = data?.session?.access_token || null;
-
-        // If your Supabase project requires email confirmation, session may be null here.
-        if(!token){
-          show(
-            "Account created. Check your email to confirm, then log in. After login, return here to finish profile linking.",
-            "ok"
-          );
-          return;
+        // (Optional) basic handicap validation
+        if (handicap !== "" && isNaN(Number(handicap))) {
+          return show("Handicap must be a number (e.g. 12.4).", "bad");
         }
 
-        // 2) Link/create player profile using service role via Netlify Function
-        const payload = { name };
-        if(handicap !== "") payload.handicap_index = handicap;
+        setBusy(true);
+        try {
+          const sb = getClient();
 
-        const res = await getJSON(API.join, {
-          method:"POST",
-          headers:{
-            "content-type":"application/json",
-            "authorization":"Bearer " + token
-          },
-          body: JSON.stringify(payload)
-        });
+          // 1) Create auth user (email + password)
+          const { data, error } = await sb.auth.signUp({ email, password: pw });
+          if (error) return show("Signup failed: " + error.message, "bad");
 
-        localStorage.setItem("sb_access_token", token);
+          const accessToken = data && data.session && data.session.access_token ? data.session.access_token : null;
+          const refreshToken = data && data.session && data.session.refresh_token ? data.session.refresh_token : null;
 
-        show(
-          res.mode === "created"
-            ? "Account created + profile linked! You’re ready to draft."
-            : "Account created + profile updated!",
-          "ok"
-        );
+          // If email confirmations are enabled, session may be null until confirmed.
+          if (!accessToken) {
+            show(
+              "Account created. Check your email to confirm, then log in. After login, return here to finish profile linking (name/handicap).",
+              "ok"
+            );
+            return;
+          }
 
-        if(typeof renderAuthMini === "function") renderAuthMini();
-      }catch(e){
-        show("Error: " + e.message, "bad");
+          // 2) Create/link player profile via Netlify function (server uses service role)
+          const payload = { name };
+          if (handicap !== "") payload.handicap_index = handicap;
+
+          const res = await getJSON(API.join, {
+            method: "POST",
+            headers: {
+              "content-type": "application/json",
+              "authorization": "Bearer " + accessToken
+            },
+            body: JSON.stringify(payload)
+          });
+
+          localStorage.setItem("sb_access_token", accessToken);
+          if (refreshToken) localStorage.setItem("sb_refresh_token", refreshToken);
+
+          show(
+            (res && res.mode === "created")
+              ? "Account created + profile linked! You’re ready to draft."
+              : "Account created + profile updated!",
+            "ok"
+          );
+
+          if (typeof renderAuthMini === "function") renderAuthMini();
+
+          // Redirect to draft
+          setTimeout(() => { window.location.href = "./draft.html"; }, 400);
+
+        } catch(e) {
+          show("Error: " + (e && e.message ? e.message : String(e)), "bad");
+        } finally {
+          setBusy(false);
+        }
       }
-    });
+
+      $("signupBtn").addEventListener("click", doSignup);
+
+      // Enter key submits
+      ["name","handicap","email","pw","pw2"].forEach(id => {
+        const el = $(id);
+        if (!el) return;
+        el.addEventListener("keydown", (e) => { if (e.key === "Enter") doSignup(); });
+      });
+
+    })();
   </script>
 </body>
 </html>
