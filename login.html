@@ -14,8 +14,6 @@
     </div>
 
     <div id="siteHeader" class="sectionRule"></div>
-    <script src="./partials/header.js"></script>
-    <script>loadHeader("login");</script>
 
     <div class="card" style="margin-top:16px;">
       <div class="hd">
@@ -26,11 +24,11 @@
         <div class="split">
           <div class="field">
             <label for="email">Email</label>
-            <input id="email" placeholder="you@email.com" />
+            <input id="email" placeholder="you@email.com" autocomplete="email" />
           </div>
           <div class="field">
             <label for="pw">Password</label>
-            <input id="pw" type="password" placeholder="Your password" />
+            <input id="pw" type="password" placeholder="Your password" autocomplete="current-password" />
           </div>
         </div>
 
@@ -46,41 +44,109 @@
     <div class="footer">After login, your name (handicap) shows in the header everywhere.</div>
   </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- Load header AFTER the placeholder div exists -->
+  <script src="./partials/header.js"></script>
   <script>
-    // IMPORTANT: Use your REAL anon public key (not "publishable")
+    // Render header first (doesn't require Supabase to exist)
+    if (typeof loadHeader === "function") loadHeader("login");
+  </script>
+
+  <!-- Supabase CDN (global is window.supabase) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <script>
+    // --- CONFIG ---
     const SUPABASE_URL = "https://pgeiloiymvhhnuirudn.supabase.co";
     const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBnZWlsb2l5bXZoaG51d2lydWRuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEwODI1MTUsImV4cCI6MjA4NjY1ODUxNX0.qAhzviSi9Xg93Vf_9DefClDms7K6ALgDEB5iWXyWBiY";
 
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    // --- HELPERS ---
     const $ = (id) => document.getElementById(id);
 
-    function show(text, type){
+    function show(text, type) {
       const el = $("msg");
       el.style.display = "block";
       el.className = "msg" + (type ? " " + type : "");
       el.textContent = text;
     }
 
-    $("loginBtn").addEventListener("click", async () => {
+    function setBusy(isBusy) {
+      $("loginBtn").disabled = isBusy;
+      $("loginBtn").textContent = isBusy ? "Logging in..." : "Log In";
+    }
+
+    // --- CREATE/REUSE A SINGLE SUPABASE CLIENT ---
+    // IMPORTANT: do NOT declare `const supabase = ...` because other scripts may also declare it.
+    // Use a shared instance on window.sb instead.
+    function getClient() {
+      if (!window.supabase || typeof window.supabase.createClient !== "function") {
+        throw new Error("Supabase library not loaded. Check the CDN script.");
+      }
+      if (!window.sb) {
+        window.sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      }
+      return window.sb;
+    }
+
+    async function doLogin() {
       const email = $("email").value.trim();
       const password = $("pw").value;
 
-      if(!email) return show("Enter your email.", "bad");
-      if(!password) return show("Enter your password.", "bad");
+      if (!email) return show("Enter your email.", "bad");
+      if (!password) return show("Enter your password.", "bad");
 
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-      if(error) return show("Login failed: " + error.message, "bad");
+      setBusy(true);
+      try {
+        const sb = getClient();
 
-      const token = data?.session?.access_token || null;
-      if(!token) return show("Logged in, but no session token returned.", "bad");
+        const { data, error } = await sb.auth.signInWithPassword({ email, password });
+        if (error) return show("Login failed: " + error.message, "bad");
 
-      localStorage.setItem("sb_access_token", token);
-      show("Logged in! Go to Draft or Sign Up (profile).", "ok");
+        const accessToken = data?.session?.access_token || null;
+        const refreshToken = data?.session?.refresh_token || null;
 
-      if(typeof renderAuthMini === "function") renderAuthMini();
-    });
+        if (!accessToken) return show("Logged in, but no session token returned.", "bad");
+
+        localStorage.setItem("sb_access_token", accessToken);
+        if (refreshToken) localStorage.setItem("sb_refresh_token", refreshToken);
+
+        // If your header has a mini-auth widget, refresh it
+        if (typeof renderAuthMini === "function") renderAuthMini();
+
+        show("Logged in! Redirecting…", "ok");
+
+        // Redirect somewhere useful (change if you want)
+        setTimeout(() => {
+          window.location.href = "./draft.html";
+        }, 400);
+
+      } catch (e) {
+        show("Login error: " + (e?.message || String(e)), "bad");
+      } finally {
+        setBusy(false);
+      }
+    }
+
+    // Button click
+    $("loginBtn").addEventListener("click", doLogin);
+
+    // Enter key submits
+    $("email").addEventListener("keydown", (e) => { if (e.key === "Enter") doLogin(); });
+    $("pw").addEventListener("keydown", (e) => { if (e.key === "Enter") doLogin(); });
+
+    // Optional: if already logged in, go straight to draft
+    (async () => {
+      try {
+        const token = localStorage.getItem("sb_access_token");
+        if (!token) return;
+
+        // Light sanity check: token exists, attempt /api/me to confirm it's valid
+        const res = await fetch("/api/me", { headers: { Authorization: "Bearer " + token } });
+        if (res.ok) {
+          // already authenticated
+          // window.location.href = "./draft.html";
+        }
+      } catch (_) {}
+    })();
   </script>
 </body>
 </html>
-
