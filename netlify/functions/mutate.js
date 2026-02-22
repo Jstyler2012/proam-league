@@ -1,4 +1,4 @@
-/ netlify/functions/mutate.js
+// netlify/functions/mutate.js
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -17,14 +17,6 @@ function json(statusCode, body) {
 function getHeader(event, name) {
   const h = event.headers || {};
   return (h[name] || h[name.toLowerCase()] || "").trim();
-}
-
-function assertAdmin(event) {
-  const need = (process.env.ADMIN_TOKEN || "").trim();
-  const got = getHeader(event, "x-admin-token");
-  if (!need) return { ok: false, resp: json(500, { error: "Missing ADMIN_TOKEN env var" }) };
-  if (!got || got !== need) return { ok: false, resp: json(401, { error: "Unauthorized" }) };
-  return { ok: true };
 }
 
 async function getAuthedUserId(event, SUPABASE_URL, SUPABASE_ANON_KEY) {
@@ -47,8 +39,9 @@ async function sbService(SUPABASE_URL, SERVICE_KEY, method, restPath, bodyObj, p
   const headers = {
     apikey: SERVICE_KEY,
     Authorization: `Bearer ${SERVICE_KEY}`,
-    "content-type": "application/json",
   };
+
+  if (method !== "GET") headers["content-type"] = "application/json";
   if (prefer) headers.Prefer = prefer;
 
   const r = await fetch(`${SUPABASE_URL}/rest/v1/${restPath}`, {
@@ -62,8 +55,25 @@ async function sbService(SUPABASE_URL, SERVICE_KEY, method, restPath, bodyObj, p
   return t ? JSON.parse(t) : null;
 }
 
+function routeFrom(event) {
+  const raw = (event.path || "").split("?")[0];
+
+  // because netlify.toml uses /.netlify/functions/mutate/:splat
+  if (raw.startsWith("/.netlify/functions/mutate/")) {
+    return raw.slice("/.netlify/functions/mutate/".length);
+  }
+
+  // fallback if hit directly
+  if (raw.startsWith("/api-mutate/")) {
+    return raw.slice("/api-mutate/".length);
+  }
+
+  return raw.replace(/^\/+|\/+$/g, "");
+}
+
 exports.handler = async (event) => {
   if (event.httpMethod === "OPTIONS") return { statusCode: 204, headers: corsHeaders, body: "" };
+  if (event.httpMethod !== "POST") return json(405, { error: "Method not allowed" });
 
   try {
     const SUPABASE_URL = process.env.SUPABASE_URL;
@@ -74,11 +84,7 @@ exports.handler = async (event) => {
       return json(500, { error: "Missing SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, or SUPABASE_ANON_KEY" });
     }
 
-    const path = (event.path || "")
-      .replace(/^\/\.netlify\/functions\/mutate\/?/, "")
-      .replace(/^\/+/, "");
-
-    if (event.httpMethod !== "POST") return json(405, { error: "Method not allowed" });
+    const path = routeFrom(event);
 
     let body = {};
     try { body = JSON.parse(event.body || "{}"); } catch { body = {}; }
@@ -102,12 +108,13 @@ exports.handler = async (event) => {
         `players?select=id&user_id=eq.${userId}&limit=1`
       );
       const playerId = found?.[0]?.id || null;
-      if (!playerId) return json(403, { error: "No player linked to this login yet. Go to Sign Up and create your profile." });
+      if (!playerId) {
+        return json(403, { error: "No player linked to this login yet. Go to Sign Up and create your profile." });
+      }
 
       const want = (participate === undefined || participate === null) ? true : Boolean(participate);
 
       if (want) {
-        // Upsert into week_participants
         const row = { week_id, player_id: playerId };
         const saved = await sbService(
           SUPABASE_URL,
@@ -119,7 +126,6 @@ exports.handler = async (event) => {
         );
         return json(200, { ok: true, mode: "joined", row: saved?.[0] || null });
       } else {
-        // Delete participation row
         await sbService(
           SUPABASE_URL,
           SERVICE_KEY,
@@ -132,6 +138,7 @@ exports.handler = async (event) => {
 
     // -------------------------
     // submit-score (PUBLIC)
+    // POST /api-mutate/submit-score { week_id, player_id, pro_id, player_to_par, pro_to_par }
     // -------------------------
     if (path === "submit-score") {
       const { week_id, player_id, pro_id, player_to_par, pro_to_par } = body;
@@ -171,6 +178,7 @@ exports.handler = async (event) => {
 
     // -------------------------
     // draft-pick (AUTH REQUIRED)
+    // POST /api-mutate/draft-pick { week_id, pro_id }
     // -------------------------
     if (path === "draft-pick") {
       const { week_id, pro_id } = body;
@@ -189,7 +197,9 @@ exports.handler = async (event) => {
         `players?select=id&user_id=eq.${userId}&limit=1`
       );
       const playerId = found?.[0]?.id || null;
-      if (!playerId) return json(403, { error: "No player linked to this login yet. Go to Sign Up and create your profile." });
+      if (!playerId) {
+        return json(403, { error: "No player linked to this login yet. Go to Sign Up and create your profile." });
+      }
 
       const row = { week_id, player_id: playerId, pga_golfer: pro_id };
 
@@ -205,19 +215,8 @@ exports.handler = async (event) => {
       return json(200, { ok: true, entry: saved?.[0] || null });
     }
 
-    // -------------------------
-    // award-week-points (ADMIN ONLY)
-    // -------------------------
-    if (path === "award-week-points") {
-      const admin = assertAdmin(event);
-      if (!admin.ok) return admin.resp;
-
-      return json(200, { ok: true, message: "award-week-points stub (next step)" });
-    }
-
-    return json(404, { error: "Not found" });
+    return json(404, { error: "Not found", path });
   } catch (err) {
     return json(500, { error: err?.message || String(err) });
   }
 };
-
