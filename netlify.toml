@@ -4,12 +4,17 @@
 
 [[redirects]]
   from = "/api/*"
-  to = "/.netlify/functions/public/:splat"
+  to = "/.netlify/functions/public"
+  status = 200
+
+[[redirects]]
+  from = "/api-auth/*"
+  to = "/.netlify/functions/auth"
   status = 200
 
 [[redirects]]
   from = "/api-mutate/*"
-  to = "/.netlify/functions/mutate/:splat"
+  to = "/.netlify/functions/mutate"
   status = 200
 
 [[redirects]]
@@ -17,9 +22,7 @@
   to = "/.netlify/functions/proscore"
   status = 200
 
-# Auth / profile join
 [[redirects]]
-  from = "/api-auth/*"
-  to = "/.netlify/functions/auth/:splat"
+  from = "/api-admin/*"
+  to = "/.netlify/functions/admin"
   status = 200
-
