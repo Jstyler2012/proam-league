@@ -6,116 +6,104 @@
   <title>Log In • Wellman Golf Club PRO-AM 2026</title>
   <link rel="stylesheet" href="./styles.css">
 </head>
+
 <body>
   <div class="wrap">
     <div>
       <div class="pageTitle">Log In</div>
-      <div class="pageSub">Email + password login</div>
+      <div class="pageSub">Access your account • view draft status • submit your score</div>
     </div>
 
     <div id="siteHeader" class="sectionRule"></div>
+    <script src="./partials/header.js"></script>
 
-    <div class="card" style="margin-top:16px;">
+    <div class="card">
       <div class="hd">
-        <h2>Login</h2>
-        <span class="badge gray">Auth</span>
+        <div class="hTitle">Log In</div>
       </div>
+
       <div class="bd">
-        <div class="split">
-          <div class="field">
-            <label for="email">Email</label>
-            <input id="email" placeholder="you@email.com" autocomplete="email" />
-          </div>
-          <div class="field">
-            <label for="pw">Password</label>
-            <input id="pw" type="password" placeholder="Your password" autocomplete="current-password" />
-          </div>
+        <div class="fieldRow">
+          <label class="label" for="email">Email</label>
+          <input id="email" class="input" type="email" placeholder="you@email.com" autocomplete="email" />
         </div>
 
-        <div class="row" style="margin-top:12px;">
-          <button class="btn" id="loginBtn">Log In</button>
-          <a class="btn secondary" href="./signup.html">Create Account</a>
+        <div class="fieldRow">
+          <label class="label" for="password">Password</label>
+          <input id="password" class="input" type="password" placeholder="••••••••" autocomplete="current-password" />
         </div>
+
+        <button id="loginBtn" class="btnPrimary">Log in</button>
 
         <div id="msg" class="msg" style="display:none;"></div>
+
+        <div class="muted" style="margin-top:10px;">
+          Need an account? <a href="./signup.html">Sign up here</a>.
+        </div>
       </div>
     </div>
-
-    <div class="footer">After login, your name (handicap) shows in the header everywhere.</div>
   </div>
 
-  <!-- Header -->
-  <script src="./partials/header.js"></script>
-  <script>
-    try { if (typeof loadHeader === "function") loadHeader("login"); } catch(e) {}
-  </script>
-
-  <!-- Supabase -->
+  <!-- Supabase JS + centralized config -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="/supabase-config.js"></script>
 
   <script>
-    (function () {
-     const SUPABASE_URL = "https://qntqnetiwaqtviwwyjfc.supabase.co";
-const SUPABASE_ANON_KEY = "sb_publishable_RvrIaZWNPIzVCTw8HXoyZw_2uveaQZl";
-      const $ = (id) => document.getElementById(id);
-      function show(text, type) {
-        const el = $("msg");
-        el.style.display = "block";
-        el.className = "msg" + (type ? " " + type : "");
-        el.textContent = text;
-      }
-      function setBusy(on) {
-        $("loginBtn").disabled = on;
-        $("loginBtn").textContent = on ? "Logging in..." : "Log In";
+    loadHeader("login");
+
+    const $ = (id) => document.getElementById(id);
+
+    function show(text, type) {
+      const el = $("msg");
+      el.style.display = "block";
+      el.className = "msg" + (type ? " " + type : "");
+      el.textContent = text;
+    }
+
+    function setBusy(isBusy) {
+      $("loginBtn").disabled = !!isBusy;
+      $("loginBtn").textContent = isBusy ? "Logging in..." : "Log in";
+    }
+
+    $("loginBtn").addEventListener("click", onLogin);
+
+    async function onLogin() {
+      const email = ($("email").value || "").trim();
+      const password = $("password").value || "";
+
+      if (!email || !password) {
+        show("Email and password required.", "bad");
+        return;
       }
 
-      function getClient() {
-        if (!window.supabase || typeof window.supabase.createClient !== "function") {
-          throw new Error("Supabase library not loaded.");
+      setBusy(true);
+      try {
+        const { data, error } = await window.sb.auth.signInWithPassword({ email, password });
+        if (error) {
+          show(error.message || "Login failed.", "bad");
+          return;
         }
-        if (!window.sb) {
-          window.sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        const accessToken = data?.session?.access_token || "";
+        const refreshToken = data?.session?.refresh_token || "";
+
+        if (!accessToken) {
+          show("Logged in, but no session token returned.", "bad");
+          return;
         }
-        return window.sb;
+
+        // IMPORTANT: Your site relies on these keys
+        localStorage.setItem("sb_access_token", accessToken);
+        if (refreshToken) localStorage.setItem("sb_refresh_token", refreshToken);
+
+        show("Login successful.", "good");
+        setTimeout(() => (window.location.href = "./index.html"), 350);
+      } catch (e) {
+        show(e.message || "Unexpected error.", "bad");
+      } finally {
+        setBusy(false);
       }
-
-      async function doLogin() {
-        const email = $("email").value.trim();
-        const password = $("pw").value;
-
-        if (!email) return show("Enter your email.", "bad");
-        if (!password) return show("Enter your password.", "bad");
-
-        setBusy(true);
-        try {
-          const sb = getClient();
-          const { data, error } = await sb.auth.signInWithPassword({ email, password });
-          if (error) return show("Login failed: " + error.message, "bad");
-
-          const accessToken = data && data.session && data.session.access_token ? data.session.access_token : null;
-          const refreshToken = data && data.session && data.session.refresh_token ? data.session.refresh_token : null;
-
-          if (!accessToken) return show("Logged in, but no session token returned.", "bad");
-
-          localStorage.setItem("sb_access_token", accessToken);
-          if (refreshToken) localStorage.setItem("sb_refresh_token", refreshToken);
-
-          if (typeof renderAuthMini === "function") renderAuthMini();
-
-          show("Logged in! Redirecting…", "ok");
-          setTimeout(() => { window.location.href = "./draft.html"; }, 300);
-        } catch (e) {
-          show("Login error: " + (e && e.message ? e.message : String(e)), "bad");
-        } finally {
-          setBusy(false);
-        }
-      }
-
-      $("loginBtn").addEventListener("click", doLogin);
-      $("pw").addEventListener("keydown", (e) => { if (e.key === "Enter") doLogin(); });
-      $("email").addEventListener("keydown", (e) => { if (e.key === "Enter") doLogin(); });
-
-    })();
+    }
   </script>
 </body>
 </html>
