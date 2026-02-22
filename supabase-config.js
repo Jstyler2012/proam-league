@@ -1,43 +1,22 @@
-<!DOCTYPE html>
-<html>
-<head>
-  <title>Login</title>
-  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
-  <script src="/supabase-config.js"></script>
-</head>
-<body>
+// supabase-config.js
+// Centralized Supabase client for the whole site.
+// IMPORTANT: Use your NEW project's URL + PUBLISHABLE key (sb_publishable_*).
+(function () {
+  // TODO: Replace these 2 values with your NEW Supabase project values
+  const SUPABASE_URL = "https://qntqnetiwaqtviwwyjfc.supabase.co";
+  const SUPABASE_ANON_KEY = "sb_publishable_RvrIaZWNPIzVCTw8HXoyZw_2uveaQZl";
 
-<h2>Login</h2>
-
-<form id="login-form">
-  <input id="email" type="email" placeholder="Email" required />
-  <input id="password" type="password" placeholder="Password" required />
-  <button type="submit">Login</button>
-</form>
-
-<div id="msg"></div>
-
-<script>
-document.getElementById("login-form").addEventListener("submit", async (e) => {
-  e.preventDefault();
-
-  const email = document.getElementById("email").value;
-  const password = document.getElementById("password").value;
-
-  const { data, error } = await window.sb.auth.signInWithPassword({
-    email,
-    password,
-  });
-
-  if (error) {
-    document.getElementById("msg").innerText = error.message;
+  if (!window.supabase || !window.supabase.createClient) {
+    console.error("Supabase JS library not loaded. Check script include order.");
     return;
   }
 
-  document.getElementById("msg").innerText = "Login successful";
-  window.location.href = "/";
-});
-</script>
-
-</body>
-</html>
+  // Expose on window so any page can use it consistently
+  window.sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+    },
+  });
+})();
