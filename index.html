@@ -860,8 +860,7 @@ const API = {
 
           const w = weeks.find(x => x.id === id);
           if(!w) return;
-          if(displayedWeek?.id === w.id) return;
-
+          if(displayedWeek?.week_number === w.week_number) return;
           setDisplayedWeek(w);
         }, 140);
       };
@@ -963,7 +962,7 @@ const API = {
         .sort((a,b) => a.week_number - b.week_number);
 
       el.innerHTML = sorted.map(w => {
-        const active = (w.id === activeWeekId) ? "active" : "";
+        const active = (w.week_number === activeWeekId) ? "active" : "";        
         const dates = fmtDateRange(w.start_date, w.end_date);
         const logo = w.logo_url
           ? `<img class="scheduleLogo" alt="" src="${w.logo_url}">`
@@ -973,8 +972,8 @@ const API = {
           : `<span class="tag">Week ${w.week_number}</span>`;
 
         return `
-          <div class="scheduleItem ${active}" data-week-id="${w.id}">
-            <div class="scheduleLeft">
+           <div class="scheduleItem ${active}" data-week-id="${w.week_number}">         
+           <div class="scheduleLeft">
               ${logo}
               <div class="scheduleText">
                 <div class="scheduleName">Week ${w.week_number} • ${w.tournament_name || "—"}</div>
@@ -989,7 +988,7 @@ const API = {
       el.querySelectorAll(".scheduleItem").forEach(item => {
         item.addEventListener("click", async () => {
           const weekId = item.getAttribute("data-week-id");
-          const w = weeks.find(x => x.id === weekId);
+          const w = weeks.find(x => String(x.week_number) === String(weekId));         
           if(!w) return;
           await setDisplayedWeek(w);
         });
@@ -1010,9 +1009,8 @@ const API = {
       $("lbBody").innerHTML = `<tr><td colspan="6" style="color:rgba(233,241,255,.45);">Loading…</td></tr>`;
 
       try{
-        const url = `${API.leaderboard}?week_id=${encodeURIComponent(week.id)}`;
+        const url = `${API.leaderboard}?week_id=${encodeURIComponent(week.week_number)}`;       
         const data = await getJSON(url);
-
         const label = week.label || data.week || "—";
         if($("weekLabel")) $("weekLabel").textContent = label;
         setLeaderboardTitleFromLabel(label, week.week_number);
@@ -1026,8 +1024,7 @@ const API = {
             return `
               <tr>
                 <td><span class="rankPill">#${idx+1}</span></td>
-                <td class="mono center"><span class="totalPill">${fmtToPar(r.rank_score)}</span>/td>
-                <td class="playerCell">${r.player_name || "—"}</td>
+               <td class="mono center"><span class="totalPill">${fmtToPar(r.rank_score)}</span></td>                <td class="playerCell">${r.player_name || "—"}</td>
                 <td class="mono center">${fmtToPar(r.playerScore)}</td>
                 <td>${proName || "—"}</td>
                 <td class="mono center">${fmtToPar(r.proScore)}</td>
@@ -1280,28 +1277,24 @@ const API = {
         return;
       }
 
-      const playerId = $("playerSel")?.value;
-      const proId = $("proSel")?.value;
-      const you = parseToPar($("playerScore")?.value);
-      const pro = parseToPar($("proScore")?.value);
-
-      if(!playerId || !proId){
-        showMsg($("submitMsg"), "Pick a Player and a Pro.", "bad"); return;
+            const token = getAccessToken();
+      if(!token){
+        showMsg($("submitMsg"), "You must be logged in to submit a score.", "bad");
+        return;
       }
+
+      const you = parseToPar($("playerScore")?.value);
       if(you === null){
         showMsg($("submitMsg"), "Enter your score to par (example: +10).", "bad"); return;
       }
 
-      const payload = { week_id: currentWeekId, player_id: playerId, pro_id: proId, player_to_par: you };
-      if (pro !== null) payload.pro_to_par = pro;
-
+      const payload = { week_id: currentWeekId, score_to_par: you };
       try{
         await getJSON(API.submit, {
           method:"POST",
-          headers: { "content-type":"application/json" },
+         headers: authedHeaders({ "content-type":"application/json" }),     
           body: JSON.stringify(payload)
         });
-
         showMsg($("submitMsg"), "Saved!", "ok");
         if (displayedWeek) await loadLeaderboardForWeek(displayedWeek);
       }catch(e){
@@ -1331,11 +1324,9 @@ const API = {
 
     async function setDisplayedWeek(week){
       displayedWeek = week;
-      currentWeekId = week.id;
-
+     currentWeekId = week.week_number;
       renderWeekDetails(week);
-      renderSchedule(scheduleWeeks, week.id);
-
+      renderSchedule(scheduleWeeks, week.week_number);
       // participation + participants-only player dropdown
       await refreshParticipationAndPlayers();
 
