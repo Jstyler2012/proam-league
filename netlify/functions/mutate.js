@@ -135,8 +135,73 @@ exports.handler = async (event) => {
         return json(200, { ok: true, mode: "left" });
       }
     }
+// -------------------------
+// submit-round
+// POST /api-mutate/submit-round
+// -------------------------
+if (path === "submit-round") {
 
-    // -------------------------
+  const { week_id, score_to_par, played_at } = body;
+
+  if (!week_id) {
+    return json(400, { error: "Missing week_id" });
+  }
+
+  const userId = await getAuthedUserId(
+    event,
+    SUPABASE_URL,
+    SUPABASE_ANON_KEY
+  );
+
+  if (!userId) {
+    return json(401, { error: "Not logged in" });
+  }
+
+  // find player profile
+  const found = await sbService(
+    SUPABASE_URL,
+    SERVICE_KEY,
+    "GET",
+    `players?select=id&user_id=eq.${userId}&limit=1`
+  );
+
+  const playerId = found?.[0]?.id;
+
+  if (!playerId) {
+    return json(403, {
+      error: "Create your player profile first."
+    });
+  }
+
+  const score = Number(score_to_par);
+
+  if (!Number.isFinite(score)) {
+    return json(400, { error: "Invalid score" });
+  }
+
+  const playedAt = played_at || new Date().toISOString();
+
+  const row = {
+    week_id,
+    player_id: playerId,
+    score_to_par: score,
+    played_at: playedAt
+  };
+
+  const inserted = await sbService(
+    SUPABASE_URL,
+    SERVICE_KEY,
+    "POST",
+    "player_rounds",
+    row,
+    "return=representation"
+  );
+
+  return json(200, {
+    ok: true,
+    round: inserted?.[0]
+  });
+}    // -------------------------
     // submit-score (PUBLIC)
     // POST /api-mutate/submit-score { week_id, player_id, pro_id, player_to_par, pro_to_par }
     // -------------------------
