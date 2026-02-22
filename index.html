@@ -3,725 +3,175 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Wellman Golf Club Pro-Am League</title>
-  <link rel="stylesheet" href="./styles.css">
-
-  <style>
-    :root{
-      --bg:#0b1220;
-      --text:#e8eefc;
-      --muted:#a9b7d6;
-      --brand:#47d7ac;
-      --brand2:#5aa7ff;
-      --danger:#ff5a7a;
-      --warn:#ffcf5a;
-      --ok:#49e28b;
-
-      --majorBorder: rgba(255,207,90,.55);
-      --majorText: #ffe6ad;
-      --majorBg: rgba(255,207,90,.10);
-
-      --border:rgba(255,255,255,.10);
-      --shadow: 0 12px 40px rgba(0,0,0,.35);
-      --radius: 18px;
-    }
-
-    *{ box-sizing:border-box; }
-    html, body { height:100%; }
-    body{
-      margin:0;
-      background: radial-gradient(900px 520px at 20% 0%, rgba(90,167,255,.10), transparent 55%),
-                  radial-gradient(900px 520px at 80% 0%, rgba(71,215,172,.10), transparent 55%),
-                  var(--bg);
-      color: var(--text);
-      font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
-    }
-    a{ color:inherit; text-decoration:none; }
-
-    .wrap{ max-width:1100px; margin:0 auto; padding:22px 16px 56px; }
-
-    /* ---------- Masthead: ONE box (image + season pill + nav pills) ---------- */
-    .masthead{
-      border-radius: var(--radius);
-      border: 1px solid var(--border);
-      overflow: hidden;
-      box-shadow: var(--shadow);
-      margin-bottom: 16px;
-      background: rgba(0,0,0,.18);
-    }
-
-.mastBanner{
-  width: 100%;
-  height: 96px; /* was 110px — shorter = less cropping so logo fits */
-  background-image: url("/assets/header-banner.jpg");
-  background-repeat: no-repeat;
-
-  /* Fill the box */
-  background-size: 35% auto;
-
-  /* Favor the logo/text area */
-  background-position: left 42%;
-
-  background-color: rgba(0,0,0,.18);
-}
-
-    /* Controls live inside SAME box (below banner) */
-    .mastControls{
-      border-top: 1px solid rgba(255,255,255,.08);
-      padding: 12px 12px 14px;
-      background: rgba(0,0,0,.16);
-    }
-
-    .mastControlsInner{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:12px;
-      flex-wrap:wrap;
-
-      border-radius: 16px;
-      padding: 10px 12px;
-      border: 1px solid rgba(255,255,255,.12);
-      background: rgba(0,0,0,.24);
-
-      /* IMPORTANT: no blur */
-      backdrop-filter: none;
-    }
-
-    .seasonPill{
-      display:inline-flex;
-      align-items:center;
-      justify-content:center;
-      gap:8px;
-      padding:7px 12px;
-      border-radius:999px;
-      border:1px solid rgba(255,255,255,.12);
-      background: rgba(255,255,255,.06);
-      color: rgba(233,241,255,.86);
-      font-size:13px;
-      white-space: nowrap;
-    }
-
-    .navRow{
-      display:flex;
-      gap:8px;
-      flex-wrap:wrap;
-      justify-content:flex-end;
-    }
-
-    /* Keep your existing nav pill styles */
-    .navTab{
-      padding:8px 14px;
-      border-radius:999px;
-      border:1px solid var(--border);
-      text-decoration:none;
-      font-size:13px;
-      color:var(--muted);
-      font-weight:700;
-      transition:.15s;
-      background: rgba(255,255,255,.04);
-    }
-    .navTab:hover{
-      border-color:rgba(90,167,255,.45);
-      color:#cfe3ff;
-      background: rgba(255,255,255,.06);
-    }
-    .navTabActive{
-      border-color:rgba(71,215,172,.45);
-      color:#c9fff0;
-      background:rgba(71,215,172,.12);
-    }
-
- @media (max-width: 700px){
-
-  /* Banner strip */
-  .mastBanner{
-    height: 88px;
-    background-size: cover;
-    background-position: center 43%;
-  }
-
-  /* Make the bar itself shorter */
-  .mastBar{
-    padding: 8px 10px 10px;
-  }
-
-  /* Make the inner panel shorter */
-  .mastBarInner{
-    padding: 8px 10px;
-    gap: 8px;
-    justify-content:center;
-    text-align:center;
-  }
-
-  /* Season pill shorter */
-  .seasonPill{
-    padding: 6px 10px;
-    font-size: 12.5px;
-    width: 100%;
-    justify-content:center;
-    white-space: normal;
-  }
-
-  /* Nav row tighter */
-  .navRow{
-    width:100%;
-    justify-content:center;
-    gap: 6px;
-  }
-
-  /* Nav buttons shorter */
-  .navTab{
-    padding: 7px 12px;
-    font-size: 12.5px;
-  }
-}
-
-    /* Kept for JS updates, hidden */
-    .pillrow{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; justify-content:flex-start; }
-    .pill{
-      border:1px solid var(--border);
-      background: rgba(255,255,255,.06);
-      padding:8px 10px; border-radius:999px;
-      font-size:12px; color:var(--muted);
-      display:flex; gap:8px; align-items:center;
-    }
-    .dot{ width:8px; height:8px; border-radius:50%; background:var(--warn); }
-    .dot.ok{ background:var(--ok); }
-    .dot.bad{ background:var(--danger); }
-    .mastheadControls{ display:none !important; }
-
-    /* ---------- Cards + layout ---------- */
-    .grid{
-      display:grid;
-      grid-template-columns: 1fr 1.4fr; /* leaderboard wider on desktop */
-      gap:16px;
-    }
-    @media (max-width: 980px){
-      .grid{ grid-template-columns: 1fr; gap:12px; } /* stack on mobile for clean fit */
-    }
-
-    .card{
-      background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
-      border:1px solid var(--border);
-      border-radius: var(--radius);
-      box-shadow: var(--shadow);
-      overflow:hidden;
-    }
-    .card .hd{
-      padding:14px 16px;
-      display:flex; align-items:center; justify-content:space-between; gap:12px;
-      background: rgba(0,0,0,.14);
-      border-bottom:1px solid var(--border);
-    }
-    .card .hd h2{
-      margin:0;
-      font-size:14px;
-      letter-spacing:.3px;
-      text-transform:uppercase;
-      color:var(--muted);
-    }
-    .card .bd{ padding:16px; }
-
-    @media (max-width:560px){
-      .card .hd{ padding: 10px 12px; }
-      .card .bd{ padding: 12px; }
-    }
-
-    .btn{
-      appearance:none; border:none; cursor:pointer;
-      background: linear-gradient(135deg, var(--brand2), var(--brand));
-      color:#04101e; font-weight:800;
-      padding:10px 12px; border-radius:12px;
-      box-shadow: 0 10px 24px rgba(0,0,0,.28);
-      transition: transform .08s ease;
-      font-size:13px;
-    }
-    .btn:active{ transform: translateY(1px); }
-    .btn.secondary{
-      background: rgba(255,255,255,.08);
-      color:var(--text);
-      border:1px solid var(--border);
-      box-shadow:none;
-      font-weight:700;
-    }
-
-    .row{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
-    .field{
-      display:flex; flex-direction:column; gap:6px;
-      min-width: 180px;
-      flex: 1;
-    }
-    label{ font-size:12px; color:var(--muted); }
-    input, select{
-      width:100%;
-      padding:10px 12px;
-      border-radius:12px;
-      border:1px solid var(--border);
-      background: rgba(0,0,0,.25);
-      color:var(--text);
-      outline:none;
-    }
-    input::placeholder{ color: rgba(233,241,255,.35); }
-
-    .split{ display:grid; grid-template-columns: 1fr 1fr; gap:10px; }
-    @media(max-width:560px){ .split{ grid-template-columns:1fr; } }
-
-    .submitActions{
-      display:flex;
-      gap:10px;
-      flex-wrap:wrap;
-      margin-top:12px;
-    }
-    @media(max-width:560px){
-      .submitActions{ flex-direction:column; }
-      .submitActions .btn{ width:100%; }
-    }
-
-    .badge{
-      display:inline-flex; align-items:center; gap:8px;
-      padding:6px 10px; border-radius:999px;
-      background: rgba(71,215,172,.12);
-      border:1px solid rgba(71,215,172,.28);
-      color:#c9fff0;
-      font-weight:700; font-size:12px;
-      white-space: nowrap;
-    }
-    .badge.gray{
-      background: rgba(255,255,255,.06);
-      border:1px solid var(--border);
-      color: var(--muted);
-      font-weight:700;
-    }
-    .badge.weekPill{
-      font-size:13px;
-      padding:7px 12px;
-      font-weight:900;
-      letter-spacing:.2px;
-    }
-
-    .msg{
-      margin-top:10px;
-      border:1px solid var(--border);
-      background: rgba(0,0,0,.22);
-      padding:10px 12px;
-      border-radius:12px;
-      color:var(--muted);
-      font-size:13px;
-      white-space: pre-wrap;
-    }
-    .msg.ok{ border-color: rgba(73,226,139,.3); color:#c9ffde; }
-    .msg.bad{ border-color: rgba(255,90,122,.35); color:#ffd0da; }
-
-    .footer{
-      margin-top:16px;
-      color:rgba(233,241,255,.45);
-      font-size:12px;
-      text-align:center;
-    }
-
-    /* Hide Public pill beside Submit title (keep for JS state updates) */
-    #lockBadge{ display:none !important; }
-
-    /* ---------- Week hero ---------- */
-    .weekHero{
-      position: relative;
-      min-height: 150px;
-      padding: 16px;
-      border-top: 1px solid var(--border);
-      background: rgba(0,0,0,.16);
-      overflow: hidden;
-      background-repeat: no-repeat;
-      background-size: cover;
-      background-position: right center;
-    }
-    .weekHeroOverlay{
-      position:absolute;
-      inset:0;
-      background:
-        linear-gradient(90deg, rgba(5,10,20,.92) 0%, rgba(5,10,20,.78) 44%, rgba(5,10,20,.35) 100%),
-        radial-gradient(900px 320px at 20% 10%, rgba(90,167,255,.18), transparent 60%),
-        radial-gradient(800px 280px at 80% 0%, rgba(71,215,172,.14), transparent 60%);
-    }
-    .weekHeroContent{
-      position: relative;
-      z-index: 1;
-      display:flex;
-      align-items:center;
-      gap: 14px;
-      flex-wrap: wrap;
-    }
-    .weekHeroLogo{
-      width: 88px;
-      height: 88px;
-      border-radius: 18px;
-      border: 1px solid var(--border);
-      background: rgba(0,0,0,.18);
-      object-fit: contain;
-      flex: 0 0 auto;
-    }
-    .weekHeroText{ flex: 1; min-width: 240px; }
-    .weekHeroTitle{
-      font-weight: 900;
-      font-size: 18px;
-      letter-spacing: .2px;
-      line-height: 1.15;
-    }
-    .weekHeroDates{
-      margin-top: 6px;
-      color: rgba(233,241,255,.75);
-      font-size: 13px;
-    }
-
-    /* ---------- Schedule carousel ---------- */
-    .scheduleCarouselWrap{
-      border-top: 1px solid var(--border);
-      background: rgba(0,0,0,.14);
-      padding: 12px 12px 14px;
-    }
-    .scheduleCarouselHd{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:12px;
-      margin-bottom:10px;
-    }
-    .scheduleCarouselHd .hint{
-      color: rgba(233,241,255,.55);
-      font-size: 12px;
-    }
-    .scheduleCarousel{
-      display:flex;
-      gap:10px;
-      overflow-x:auto;
-      padding-bottom: 6px;
-      scroll-snap-type: x mandatory;
-      scroll-padding: 0 50%;
-      scroll-behavior: smooth;
-      -webkit-overflow-scrolling: touch;
-    }
-    .scheduleCarousel::-webkit-scrollbar{ height: 8px; }
-    .scheduleCarousel::-webkit-scrollbar-thumb{
-      background: rgba(255,255,255,.12);
-      border-radius: 999px;
-    }
-    .scheduleItem{
-      flex: 0 0 auto;
-      min-width: 260px;
-      max-width: 340px;
-      scroll-snap-align: center;
-      scroll-snap-stop: always;
-
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:12px;
-      padding:12px 12px;
-      border-radius:14px;
-      border:1px solid var(--border);
-      background: rgba(0,0,0,.18);
-      cursor:pointer;
-      transition: transform .08s ease, background .12s ease, border-color .12s ease;
-    }
-    .scheduleItem:active{ transform: translateY(1px); }
-    .scheduleItem.active{
-      border-color: rgba(71,215,172,.35);
-      background: rgba(71,215,172,.08);
-    }
-    .scheduleLeft{
-      display:flex;
-      align-items:center;
-      gap:12px;
-      min-width:0;
-      flex:1;
-    }
-    .scheduleLogo{
-      width:40px; height:40px;
-      border-radius:12px;
-      border:1px solid var(--border);
-      background: rgba(0,0,0,.18);
-      object-fit: contain;
-      flex:0 0 auto;
-    }
-    .scheduleText{ min-width:0; }
-    .scheduleName{
-      font-weight:800;
-      font-size:13px;
-      white-space:nowrap;
-      overflow:hidden;
-      text-overflow:ellipsis;
-      max-width: 230px;
-    }
-    .scheduleMeta{ margin-top:2px; color:var(--muted); font-size:12px; }
-
-    .tag{
-      display:inline-flex;
-      align-items:center;
-      gap:8px;
-      padding:6px 10px;
-      border-radius:999px;
-      border:1px solid var(--border);
-      background: rgba(255,255,255,.06);
-      color: var(--muted);
-      font-weight:800;
-      font-size:12px;
-      flex: 0 0 auto;
-      white-space: nowrap;
-    }
-    .tag.major{
-      border-color: var(--majorBorder);
-      color: var(--majorText);
-      background: var(--majorBg);
-    }
-
-    .card.weekMajorCard{
-      border-color: var(--majorBorder);
-      box-shadow:
-        0 12px 40px rgba(0,0,0,.35),
-        0 0 0 1px rgba(255,207,90,.12),
-        0 0 26px rgba(255,207,90,.14);
-    }
-    .card.weekMajorCard .hd{ border-bottom-color: rgba(255,207,90,.25); }
-    .badge.majorBadge{
-      border-color: var(--majorBorder) !important;
-      color: var(--majorText) !important;
-      background: var(--majorBg) !important;
-      font-weight: 800 !important;
-    }
-    .badge.majorPts{
-      border-color: rgba(255,207,90,.55) !important;
-      color: #ffe6ad !important;
-      background: rgba(255,207,90,.10) !important;
-      font-weight: 800 !important;
-    }
-
-    /* ---------- Leaderboard (KEEP desktop look on mobile) ---------- */
-    table{
-      width:100%;
-      border-collapse:collapse;
-      border-radius: 14px;
-      border:1px solid var(--border);
-      background: rgba(0,0,0,.18);
-      overflow:hidden;
-    }
-    th, td{
-      padding:10px 10px;
-      border-bottom:1px solid rgba(255,255,255,.07);
-      text-align:left;
-      font-size:13px;
-      vertical-align: middle;
-      white-space: nowrap;
-    }
-    th{
-      color:var(--muted);
-      font-weight:700;
-      font-size:12px;
-      text-transform:uppercase;
-      letter-spacing:.3px;
-    }
-    tr:last-child td{ border-bottom:none; }
-
-    .mono{ font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
-    .center{ text-align:center !important; }
-
-    .rankPill{
-      display:inline-flex;
-      align-items:center;
-      justify-content:center;
-      min-width:34px;
-      padding:6px 8px;
-      border-radius:999px;
-      background: rgba(255,255,255,.06);
-      border:1px solid var(--border);
-      font-weight:900;
-    }
-    .totalPill{
-      display:inline-flex;
-      align-items:center;
-      justify-content:center;
-      min-width:54px;
-      padding:6px 8px;
-      border-radius:999px;
-      background: rgba(71,215,172,.10);
-      border:1px solid rgba(71,215,172,.24);
-      font-weight:900;
-    }
-
-    /* Let the table stay “desktop style”; allow horizontal scroll ONLY if needed */
-    .tableWrap{
-      width:100%;
-      overflow-x:auto;
-      -webkit-overflow-scrolling: touch;
-      border-radius: 14px;
-    }
-
-    @media (max-width:560px){
-      th, td{ padding: 7px 6px; font-size: 12px; }
-      th{ font-size: 10.5px; letter-spacing:.35px; }
-
-      .playerCell{
-        max-width: 110px;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-        font-weight: 800;
-      }
-    }
-  </style>
+  <title>WGC Pro-Am League</title>
+  <link rel="icon" type="image/png" href="/assets/favicon.png" />
+  <link rel="stylesheet" href="/styles.css" />
 </head>
 
 <body>
   <div class="wrap">
-    <!-- Masthead (ONE box that includes image + season + nav) -->
-    <div class="masthead">
-      <div class="mastBanner" aria-label="Wellman banner"></div>
+    <div class="nav">
+      <div class="navInner">
+        <div class="brand">
+          <div class="brandTitle">Wellman Golf Club</div>
+          <div class="brandSub">Pro-Am League</div>
+        </div>
 
-      <div class="mastControls">
-        <div class="mastControlsInner">
-          <div class="seasonPill">Season 1: March 9 - June 21, 2026</div>
-
-          <div class="navRow">
-            <a href="./index.html" class="navTab navTabActive">Home</a>
-            <a href="./draft.html" class="navTab">Draft</a>
-            <a href="./rules.html" class="navTab">Rules</a>
-           <a href="./login.html" class="navTab" id="navAuthLink">Log in</a>  
-          </div>
-
-          <!-- Kept for JS updates, hidden via .mastheadControls -->
-          <div class="pillrow mastheadControls" aria-label="Top controls">
-            <div class="pill" title="Netlify Functions health">
-              <span id="healthDot" class="dot"></span>
-              <span>API:</span>
-              <span id="healthText" class="mono">checking…</span>
-            </div>
-            <div class="pill" title="Current / displayed week">
-              <span class="mono">Week:</span>
-              <span id="weekLabel" class="mono">—</span>
-            </div>
-            <button class="btn secondary" id="refreshBtn">Refresh</button>
-          </div>
+        <div class="navLinks">
+          <a class="btn secondary" id="navAuthLink" href="./login.html">Log in</a>
         </div>
       </div>
     </div>
 
-    <!-- Week details -->
-    <div class="card" id="weekDetailsCard" style="margin-bottom:16px;">
-      <div class="hd">
-        <span class="badge weekPill" id="tournamentWeekBadge">—</span>
-        <div class="row" style="justify-content:flex-end;">
-          <span class="badge gray" id="majorPtsBadge" style="display:none;">Major 2X Pts</span>
-        </div>
-      </div>
+    <div class="page">
+      <div class="hero" id="weekHero">
+        <div class="heroInner">
+          <div class="heroLeft">
+            <div class="heroTop">
+              <div class="dotWrap"><span id="healthDot" class="dot"></span><span id="healthText">checking…</span></div>
+              <span class="tag" id="tournamentWeekBadge">—</span>
+            </div>
+            <div class="heroTitle" id="tournamentName">—</div>
+            <div class="heroMeta" id="tournamentDates">—</div>
+          </div>
 
-      <div id="weekHero" class="weekHero">
-        <div class="weekHeroOverlay"></div>
-        <div class="weekHeroContent">
-          <img id="tournamentLogo" class="weekHeroLogo" alt="" style="display:none;">
-          <div class="weekHeroText">
-            <div class="weekHeroTitle" id="tournamentName">—</div>
-            <div class="weekHeroDates" id="tournamentDates">—</div>
+          <div class="heroRight">
+            <img id="tournamentLogo" class="heroLogo" alt="" style="display:none;" />
           </div>
         </div>
       </div>
 
-      <div class="scheduleCarouselWrap">
-        <div class="scheduleCarouselHd">
-          <div style="font-weight:800; color: rgba(233,241,255,.82); font-size:13px;">Weeks</div>
-          <div class="hint">Swipe to browse • Tap to select</div>
-        </div>
-        <div id="scheduleList" class="scheduleCarousel">
-          <div style="color:rgba(233,241,255,.45); padding: 8px 2px;">Loading schedule…</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Submit + leaderboard -->
-    <div class="grid">
-      <div class="card">
-        <div class="hd">
-          <h2>Submit Your Score</h2>
-          <span class="badge gray" id="lockBadge">Public</span>
-        </div>
-
-        <div class="bd">
-          <!-- Participation (NEW) -->
-          <div class="row" style="justify-content:space-between; gap:10px; margin-bottom:10px;">
-            <span class="badge gray" id="participationBadge">Participation: —</span>
-            <button class="btn secondary" id="participateBtn" type="button" disabled>Participate this week</button>
+      <div class="grid">
+        <!-- Submit card -->
+        <div class="card">
+          <div class="hd">
+            <div class="title">SUBMIT YOUR SCORE</div>
           </div>
-          <div id="participationMsg" class="msg" style="display:none;"></div>
 
-          <div class="split">
+          <div class="bd">
+            <!-- Participation (NEW) -->
+            <div class="row" style="justify-content:space-between; gap:10px; margin-bottom:10px;">
+              <span class="badge gray" id="participationBadge">Participation: —</span>
+              <button class="btn secondary" id="participateBtn" type="button" disabled>Participate this week</button>
+            </div>
+            <div id="participationMsg" class="msg" style="display:none;"></div>
+
+            <div class="split">
             <div class="field">
               <label for="playerSel">Player</label>
-              <select id="playerSel"></select>
-            </div>
-            <div class="field">
+               <select id="playerSel"></select>
+             </div>
+            <div class="field" style="display:none;">
               <label for="proSel">Pro</label>
               <select id="proSel"></select>
             </div>
-          </div>
-
-          <div class="split" style="margin-top:10px;">
-            <div class="field">
-              <label for="playerScore">Your score to par (example: +10)</label>
-              <input id="playerScore" placeholder="+10" />
             </div>
-            <div class="field">
-              <label for="proScore">Pro score to par (optional if auto-pulled)</label>
-              <input id="proScore" placeholder="-22" />
+
+            <div class="split" style="margin-top:10px;">
+              <div class="field">
+                <label for="playerScore">Your score to par (example: +10)</label>
+                <input id="playerScore" placeholder="+10" />
+              </div>
+                 <div class="field" style="display:none;">             
+                   <label for="proScore">Pro score to par (optional if auto-pulled)</label>
+                <input id="proScore" placeholder="-22" />
+              </div>
+            </div>
+
+            <div class="row" style="margin-top:12px; gap:10px;">
+              <button class="btn" id="submitBtn" type="button">Submit</button>
+              <button class="btn secondary" id="autoProBtn" style="display:none;">Auto-pull Pro Score</button>       
+            </div>
+
+            <div id="submitMsg" class="msg" style="display:none; margin-top:10px;"></div>
+
+            <div class="row" style="justify-content:flex-end; margin-top:10px;">
+              <span class="badge green" id="combinedBadge">Combined: —</span>
             </div>
           </div>
+        </div>
 
-          <div class="submitActions">
-            <button class="btn" id="submitBtn">Submit</button>
-            <button class="btn secondary" id="autoProBtn">Auto-pull Pro Score</button>
+        <!-- Leaderboard card -->
+        <div class="card">
+          <div class="hd" style="display:flex; justify-content:space-between; gap:10px; align-items:center;">
+            <div class="title" id="leaderboardTitle">WEEK — LEADERBOARD</div>
+            <span class="badge green" id="lastUpdated">Updated: —</span>
           </div>
 
-          <div id="submitMsg" class="msg" style="display:none;"></div>
+          <div class="bd">
+            <div class="weekRow">
+              <div>Week: <span id="weekLabel">—</span></div>
+              <button class="btn secondary" id="refreshBtn" type="button">Refresh</button>
+            </div>
 
-          <div class="row" style="margin-top:12px; justify-content:flex-end;">
-            <span class="badge" id="combinedBadge">Combined: —</span>
+            <div class="tableWrap">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th rowspan="2">RANK</th>
+                    <th rowspan="2">SCORE TOTAL</th>
+                    <th colspan="2">PLAYER</th>
+                    <th colspan="2">PRO</th>
+                  </tr>
+                  <tr>
+                    <th>PLAYER</th>
+                    <th>SCORE</th>
+                    <th>PRO</th>
+                    <th>SCORE</th>
+                  </tr>
+                </thead>
+
+                <tbody id="lbBody">
+                  <tr><td colspan="6" style="color:rgba(233,241,255,.45);">Loading…</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div id="lbMsg" class="msg" style="display:none; margin-top:10px;"></div>
+          </div>
+        </div>
+
+        <!-- Schedule card -->
+        <div class="card">
+          <div class="hd">
+            <div class="title">SCHEDULE</div>
+          </div>
+          <div class="bd">
+            <div id="scheduleList" class="schedule"></div>
+          </div>
+        </div>
+
+        <!-- Season standings card -->
+        <div class="card">
+          <div class="hd" style="display:flex; justify-content:space-between; gap:10px; align-items:center;">
+            <div class="title">SEASON STANDINGS</div>
+            <span class="badge green" id="seasonUpdated">Updated: —</span>
+          </div>
+
+          <div class="bd">
+            <div class="tableWrap">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>RANK</th>
+                    <th>PLAYER</th>
+                    <th>POINTS</th>
+                    <th>WEEKS</th>
+                  </tr>
+                </thead>
+                <tbody id="seasonBody">
+                  <tr><td colspan="4" style="color:rgba(233,241,255,.45);">Loading…</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div id="seasonMsg" class="msg" style="display:none; margin-top:10px;"></div>
           </div>
         </div>
       </div>
 
-      <div class="card">
-        <div class="hd">
-          <h2 id="leaderboardTitle">Week — Leaderboard</h2>
-          <span class="badge" id="lastUpdated">Updated: —</span>
-        </div>
-
-        <div class="bd">
-          <div class="tableWrap">
-            <table>
-              <thead>
-                <tr>
-                  <th class="rank" rowspan="2">Rank</th>
-                  <th class="mono center" rowspan="2">Score Total</th>
-                  <th class="center" colspan="2">Player</th>
-                  <th class="center" colspan="2">Pro</th>
-                </tr>
-                <tr>
-                  <th>Player</th>
-                  <th class="mono center">Score</th>
-                  <th>Pro</th>
-                  <th class="mono center">Score</th>
-                </tr>
-              </thead>
-              <tbody id="lbBody">
-                <tr><td colspan="6" style="color:rgba(233,241,255,.45);">Loading…</td></tr>
-              </tbody>
-            </table>
-          </div>
-
-          <div id="lbMsg" class="msg" style="display:none;"></div>
-        </div>
-      </div>
+      <div class="footer">Hosted on Netlify • Data via Netlify Functions • DB via Supabase</div>
     </div>
-
-    <div class="footer">Hosted on Netlify • Data via Netlify Functions • DB via Supabase</div>
-  </div>
 
   <script>
 const API = {
@@ -763,60 +213,60 @@ const API = {
       return data;
     }
 
-    function parseToPar(str){
-      if(!str) return null;
-      let s = String(str).trim();
-      s = s.replace(/[−–—]/g, "-").replace(/[＋]/g, "+");
-      s = s.replace(/\u00A0/g, "");
-      if(/^[-+]?\d+$/.test(s)) return Number(s);
-      return null;
-    }
-
     function fmtToPar(n){
-      if(n === null || n === undefined || Number.isNaN(n)) return "—";
-      return (n > 0 ? "+" : "") + String(n);
+      if(n === null || n === undefined) return "—";
+      n = Number(n);
+      if(Number.isNaN(n)) return "—";
+      return n > 0 ? `+${n}` : `${n}`;
+    }
+    function parseToPar(s){
+      if(s === null || s === undefined) return null;
+      const t = String(s).trim();
+      if(!t) return null;
+      const n = Number(t.replace("+",""));
+      return Number.isNaN(n) ? null : n;
     }
 
-    function fmtDateRange(startISO, endISO){
-      if(!startISO || !endISO) return "—";
-      const opts = { month:"short", day:"numeric", year:"numeric" };
-      const s = new Date(startISO + "T00:00:00");
-      const e = new Date(endISO + "T00:00:00");
-      return `${s.toLocaleDateString("en-US", opts)} – ${e.toLocaleDateString("en-US", opts)}`;
+    function fmtDateRange(start, end){
+      if(!start && !end) return "—";
+      const s = start ? new Date(start) : null;
+      const e = end ? new Date(end) : null;
+      const fmt = (d) => d ? d.toLocaleDateString(undefined, { month:"short", day:"numeric" }) : "—";
+      return e ? `${fmt(s)} – ${fmt(e)}` : `${fmt(s)}`;
     }
 
-    function isMajor(tournamentName){
-      const n = (tournamentName || "").toLowerCase();
-      return (
-        n.includes("masters") ||
-        n.includes("pga championship") ||
-        n.includes("u.s. open") ||
-        n.includes("us open") ||
-        n.includes("the open") ||
-        n.includes("open championship")
-      );
+    function isMajor(name){
+      const n = String(name || "").toLowerCase();
+      return n.includes("masters") || n.includes("pga championship") || n.includes("u.s. open") || n.includes("the open");
     }
 
-    // Auth (exact key from your login.html)
     function getAccessToken(){
-      const t = localStorage.getItem("sb_access_token");
-      return (t && String(t).trim()) ? String(t).trim() : null;
+      try{
+        return localStorage.getItem("sb-access-token")
+          || localStorage.getItem("sb_access_token")
+          || localStorage.getItem("access_token")
+          || null;
+      }catch(_){
+        return null;
+      }
     }
+
     function authedHeaders(extra={}){
       const token = getAccessToken();
-      return token ? { ...extra, Authorization: `Bearer ${token}` } : { ...extra };
+      return token
+        ? { ...extra, Authorization: `Bearer ${token}` }
+        : { ...extra };
     }
 
-    // State
+    // Global state
+    let currentWeekId = null; // week_number
+    let displayedWeek = null;
+    let scheduleWeeks = [];
     let pros = [];
     let prosById = new Map();
-    let scheduleWeeks = [];
-    let displayedWeek = null;
-    let currentWeekId = null;
 
-    // Participation
-    let me = null;               // { user, player }
-    let participantRows = [];    // [{player_id, player_name, handicap_index, ...}]
+    let participantRows = [];
+    let me = null;
     let isMeParticipating = false;
 
     // Swipe-to-select
@@ -858,7 +308,7 @@ const API = {
           const id = pickCenteredWeekId();
           if(!id) return;
 
-          const w = weeks.find(x => x.id === id);
+          const w = weeks.find(x => String(x.week_number) === String(id));
           if(!w) return;
           if(displayedWeek?.week_number === w.week_number) return;
           setDisplayedWeek(w);
@@ -891,9 +341,6 @@ const API = {
       const badge = $("tournamentWeekBadge");
       const weekCard = $("weekDetailsCard");
 
-      weekCard.classList.remove("weekMajorCard");
-      badge.classList.remove("majorBadge");
-
       if(!week){
         $("tournamentName").textContent = "—";
         $("tournamentDates").textContent = "—";
@@ -903,34 +350,18 @@ const API = {
         return;
       }
 
-      const majorBadge = $("majorPtsBadge");
-      const major = isMajor(week?.tournament_name);
+      const name = week.tournament_name || week.name || "—";
+      const dates = fmtDateRange(week.start_date, week.end_date);
 
-      if (major) {
-        majorBadge.style.display = "inline-flex";
-        majorBadge.classList.add("majorPts");
-      } else {
-        majorBadge.style.display = "none";
-        majorBadge.classList.remove("majorPts");
-      }
+      $("tournamentName").textContent = name;
+      $("tournamentDates").textContent = dates;
+      badge.textContent = `Week ${week.week_number ?? "—"}`;
 
-      badge.textContent = week.label || `Week ${week.week_number || "—"}`;
-      $("tournamentName").textContent = week.tournament_name || "—";
-      $("tournamentDates").textContent = fmtDateRange(week.start_date, week.end_date);
-
-      if (week.logo_url) {
-        hero.style.backgroundImage = `url("${week.logo_url}")`;
+      if(week.logo_url){
         img.src = week.logo_url;
-        img.alt = `${week.tournament_name || "Tournament"} logo`;
         img.style.display = "block";
-      } else {
-        hero.style.backgroundImage = "none";
+      }else{
         img.style.display = "none";
-      }
-
-      if (major) {
-        weekCard.classList.add("weekMajorCard");
-        badge.classList.add("majorBadge");
       }
     }
 
@@ -1081,9 +512,17 @@ const API = {
     }
 
     async function loadParticipantsForWeek(weekId){
-      const data = await getJSON(`${API.participants}?week_id=${encodeURIComponent(weekId)}`);
-      participantRows = Array.isArray(data?.rows) ? data.rows : [];
-      return participantRows;
+      try{
+        const data = await getJSON(`${API.participants}?week_id=${encodeURIComponent(weekId)}`, { headers: authedHeaders() });
+        participantRows = Array.isArray(data?.rows) ? data.rows : [];
+        return participantRows;
+      }catch(e){
+        // If the public participants endpoint isn’t deployed yet, surface a clearer error.
+        if(String(e?.message || "").toLowerCase().includes("not found")){
+          throw new Error("Participants endpoint not found (/api/participants). Deploy the public participants route or the participation UI cannot load.");
+        }
+        throw e;
+      }
     }
 
     function recomputeMeParticipating(){
@@ -1235,38 +674,50 @@ const API = {
     }
 
     function pickDisplayedWeekFromSchedule(weeks){
-      const sorted = (weeks || [])
-        .filter(w => w.week_number != null)
-        .sort((a,b) => a.week_number - b.week_number);
-
-      if(!sorted.length) return null;
-
-      const today = new Date();
-
-      const inRange = sorted.find(w => {
-        if(!w.start_date || !w.end_date) return false;
-        const s = new Date(w.start_date + "T00:00:00");
-        const e = new Date(w.end_date + "T23:59:59");
-        return today >= s && today <= e;
-      });
-
-      if(inRange) return inRange;
-
-      const seasonStart = sorted[0].start_date ? new Date(sorted[0].start_date + "T00:00:00") : null;
-      if(seasonStart && today < seasonStart) return sorted[0];
-
-      return sorted[sorted.length - 1];
+      const current = weeks.find(w => !!w.is_current) || null;
+      if(current) return current;
+      return weeks.sort((a,b)=>a.week_number-b.week_number)[0] || null;
     }
 
-    function computeCombined(){
+    async function loadSeasonStandings(){
+      hideMsg($("seasonMsg"));
+      const body = $("seasonBody");
+      body.innerHTML = `<tr><td colspan="4" style="color:rgba(233,241,255,.45);">Loading…</td></tr>`;
+
+      try{
+        const data = await getJSON(API.seasonStandings);
+        const rows = data?.rows || [];
+        $("seasonUpdated").textContent = "Updated: " + new Date().toLocaleTimeString();
+
+        if(!rows.length){
+          body.innerHTML = `<tr><td colspan="4" style="color:rgba(233,241,255,.45);">No standings yet.</td></tr>`;
+          return;
+        }
+
+        body.innerHTML = rows.map(r => `
+          <tr>
+            <td><span class="rankPill">#${r.rank ?? "—"}</span></td>
+            <td class="playerCell">${r.player_name || "—"}</td>
+            <td class="mono center">${r.points ?? "—"}</td>
+            <td class="mono center">${r.weeks ?? "—"}</td>
+          </tr>
+        `).join("");
+      }catch(e){
+        body.innerHTML = `<tr><td colspan="4" style="color:rgba(233,241,255,.45);">Couldn’t load standings.</td></tr>`;
+        showMsg($("seasonMsg"), "Standings error: " + e.message, "bad");
+      }
+    }
+
+    function renderCombined(){
       const you = parseToPar($("playerScore")?.value);
       const pro = parseToPar($("proScore")?.value);
-      if(you === null || pro === null) return null;
-      return you + pro;
-    }
-    function renderCombined(){
-      const c = computeCombined();
-      if($("combinedBadge")) $("combinedBadge").textContent = "Combined: " + fmtToPar(c);
+      let total = null;
+
+      if(you !== null && pro !== null) total = you + pro;
+      else if(you !== null) total = you;
+
+      const el = $("combinedBadge");
+      if(el) el.textContent = "Combined: " + fmtToPar(total);
     }
 
     async function submitScore(){
@@ -1277,7 +728,7 @@ const API = {
         return;
       }
 
-            const token = getAccessToken();
+      const token = getAccessToken();
       if(!token){
         showMsg($("submitMsg"), "You must be logged in to submit a score.", "bad");
         return;
@@ -1292,7 +743,7 @@ const API = {
       try{
         await getJSON(API.submit, {
           method:"POST",
-         headers: authedHeaders({ "content-type":"application/json" }),     
+          headers: authedHeaders({ "content-type":"application/json" }),
           body: JSON.stringify(payload)
         });
         showMsg($("submitMsg"), "Saved!", "ok");
@@ -1324,7 +775,7 @@ const API = {
 
     async function setDisplayedWeek(week){
       displayedWeek = week;
-     currentWeekId = week.week_number;
+      currentWeekId = week.week_number;
       renderWeekDetails(week);
       renderSchedule(scheduleWeeks, week.week_number);
       // participation + participants-only player dropdown
@@ -1368,6 +819,7 @@ const API = {
       }
 
       renderCombined();
+      try{ await loadSeasonStandings(); }catch(_){}
     }
 
     boot();
