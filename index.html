@@ -4,659 +4,53 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Wellman Golf Club Pro-Am League</title>
-  <link rel="stylesheet" href="./styles.css">
-
-  <style>
-    :root{
-      --bg:#0b1220;
-      --text:#e8eefc;
-      --muted:#a9b7d6;
-      --brand:#47d7ac;
-      --brand2:#5aa7ff;
-      --danger:#ff5a7a;
-      --warn:#ffcf5a;
-      --ok:#49e28b;
-
-      --majorBorder: rgba(255,207,90,.55);
-      --majorText: #ffe6ad;
-      --majorBg: rgba(255,207,90,.10);
-
-      --border:rgba(255,255,255,.10);
-      --shadow: 0 12px 40px rgba(0,0,0,.35);
-      --radius: 18px;
-    }
-
-    *{ box-sizing:border-box; }
-    html, body { height:100%; }
-    body{
-      margin:0;
-      background: radial-gradient(900px 520px at 20% 0%, rgba(90,167,255,.10), transparent 55%),
-                  radial-gradient(900px 520px at 80% 0%, rgba(71,215,172,.10), transparent 55%),
-                  var(--bg);
-      color: var(--text);
-      font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
-    }
-    a{ color:inherit; text-decoration:none; }
-
-    .wrap{ max-width:1100px; margin:0 auto; padding:22px 16px 56px; }
-
-    /* ---------- Masthead: ONE box (image + season pill + nav pills) ---------- */
-    .masthead{
-      border-radius: var(--radius);
-      border: 1px solid var(--border);
-      overflow: hidden;
-      box-shadow: var(--shadow);
-      margin-bottom: 16px;
-      background: rgba(0,0,0,.18);
-    }
-
-.mastBanner{
-  width: 100%;
-  height: 96px; /* was 110px — shorter = less cropping so logo fits */
-  background-image: url("/assets/header-banner.jpg");
-  background-repeat: no-repeat;
-
-  /* Fill the box */
-  background-size: 35% auto;
-
-  /* Favor the logo/text area */
-  background-position: left 42%;
-
-  background-color: rgba(0,0,0,.18);
-}
-
-    /* Controls live inside SAME box (below banner) */
-    .mastControls{
-      border-top: 1px solid rgba(255,255,255,.08);
-      padding: 12px 12px 14px;
-      background: rgba(0,0,0,.16);
-    }
-
-    .mastControlsInner{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:12px;
-      flex-wrap:wrap;
-
-      border-radius: 16px;
-      padding: 10px 12px;
-      border: 1px solid rgba(255,255,255,.12);
-      background: rgba(0,0,0,.24);
-
-      /* IMPORTANT: no blur */
-      backdrop-filter: none;
-    }
-
-    .seasonPill{
-      display:inline-flex;
-      align-items:center;
-      justify-content:center;
-      gap:8px;
-      padding:7px 12px;
-      border-radius:999px;
-      border:1px solid rgba(255,255,255,.12);
-      background: rgba(255,255,255,.06);
-      color: rgba(233,241,255,.86);
-      font-size:13px;
-      white-space: nowrap;
-    }
-
-    .navRow{
-      display:flex;
-      gap:8px;
-      flex-wrap:wrap;
-      justify-content:flex-end;
-    }
-
-    /* Keep your existing nav pill styles */
-    .navTab{
-      padding:8px 14px;
-      border-radius:999px;
-      border:1px solid var(--border);
-      text-decoration:none;
-      font-size:13px;
-      color:var(--muted);
-      font-weight:700;
-      transition:.15s;
-      background: rgba(255,255,255,.04);
-    }
-    .navTab:hover{
-      border-color:rgba(90,167,255,.45);
-      color:#cfe3ff;
-      background: rgba(255,255,255,.06);
-    }
-    .navTabActive{
-      border-color:rgba(71,215,172,.45);
-      color:#c9fff0;
-      background:rgba(71,215,172,.12);
-    }
-
- @media (max-width: 700px){
-
-  /* Banner strip */
-  .mastBanner{
-    height: 88px;
-    background-size: cover;
-    background-position: center 43%;
-  }
-
-  /* Make the bar itself shorter */
-  .mastBar{
-    padding: 8px 10px 10px;
-  }
-
-  /* Make the inner panel shorter */
-  .mastBarInner{
-    padding: 8px 10px;
-    gap: 8px;
-    justify-content:center;
-    text-align:center;
-  }
-
-  /* Season pill shorter */
-  .seasonPill{
-    padding: 6px 10px;
-    font-size: 12.5px;
-    width: 100%;
-    justify-content:center;
-    white-space: normal;
-  }
-
-  /* Nav row tighter */
-  .navRow{
-    width:100%;
-    justify-content:center;
-    gap: 6px;
-  }
-
-  /* Nav buttons shorter */
-  .navTab{
-    padding: 7px 12px;
-    font-size: 12.5px;
-  }
-}
-
-    /* Kept for JS updates, hidden */
-    .pillrow{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; justify-content:flex-start; }
-    .pill{
-      border:1px solid var(--border);
-      background: rgba(255,255,255,.06);
-      padding:8px 10px; border-radius:999px;
-      font-size:12px; color:var(--muted);
-      display:flex; gap:8px; align-items:center;
-    }
-    .dot{ width:8px; height:8px; border-radius:50%; background:var(--warn); }
-    .dot.ok{ background:var(--ok); }
-    .dot.bad{ background:var(--danger); }
-    .mastheadControls{ display:none !important; }
-
-    /* ---------- Cards + layout ---------- */
-    .grid{
-      display:grid;
-      grid-template-columns: 1fr 1.4fr; /* leaderboard wider on desktop */
-      gap:16px;
-    }
-    @media (max-width: 980px){
-      .grid{ grid-template-columns: 1fr; gap:12px; } /* stack on mobile for clean fit */
-    }
-
-    .card{
-      background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
-      border:1px solid var(--border);
-      border-radius: var(--radius);
-      box-shadow: var(--shadow);
-      overflow:hidden;
-    }
-    .card .hd{
-      padding:14px 16px;
-      display:flex; align-items:center; justify-content:space-between; gap:12px;
-      background: rgba(0,0,0,.14);
-      border-bottom:1px solid var(--border);
-    }
-    .card .hd h2{
-      margin:0;
-      font-size:14px;
-      letter-spacing:.3px;
-      text-transform:uppercase;
-      color:var(--muted);
-    }
-    .card .bd{ padding:16px; }
-
-    @media (max-width:560px){
-      .card .hd{ padding: 10px 12px; }
-      .card .bd{ padding: 12px; }
-    }
-
-    .btn{
-      appearance:none; border:none; cursor:pointer;
-      background: linear-gradient(135deg, var(--brand2), var(--brand));
-      color:#04101e; font-weight:800;
-      padding:10px 12px; border-radius:12px;
-      box-shadow: 0 10px 24px rgba(0,0,0,.28);
-      transition: transform .08s ease;
-      font-size:13px;
-    }
-    .btn:active{ transform: translateY(1px); }
-    .btn.secondary{
-      background: rgba(255,255,255,.08);
-      color:var(--text);
-      border:1px solid var(--border);
-      box-shadow:none;
-      font-weight:700;
-    }
-
-    .row{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
-    .field{
-      display:flex; flex-direction:column; gap:6px;
-      min-width: 180px;
-      flex: 1;
-    }
-    label{ font-size:12px; color:var(--muted); }
-    input, select{
-      width:100%;
-      padding:10px 12px;
-      border-radius:12px;
-      border:1px solid var(--border);
-      background: rgba(0,0,0,.25);
-      color:var(--text);
-      outline:none;
-    }
-    input::placeholder{ color: rgba(233,241,255,.35); }
-
-    .split{ display:grid; grid-template-columns: 1fr 1fr; gap:10px; }
-    @media(max-width:560px){ .split{ grid-template-columns:1fr; } }
-
-    .submitActions{
-      display:flex;
-      gap:10px;
-      flex-wrap:wrap;
-      margin-top:12px;
-    }
-    @media(max-width:560px){
-      .submitActions{ flex-direction:column; }
-      .submitActions .btn{ width:100%; }
-    }
-
-    .badge{
-      display:inline-flex; align-items:center; gap:8px;
-      padding:6px 10px; border-radius:999px;
-      background: rgba(71,215,172,.12);
-      border:1px solid rgba(71,215,172,.28);
-      color:#c9fff0;
-      font-weight:700; font-size:12px;
-      white-space: nowrap;
-    }
-    .badge.gray{
-      background: rgba(255,255,255,.06);
-      border:1px solid var(--border);
-      color: var(--muted);
-      font-weight:700;
-    }
-    .badge.weekPill{
-      font-size:13px;
-      padding:7px 12px;
-      font-weight:900;
-      letter-spacing:.2px;
-    }
-
-    .msg{
-      margin-top:10px;
-      border:1px solid var(--border);
-      background: rgba(0,0,0,.22);
-      padding:10px 12px;
-      border-radius:12px;
-      color:var(--muted);
-      font-size:13px;
-      white-space: pre-wrap;
-    }
-    .msg.ok{ border-color: rgba(73,226,139,.3); color:#c9ffde; }
-    .msg.bad{ border-color: rgba(255,90,122,.35); color:#ffd0da; }
-
-    .footer{
-      margin-top:16px;
-      color:rgba(233,241,255,.45);
-      font-size:12px;
-      text-align:center;
-    }
-
-    /* Hide Public pill beside Submit title (keep for JS state updates) */
-    #lockBadge{ display:none !important; }
-
-    /* ---------- Week hero ---------- */
-    .weekHero{
-      position: relative;
-      min-height: 150px;
-      padding: 16px;
-      border-top: 1px solid var(--border);
-      background: rgba(0,0,0,.16);
-      overflow: hidden;
-      background-repeat: no-repeat;
-      background-size: cover;
-      background-position: right center;
-    }
-    .weekHeroOverlay{
-      position:absolute;
-      inset:0;
-      background:
-        linear-gradient(90deg, rgba(5,10,20,.92) 0%, rgba(5,10,20,.78) 44%, rgba(5,10,20,.35) 100%),
-        radial-gradient(900px 320px at 20% 10%, rgba(90,167,255,.18), transparent 60%),
-        radial-gradient(800px 280px at 80% 0%, rgba(71,215,172,.14), transparent 60%);
-    }
-    .weekHeroContent{
-      position: relative;
-      z-index: 1;
-      display:flex;
-      align-items:center;
-      gap: 14px;
-      flex-wrap: wrap;
-    }
-    .weekHeroLogo{
-      width: 88px;
-      height: 88px;
-      border-radius: 18px;
-      border: 1px solid var(--border);
-      background: rgba(0,0,0,.18);
-      object-fit: contain;
-      flex: 0 0 auto;
-    }
-    .weekHeroText{ flex: 1; min-width: 240px; }
-    .weekHeroTitle{
-      font-weight: 900;
-      font-size: 18px;
-      letter-spacing: .2px;
-      line-height: 1.15;
-    }
-    .weekHeroDates{
-      margin-top: 6px;
-      color: rgba(233,241,255,.75);
-      font-size: 13px;
-    }
-
-    /* ---------- Schedule carousel ---------- */
-    .scheduleCarouselWrap{
-      border-top: 1px solid var(--border);
-      background: rgba(0,0,0,.14);
-      padding: 12px 12px 14px;
-    }
-    .scheduleCarouselHd{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:12px;
-      margin-bottom:10px;
-    }
-    .scheduleCarouselHd .hint{
-      color: rgba(233,241,255,.55);
-      font-size: 12px;
-    }
-    .scheduleCarousel{
-      display:flex;
-      gap:10px;
-      overflow-x:auto;
-      padding-bottom: 6px;
-      scroll-snap-type: x mandatory;
-      scroll-padding: 0 50%;
-      scroll-behavior: smooth;
-      -webkit-overflow-scrolling: touch;
-    }
-    .scheduleCarousel::-webkit-scrollbar{ height: 8px; }
-    .scheduleCarousel::-webkit-scrollbar-thumb{
-      background: rgba(255,255,255,.12);
-      border-radius: 999px;
-    }
-    .scheduleItem{
-      flex: 0 0 auto;
-      min-width: 260px;
-      max-width: 340px;
-      scroll-snap-align: center;
-      scroll-snap-stop: always;
-
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:12px;
-      padding:12px 12px;
-      border-radius:14px;
-      border:1px solid var(--border);
-      background: rgba(0,0,0,.18);
-      cursor:pointer;
-      transition: transform .08s ease, background .12s ease, border-color .12s ease;
-    }
-    .scheduleItem:active{ transform: translateY(1px); }
-    .scheduleItem.active{
-      border-color: rgba(71,215,172,.35);
-      background: rgba(71,215,172,.08);
-    }
-    .scheduleLeft{
-      display:flex;
-      align-items:center;
-      gap:12px;
-      min-width:0;
-      flex:1;
-    }
-    .scheduleLogo{
-      width:40px; height:40px;
-      border-radius:12px;
-      border:1px solid var(--border);
-      background: rgba(0,0,0,.18);
-      object-fit: contain;
-      flex:0 0 auto;
-    }
-    .scheduleText{ min-width:0; }
-    .scheduleName{
-      font-weight:800;
-      font-size:13px;
-      white-space:nowrap;
-      overflow:hidden;
-      text-overflow:ellipsis;
-      max-width: 230px;
-    }
-    .scheduleMeta{ margin-top:2px; color:var(--muted); font-size:12px; }
-
-    .tag{
-      display:inline-flex;
-      align-items:center;
-      gap:8px;
-      padding:6px 10px;
-      border-radius:999px;
-      border:1px solid var(--border);
-      background: rgba(255,255,255,.06);
-      color: var(--muted);
-      font-weight:800;
-      font-size:12px;
-      flex: 0 0 auto;
-      white-space: nowrap;
-    }
-    .tag.major{
-      border-color: var(--majorBorder);
-      color: var(--majorText);
-      background: var(--majorBg);
-    }
-
-    .card.weekMajorCard{
-      border-color: var(--majorBorder);
-      box-shadow:
-        0 12px 40px rgba(0,0,0,.35),
-        0 0 0 1px rgba(255,207,90,.12),
-        0 0 26px rgba(255,207,90,.14);
-    }
-    .card.weekMajorCard .hd{ border-bottom-color: rgba(255,207,90,.25); }
-    .badge.majorBadge{
-      border-color: var(--majorBorder) !important;
-      color: var(--majorText) !important;
-      background: var(--majorBg) !important;
-      font-weight: 800 !important;
-    }
-    .badge.majorPts{
-      border-color: rgba(255,207,90,.55) !important;
-      color: #ffe6ad !important;
-      background: rgba(255,207,90,.10) !important;
-      font-weight: 800 !important;
-    }
-
-    /* ---------- Leaderboard (KEEP desktop look on mobile) ---------- */
-    table{
-      width:100%;
-      border-collapse:collapse;
-      border-radius: 14px;
-      border:1px solid var(--border);
-      background: rgba(0,0,0,.18);
-      overflow:hidden;
-    }
-    th, td{
-      padding:10px 10px;
-      border-bottom:1px solid rgba(255,255,255,.07);
-      text-align:left;
-      font-size:13px;
-      vertical-align: middle;
-      white-space: nowrap;
-    }
-    th{
-      color:var(--muted);
-      font-weight:700;
-      font-size:12px;
-      text-transform:uppercase;
-      letter-spacing:.3px;
-    }
-    tr:last-child td{ border-bottom:none; }
-
-    .mono{ font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
-    .center{ text-align:center !important; }
-
-    .rankPill{
-      display:inline-flex;
-      align-items:center;
-      justify-content:center;
-      min-width:34px;
-      padding:6px 8px;
-      border-radius:999px;
-      background: rgba(255,255,255,.06);
-      border:1px solid var(--border);
-      font-weight:900;
-    }
-    .totalPill{
-      display:inline-flex;
-      align-items:center;
-      justify-content:center;
-      min-width:54px;
-      padding:6px 8px;
-      border-radius:999px;
-      background: rgba(71,215,172,.10);
-      border:1px solid rgba(71,215,172,.24);
-      font-weight:900;
-    }
-
-    /* Let the table stay “desktop style”; allow horizontal scroll ONLY if needed */
-    .tableWrap{
-      width:100%;
-      overflow-x:auto;
-      -webkit-overflow-scrolling: touch;
-      border-radius: 14px;
-    }
-
-    @media (max-width:560px){
-      th, td{ padding: 7px 6px; font-size: 12px; }
-      th{ font-size: 10.5px; letter-spacing:.35px; }
-
-      .playerCell{
-        max-width: 110px;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-        font-weight: 800;
-      }
-    }
-  </style>
+  <link rel="icon" type="image/png" href="/assets/favicon.png" />
+  <link rel="stylesheet" href="/styles.css" />
 </head>
-
 <body>
-  <div class="wrap">
-    <!-- Masthead (ONE box that includes image + season + nav) -->
-    <div class="masthead">
-      <div class="mastBanner" aria-label="Wellman banner"></div>
-
-      <div class="mastControls">
-        <div class="mastControlsInner">
-          <div class="seasonPill">Season 1: March 9 - June 21, 2026</div>
-
-          <div class="navRow">
-            <a href="./index.html" class="navTab navTabActive">Home</a>
-            <a href="./draft.html" class="navTab">Draft</a>
-            <a href="./rules.html" class="navTab">Rules</a>
-           <a href="./login.html" class="navTab" id="navAuthLink">Log in</a>  
-          </div>
-
-          <!-- Kept for JS updates, hidden via .mastheadControls -->
-          <div class="pillrow mastheadControls" aria-label="Top controls">
-            <div class="pill" title="Netlify Functions health">
-              <span id="healthDot" class="dot"></span>
-              <span>API:</span>
-              <span id="healthText" class="mono">checking…</span>
-            </div>
-            <div class="pill" title="Current / displayed week">
-              <span class="mono">Week:</span>
-              <span id="weekLabel" class="mono">—</span>
-            </div>
-            <button class="btn secondary" id="refreshBtn">Refresh</button>
-          </div>
+  <div class="page">
+    <header class="header">
+      <div class="headerInner">
+        <div class="brand">
+          <div class="brandTitle">Wellman Golf Club</div>
+          <div class="brandSub">Pro-Am League</div>
+        </div>
+        <div class="headerRight">
+          <a class="btn secondary" href="/profile.html">Profile</a>
+          <button class="btn" id="logoutBtn">Logout</button>
         </div>
       </div>
-    </div>
+    </header>
 
-    <!-- Week details -->
-    <div class="card" id="weekDetailsCard" style="margin-bottom:16px;">
-      <div class="hd">
-        <span class="badge weekPill" id="tournamentWeekBadge">—</span>
-        <div class="row" style="justify-content:flex-end;">
-          <span class="badge gray" id="majorPtsBadge" style="display:none;">Major 2X Pts</span>
-        </div>
-      </div>
-
-      <div id="weekHero" class="weekHero">
-        <div class="weekHeroOverlay"></div>
-        <div class="weekHeroContent">
-          <img id="tournamentLogo" class="weekHeroLogo" alt="" style="display:none;">
-          <div class="weekHeroText">
-            <div class="weekHeroTitle" id="tournamentName">—</div>
-            <div class="weekHeroDates" id="tournamentDates">—</div>
+    <main class="main">
+      <section class="hero">
+        <div class="heroInner">
+          <div class="heroTitle">WGC Pro-Am League</div>
+          <div class="heroText">
+            Pick a pro. Submit your score. Climb the leaderboard.
           </div>
         </div>
-      </div>
+      </section>
 
-      <div class="scheduleCarouselWrap">
-        <div class="scheduleCarouselHd">
-          <div style="font-weight:800; color: rgba(233,241,255,.82); font-size:13px;">Weeks</div>
-          <div class="hint">Swipe to browse • Tap to select</div>
-        </div>
-        <div id="scheduleList" class="scheduleCarousel">
-          <div style="color:rgba(233,241,255,.45); padding: 8px 2px;">Loading schedule…</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Submit + leaderboard -->
-    <div class="grid">
-      <div class="card">
-        <div class="hd">
-          <h2>Submit Your Score</h2>
-          <span class="badge gray" id="lockBadge">Public</span>
+      <section class="card">
+        <div class="cardHeader">
+          <div class="cardTitle">SUBMIT YOUR SCORE</div>
         </div>
 
-        <div class="bd">
-          <!-- Participation (NEW) -->
-          <div class="row" style="justify-content:space-between; gap:10px; margin-bottom:10px;">
-            <span class="badge gray" id="participationBadge">Participation: —</span>
-            <button class="btn secondary" id="participateBtn" type="button" disabled>Participate this week</button>
+        <div class="cardBody">
+          <div class="row between">
+            <div class="pill" id="participationPill">Participation: —</div>
+            <button class="btn secondary" id="participateBtn">Participate this week</button>
           </div>
+
           <div id="participationMsg" class="msg" style="display:none;"></div>
 
-          <div class="split">
-           <div class="field" style="display:none;">           
+          <div class="split" style="margin-top:10px;">
+            <div class="field">
              <label for="playerSel">Player</label>
               <select id="playerSel"></select>
             </div>
-            <div class="field">
+            <div class="field" style="display:none;">
               <label for="proSel">Pro</label>
               <select id="proSel"></select>
             </div>
@@ -680,596 +74,450 @@
 
           <div id="submitMsg" class="msg" style="display:none;"></div>
 
-          <div class="row" style="margin-top:12px; justify-content:flex-end;">
-            <span class="badge" id="combinedBadge">Combined: —</span>
+          <div class="row end" style="margin-top:10px;">
+            <div class="pill green" id="combinedPill">Combined: —</div>
           </div>
         </div>
-      </div>
+      </section>
 
-      <div class="card">
-        <div class="hd">
-          <h2 id="leaderboardTitle">Week — Leaderboard</h2>
-          <span class="badge" id="lastUpdated">Updated: —</span>
+      <section class="card">
+        <div class="cardHeader row between">
+          <div class="cardTitle" id="leaderboardTitle">WEEK — LEADERBOARD</div>
+          <div class="pill green" id="leaderboardUpdated">Updated: —</div>
         </div>
 
-        <div class="bd">
+        <div class="cardBody">
           <div class="tableWrap">
-            <table>
+            <table class="table">
               <thead>
                 <tr>
-                  <th class="rank" rowspan="2">Rank</th>
-                  <th class="mono center" rowspan="2">Score Total</th>
-                  <th class="center" colspan="2">Player</th>
-                  <th class="center" colspan="2">Pro</th>
+                  <th rowspan="2">RANK</th>
+                  <th rowspan="2">SCORE TOTAL</th>
+                  <th colspan="2">PLAYER</th>
+                  <th colspan="2">PRO</th>
                 </tr>
                 <tr>
-                  <th>Player</th>
-                  <th class="mono center">Score</th>
-                  <th>Pro</th>
-                  <th class="mono center">Score</th>
+                  <th>PLAYER</th>
+                  <th>SCORE</th>
+                  <th>PRO</th>
+                  <th>SCORE</th>
                 </tr>
               </thead>
-              <tbody id="lbBody">
-                <tr><td colspan="6" style="color:rgba(233,241,255,.45);">Loading…</td></tr>
+              <tbody id="leaderboardBody">
+                <tr><td colspan="6" class="muted">Loading…</td></tr>
               </tbody>
             </table>
           </div>
-
-          <div id="lbMsg" class="msg" style="display:none;"></div>
+          <div id="leaderboardMsg" class="msg" style="display:none;"></div>
         </div>
-      </div>
-    </div>
+      </section>
 
-    <div class="footer">Hosted on Netlify • Data via Netlify Functions • DB via Supabase</div>
+      <section class="card">
+        <div class="cardHeader row between">
+          <div class="cardTitle">SCHEDULE</div>
+          <div class="pill" id="scheduleYearPill">—</div>
+        </div>
+        <div class="cardBody">
+          <div id="scheduleList" class="schedule"></div>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="cardHeader row between">
+          <div class="cardTitle">SEASON STANDINGS</div>
+          <div class="pill green" id="seasonUpdated">Updated: —</div>
+        </div>
+        <div class="cardBody">
+          <div class="tableWrap">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>RANK</th>
+                  <th>PLAYER</th>
+                  <th>POINTS</th>
+                  <th>WEEKS</th>
+                </tr>
+              </thead>
+              <tbody id="seasonBody">
+                <tr><td colspan="4" class="muted">Loading…</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div id="seasonMsg" class="msg" style="display:none;"></div>
+        </div>
+      </section>
+
+      <footer class="footer">
+        Hosted on Netlify · Data via Netlify Functions · DB via Supabase
+      </footer>
+    </main>
   </div>
 
   <script>
-const API = {
-  health: "/api/health",
-  players: "/api/players",
-  pros: "/api/pros",
-  currentWeek: "/api/current-week",
-  schedule: "/api/schedule",
-  leaderboard: "/api/leaderboard",
-  seasonStandings: "/api/season-standings",
+  // ------------------------
+  // CONFIG / HELPERS
+  // ------------------------
+  const API = {
+    currentWeek: "/api/current-week",
+    schedule: "/api/schedule",
+    leaderboard: "/api/leaderboard",
+    seasonStandings: "/api/season-standings",
 
-  submit: "/api-mutate/submit-round",
-  participate: "/api-mutate/participate",
-  me: "/api/me",
-  participants: "/api/participants",
+    submit: "/api-mutate/submit-round",
+    participate: "/api-mutate/participate",
+    me: "/api/me",
+    participants: "/api/participants",
 
-  proscore: "/api-proscore"
-};
+    proscore: "/api-proscore"
+  };
 
-    const $ = (id) => document.getElementById(id);
+  const $ = (id) => document.getElementById(id);
 
-    function showMsg(el, text, type){
-      if(!el) return;
-      el.style.display = "block";
-      el.className = "msg" + (type ? " " + type : "");
-      el.textContent = text;
-    }
-    function hideMsg(el){ if(el) el.style.display="none"; }
+  function showMsg(el, text, kind="ok"){
+    if(!el) return;
+    el.style.display = "";
+    el.classList.remove("ok","bad","warn");
+    el.classList.add(kind);
+    el.textContent = text;
+  }
+  function hideMsg(el){
+    if(!el) return;
+    el.style.display = "none";
+    el.textContent = "";
+    el.classList.remove("ok","bad","warn");
+  }
 
-    async function getJSON(url, opts={}){
-      const res = await fetch(url, { ...opts, headers: { "accept":"application/json", ...(opts.headers||{}) }});
-      const text = await res.text();
-      let data = null;
-      try { data = text ? JSON.parse(text) : null; } catch(e) {}
-      if(!res.ok){
-        const msg = (data && (data.error || data.message)) ? (data.error || data.message) : (text || res.statusText);
-        throw new Error(msg);
+  function fmtToPar(n){
+    if(n === null || n === undefined) return "—";
+    if(typeof n !== "number") n = Number(n);
+    if(Number.isNaN(n)) return "—";
+    return (n > 0 ? `+${n}` : `${n}`);
+  }
+
+  function parseToPar(s){
+    if(!s) return null;
+    const t = String(s).trim();
+    if(!t) return null;
+    const n = Number(t.replace("+",""));
+    if(Number.isNaN(n)) return null;
+    return n;
+  }
+
+  function getAccessToken(){
+    try{
+      const raw = localStorage.getItem("sb-access-token") || localStorage.getItem("access_token");
+      if(raw) return raw;
+      const supa = localStorage.getItem("supabase.auth.token");
+      if(supa){
+        const obj = JSON.parse(supa);
+        if(obj?.currentSession?.access_token) return obj.currentSession.access_token;
       }
-      return data;
+    }catch(e){}
+    return null;
+  }
+
+  function authedHeaders(extra={}){
+    const token = getAccessToken();
+    const h = Object.assign({}, extra);
+    if(token) h["Authorization"] = `Bearer ${token}`;
+    return h;
+  }
+
+  async function getJSON(url, opts={}){
+    const res = await fetch(url, opts);
+    const text = await res.text();
+    let data = null;
+    try{ data = text ? JSON.parse(text) : null; }catch(e){}
+    if(!res.ok){
+      const msg = data?.error || data?.message || text || res.statusText;
+      throw new Error(msg);
+    }
+    return data;
+  }
+
+  function setPill(el, text, kind){
+    if(!el) return;
+    el.textContent = text;
+    el.classList.remove("green","red");
+    if(kind) el.classList.add(kind);
+  }
+
+  // ------------------------
+  // STATE
+  // ------------------------
+  let currentWeekId = null;      // uses week_number (not UUID)
+  let currentWeek = null;
+  let displayedWeek = null;
+  let scheduleWeeks = [];
+  let me = null;
+
+  // ------------------------
+  // INIT
+  // ------------------------
+  async function init(){
+    wireUI();
+    await loadMe();
+    await loadCurrentWeekAndSchedule();
+    await loadSeasonStandings();
+  }
+
+  function wireUI(){
+    $("logoutBtn")?.addEventListener("click", () => {
+      try{
+        localStorage.removeItem("sb-access-token");
+        localStorage.removeItem("access_token");
+        localStorage.removeItem("supabase.auth.token");
+      }catch(e){}
+      location.href = "/login.html";
+    });
+
+    $("submitBtn")?.addEventListener("click", (e) => {
+      e.preventDefault();
+      submitScore();
+    });
+
+    $("participateBtn")?.addEventListener("click", (e) => {
+      e.preventDefault();
+      participateThisWeek();
+    });
+
+    $("autoProBtn")?.addEventListener("click", (e) => {
+      e.preventDefault();
+      autoPullProScore();
+    });
+
+    $("scheduleList")?.addEventListener("click", (e) => {
+      const item = e.target.closest(".scheduleItem");
+      if(!item) return;
+      const weekId = item.getAttribute("data-week-id");
+      const w = scheduleWeeks.find(x => String(x.week_number) === String(weekId));
+      if(!w) return;
+      setDisplayedWeek(w);
+    });
+  }
+
+  async function loadMe(){
+    try{
+      me = await getJSON(API.me, { headers: authedHeaders() });
+    }catch(e){
+      // If /api/me fails, user might not be logged in
+      me = null;
+    }
+  }
+
+  async function loadCurrentWeekAndSchedule(){
+    hideMsg($("leaderboardMsg"));
+    hideMsg($("submitMsg"));
+    hideMsg($("participationMsg"));
+
+    // load schedule
+    try{
+      const sched = await getJSON(API.schedule);
+      scheduleWeeks = sched?.weeks || [];
+      $("scheduleYearPill").textContent = sched?.season || "—";
+    }catch(e){
+      scheduleWeeks = [];
     }
 
-    function parseToPar(str){
-      if(!str) return null;
-      let s = String(str).trim();
-      s = s.replace(/[−–—]/g, "-").replace(/[＋]/g, "+");
-      s = s.replace(/\u00A0/g, "");
-      if(/^[-+]?\d+$/.test(s)) return Number(s);
-      return null;
-    }
-
-    function fmtToPar(n){
-      if(n === null || n === undefined || Number.isNaN(n)) return "—";
-      return (n > 0 ? "+" : "") + String(n);
-    }
-
-    function fmtDateRange(startISO, endISO){
-      if(!startISO || !endISO) return "—";
-      const opts = { month:"short", day:"numeric", year:"numeric" };
-      const s = new Date(startISO + "T00:00:00");
-      const e = new Date(endISO + "T00:00:00");
-      return `${s.toLocaleDateString("en-US", opts)} – ${e.toLocaleDateString("en-US", opts)}`;
-    }
-
-    function isMajor(tournamentName){
-      const n = (tournamentName || "").toLowerCase();
-      return (
-        n.includes("masters") ||
-        n.includes("pga championship") ||
-        n.includes("u.s. open") ||
-        n.includes("us open") ||
-        n.includes("the open") ||
-        n.includes("open championship")
-      );
-    }
-
-    // Auth (exact key from your login.html)
-    function getAccessToken(){
-      const t = localStorage.getItem("sb_access_token");
-      return (t && String(t).trim()) ? String(t).trim() : null;
-    }
-    function authedHeaders(extra={}){
-      const token = getAccessToken();
-      return token ? { ...extra, Authorization: `Bearer ${token}` } : { ...extra };
-    }
-
-    // State
-    let pros = [];
-    let prosById = new Map();
-    let scheduleWeeks = [];
-    let displayedWeek = null;
-    let currentWeekId = null;
-
-    // Participation
-    let me = null;               // { user, player }
-    let participantRows = [];    // [{player_id, player_name, handicap_index, ...}]
-    let isMeParticipating = false;
-
-    // Swipe-to-select
-    let ignoreAutoSelectUntil = 0;
-    let scheduleScrollTimer = null;
-
-    function pickCenteredWeekId(){
-      const root = $("scheduleList");
-      if(!root) return null;
-      const rootRect = root.getBoundingClientRect();
-      const centerX = rootRect.left + rootRect.width / 2;
-
-      let bestId = null;
-      let bestDist = Infinity;
-
-      root.querySelectorAll(".scheduleItem").forEach(el => {
-        const r = el.getBoundingClientRect();
-        const elCenter = r.left + r.width / 2;
-        const dist = Math.abs(elCenter - centerX);
-        if(dist < bestDist){
-          bestDist = dist;
-          bestId = el.getAttribute("data-week-id");
-        }
-      });
-
-      return bestId;
-    }
-
-    function attachScheduleScrollStop(weeks){
-      const root = $("scheduleList");
-      if(!root) return;
-      root.onscroll = null;
-
-      root.onscroll = () => {
-        if(Date.now() < ignoreAutoSelectUntil) return;
-
-        clearTimeout(scheduleScrollTimer);
-        scheduleScrollTimer = setTimeout(() => {
-          const id = pickCenteredWeekId();
-          if(!id) return;
-
-          const w = weeks.find(x => x.id === id);
-          if(!w) return;
-          if(displayedWeek?.week_number === w.week_number) return;
-          setDisplayedWeek(w);
-        }, 140);
-      };
-    }
-
-    function indexPros(list){
-      prosById = new Map();
-      for (const p of (list || [])){
-        const id = p?.id ?? p?.pro_id ?? p?.proId;
-        if(id != null) prosById.set(String(id), p);
+    // load current week
+    try{
+      const cw = await getJSON(API.currentWeek);
+      currentWeek = cw?.week || null;
+      if(currentWeek){
+        currentWeekId = currentWeek.week_number;
+        setDisplayedWeek(currentWeek);
+      }else{
+        currentWeekId = null;
       }
-    }
-
-    function proNameFromRow(r){
-      const direct =
-        r?.pro_name ?? r?.proName ?? r?.pro ?? r?.drafted_pro_name ?? r?.draftedProName ?? null;
-      if(direct && String(direct).trim()) return String(direct);
-
-      const pid = r?.pro_id ?? r?.proId ?? r?.proID ?? r?.proid ?? r?.pga_golfer ?? null;
-      if(pid == null) return "—";
-      const p = prosById.get(String(pid));
-      return p?.name ?? p?.full_name ?? p?.player_name ?? String(pid);
-    }
-
-    function renderWeekDetails(week){
-      const hero = $("weekHero");
-      const img = $("tournamentLogo");
-      const badge = $("tournamentWeekBadge");
-      const weekCard = $("weekDetailsCard");
-
-      weekCard.classList.remove("weekMajorCard");
-      badge.classList.remove("majorBadge");
-
-      if(!week){
-        $("tournamentName").textContent = "—";
-        $("tournamentDates").textContent = "—";
-        badge.textContent = "—";
-        img.style.display = "none";
-        hero.style.backgroundImage = "none";
-        return;
-      }
-
-      const majorBadge = $("majorPtsBadge");
-      const major = isMajor(week?.tournament_name);
-
-      if (major) {
-        majorBadge.style.display = "inline-flex";
-        majorBadge.classList.add("majorPts");
-      } else {
-        majorBadge.style.display = "none";
-        majorBadge.classList.remove("majorPts");
-      }
-
-      badge.textContent = week.label || `Week ${week.week_number || "—"}`;
-      $("tournamentName").textContent = week.tournament_name || "—";
-      $("tournamentDates").textContent = fmtDateRange(week.start_date, week.end_date);
-
-      if (week.logo_url) {
-        hero.style.backgroundImage = `url("${week.logo_url}")`;
-        img.src = week.logo_url;
-        img.alt = `${week.tournament_name || "Tournament"} logo`;
-        img.style.display = "block";
-      } else {
-        hero.style.backgroundImage = "none";
-        img.style.display = "none";
-      }
-
-      if (major) {
-        weekCard.classList.add("weekMajorCard");
-        badge.classList.add("majorBadge");
+    }catch(e){
+      currentWeek = null;
+      currentWeekId = null;
+      // still allow schedule selection
+      if(scheduleWeeks.length){
+        setDisplayedWeek(scheduleWeeks[0]);
       }
     }
 
-    function scrollScheduleToActive(activeWeekId){
-      const root = $("scheduleList");
-      if(!root || !activeWeekId) return;
-      const el = root.querySelector(`.scheduleItem[data-week-id="${CSS.escape(activeWeekId)}"]`);
-      if(!el) return;
+    renderSchedule(scheduleWeeks, currentWeek?.week_number);
+  }
 
-      ignoreAutoSelectUntil = Date.now() + 700;
-
-      const rootRect = root.getBoundingClientRect();
-      const elRect = el.getBoundingClientRect();
-      const delta = (elRect.left + elRect.width/2) - (rootRect.left + rootRect.width/2);
-      root.scrollBy({ left: delta, behavior: "smooth" });
+  function renderSchedule(weeks, activeWeekId){
+    const list = $("scheduleList");
+    if(!list) return;
+    if(!weeks?.length){
+      list.innerHTML = `<div class="muted">No schedule loaded.</div>`;
+      return;
     }
-
-    function renderSchedule(weeks, activeWeekId){
-      const el = $("scheduleList");
-      if(!el) return;
-
-      if(!Array.isArray(weeks) || weeks.length === 0){
-        el.innerHTML = `<div style="color:rgba(233,241,255,.45);">No weeks found.</div>`;
-        return;
-      }
-
-      const sorted = weeks
-        .filter(w => w.week_number != null)
-        .sort((a,b) => a.week_number - b.week_number);
-
-      el.innerHTML = sorted.map(w => {
-        const active = (w.week_number === activeWeekId) ? "active" : "";        
-        const dates = fmtDateRange(w.start_date, w.end_date);
-        const logo = w.logo_url
-          ? `<img class="scheduleLogo" alt="" src="${w.logo_url}">`
-          : `<div class="scheduleLogo"></div>`;
-        const tag = isMajor(w.tournament_name)
-          ? `<span class="tag major">Major</span>`
-          : `<span class="tag">Week ${w.week_number}</span>`;
-
-        return `
-           <div class="scheduleItem ${active}" data-week-id="${w.week_number}">         
-           <div class="scheduleLeft">
-              ${logo}
-              <div class="scheduleText">
-                <div class="scheduleName">Week ${w.week_number} • ${w.tournament_name || "—"}</div>
-                <div class="scheduleMeta">${dates}</div>
-              </div>
-            </div>
-            ${tag}
+    list.innerHTML = weeks.map(w => {
+      const active = (w.week_number === activeWeekId) ? "active" : "";
+      const label = w.name || w.tournament || `Week ${w.week_number}`;
+      const date = w.start_date ? new Date(w.start_date).toLocaleDateString() : "";
+      return `
+        <div class="scheduleItem ${active}" data-week-id="${w.week_number}">
+          <div class="scheduleName">${label}</div>
+          <div class="scheduleMeta">
+            <span class="muted">Week ${w.week_number}</span>
+            ${date ? `<span class="dot">·</span><span class="muted">${date}</span>` : ""}
           </div>
-        `;
-      }).join("");
+        </div>
+      `;
+    }).join("");
 
-      el.querySelectorAll(".scheduleItem").forEach(item => {
-        item.addEventListener("click", async () => {
-          const weekId = item.getAttribute("data-week-id");
-          const w = weeks.find(x => String(x.week_number) === String(weekId));         
-          if(!w) return;
-          await setDisplayedWeek(w);
-        });
-      });
+    // if switching weeks, keep highlight correct
+  }
 
-      attachScheduleScrollStop(sorted);
-      scrollScheduleToActive(activeWeekId);
-    }
+  function setDisplayedWeek(week){
+    if(!week) return;
+    if(displayedWeek?.week_number === week.week_number) return;
+    displayedWeek = week;
 
-    function setLeaderboardTitleFromLabel(label, fallbackWeekNumber){
-      const wkNum = Number(String(label).match(/\d+/)?.[0] || fallbackWeekNumber || "");
-      const titleEl = $("leaderboardTitle");
-      if(titleEl) titleEl.textContent = `Week ${wkNum || "—"} Leaderboard`;
-    }
+    const label = week.name || week.tournament || `Week ${week.week_number}`;
+    $("leaderboardTitle").textContent = `WEEK ${week.week_number} — LEADERBOARD (${label})`;
+    setPill($("leaderboardUpdated"), "Updated: —", "green");
 
-    async function loadLeaderboardForWeek(week){
-      hideMsg($("lbMsg"));
-      $("lbBody").innerHTML = `<tr><td colspan="6" style="color:rgba(233,241,255,.45);">Loading…</td></tr>`;
+    // set currentWeekId to selected week for submit/participate UI too
+    currentWeekId = week.week_number;
 
-      try{
-        const url = `${API.leaderboard}?week_id=${encodeURIComponent(week.week_number)}`;       
-        const data = await getJSON(url);
-        const label = week.label || data.week || "—";
-        if($("weekLabel")) $("weekLabel").textContent = label;
-        setLeaderboardTitleFromLabel(label, week.week_number);
+    // Load week-specific views
+    loadWeekParticipants();
+    loadWeekLeaderboard();
+  }
 
-        const rows = data.rows || [];
-        if(!Array.isArray(rows) || rows.length === 0){
-          $("lbBody").innerHTML = `<tr><td colspan="6" style="color:rgba(233,241,255,.45);">No scores yet.</td></tr>`;
-        }else{
-          $("lbBody").innerHTML = rows.map((r, idx) => {
-            const proName = proNameFromRow(r);
-            return `
-              <tr>
-                <td><span class="rankPill">#${idx+1}</span></td>
-               <td class="mono center"><span class="totalPill">${fmtToPar(r.rank_score)}</span></td>                <td class="playerCell">${r.player_name || "—"}</td>
-                <td class="mono center">${fmtToPar(r.playerScore)}</td>
-                <td>${proName || "—"}</td>
-                <td class="mono center">${fmtToPar(r.proScore)}</td>
-              </tr>
-            `;
-          }).join("");
-        }
-
-        $("lastUpdated").textContent = "Updated: " + new Date().toLocaleTimeString();
-      }catch(e){
-        $("lbBody").innerHTML = `<tr><td colspan="6" style="color:rgba(233,241,255,.45);">Couldn’t load leaderboard.</td></tr>`;
-        showMsg($("lbMsg"), "Leaderboard error: " + e.message, "bad");
-      }
-    }
-
-    function setParticipationUI(ready){
-      const badge = $("participationBadge");
-      const btn = $("participateBtn");
-      const token = getAccessToken();
-      const loggedIn = !!token;
-
-      if(!ready){
-        if(badge){ badge.textContent = "Participation: —"; badge.className = "badge gray"; }
-        if(btn){ btn.disabled = true; btn.textContent = "Participate this week"; }
-        return;
-      }
-
-      if(!loggedIn){
-        if(badge){ badge.textContent = "Participation: Login required"; badge.className = "badge gray"; }
-        if(btn){ btn.disabled = true; btn.textContent = "Participate this week"; }
-        return;
-      }
-
-      if(badge){
-        badge.textContent = "Participation: " + (isMeParticipating ? "ON" : "OFF");
-        badge.className = "badge " + (isMeParticipating ? "" : "gray");
-      }
-      if(btn){
-        btn.disabled = false;
-        btn.textContent = isMeParticipating ? "You're participating (tap to remove)" : "Participate this week";
-      }
-    }
-
-    async function loadMe(){
-      const token = getAccessToken();
-      if(!token){ me = null; return null; }
-      try{
-        me = await getJSON(API.me, { headers: authedHeaders() });
-        return me;
-      }catch{
-        me = null;
-        return null;
-      }
-    }
-
-    async function loadParticipantsForWeek(weekId){
-      const data = await getJSON(`${API.participants}?week_id=${encodeURIComponent(weekId)}`);
-      participantRows = Array.isArray(data?.rows) ? data.rows : [];
-      return participantRows;
-    }
-
-    function recomputeMeParticipating(){
-      const myPlayerId = me?.player?.id ? String(me.player.id) : null;
-      if(!myPlayerId){
-        isMeParticipating = false;
-        return false;
-      }
-      isMeParticipating = participantRows.some(r => String(r.player_id) === myPlayerId);
-      return isMeParticipating;
-    }
-
-    function populatePlayersFromParticipants(){
-      const sel = $("playerSel");
-      if(!sel) return;
-
-      const prev = sel.value ? String(sel.value) : null;
-      const items = (participantRows || []).map(r => ({
-        id: String(r.player_id),
-        name: r.player_name || "—"
-      }));
-
-      sel.innerHTML = "";
-      for(const it of items){
-        const opt = document.createElement("option");
-        opt.value = it.id;
-        opt.textContent = it.name;
-        sel.appendChild(opt);
-      }
-
-      if(prev && items.some(x => x.id === prev)) sel.value = prev;
-
-      const myPlayerId = me?.player?.id ? String(me.player.id) : null;
-      if(myPlayerId && isMeParticipating && items.some(x => x.id === myPlayerId)){
-        sel.value = myPlayerId;
-      }
-    }
-
-    async function refreshParticipationAndPlayers(){
-      hideMsg($("participationMsg"));
-      setParticipationUI(false);
-
+  // ------------------------
+  // PARTICIPATION
+  // ------------------------
+  async function loadWeekParticipants(){
+    hideMsg($("participationMsg"));
+    try{
       const weekId = currentWeekId;
-      if(!weekId){
-        participantRows = [];
-        me = null;
-        isMeParticipating = false;
-        populatePlayersFromParticipants();
-        setParticipationUI(true);
-        return;
+      const data = await getJSON(`${API.participants}?week_id=${encodeURIComponent(weekId)}`, { headers: authedHeaders() });
+
+      const rows = data?.rows || [];
+      // Populate player select from participants if present
+      const playerSel = $("playerSel");
+      if(playerSel){
+        playerSel.innerHTML = rows.map(r => `<option value="${r.player_id}">${escapeHtml(r.player_name || r.player_email || r.player_id)}</option>`).join("");
       }
 
-      await loadMe();
-
-      try{
-        await loadParticipantsForWeek(weekId);
-      }catch(e){
-        participantRows = [];
-        recomputeMeParticipating();
-        populatePlayersFromParticipants();
-        setParticipationUI(true);
-        showMsg($("participationMsg"), "Couldn’t load participants: " + e.message, "bad");
-        return;
-      }
-
-      recomputeMeParticipating();
-      populatePlayersFromParticipants();
-      setParticipationUI(true);
-
-      const token = getAccessToken();
-      if(!token){
-        showMsg($("participationMsg"), "Log in to join the field and auto-select yourself.", "");
-      } else if(!me?.player?.id){
-        showMsg($("participationMsg"), "No player linked to this login yet. Go to Sign Up and create your profile.", "bad");
-      } else if(isMeParticipating){
-        showMsg($("participationMsg"), "You're participating for this week.", "ok");
-      } else {
-        showMsg($("participationMsg"), "Tap “Participate this week” to join the field.", "");
-      }
+      // Participation pill
+      const isOn = !!data?.is_participating;
+      setPill($("participationPill"), `Participation: ${isOn ? "ON" : "OFF"}`, isOn ? "green" : "red");
+    }catch(e){
+      setPill($("participationPill"), `Participation: OFF`, "red");
+      showMsg($("participationMsg"), `Couldn't load participants: ${e.message}`, "bad");
     }
+  }
 
-    async function toggleParticipate(){
-      hideMsg($("participationMsg"));
-
-      if(!currentWeekId){
-        showMsg($("participationMsg"), "No week loaded yet. Click refresh and try again.", "bad");
-        return;
-      }
-
-      const token = getAccessToken();
-      if(!token){
-        showMsg($("participationMsg"), "You must be logged in to toggle participation.", "bad");
-        return;
-      }
-
-      const btn = $("participateBtn");
-      if(btn) btn.disabled = true;
-
-      const next = !isMeParticipating;
-
-      try{
-        await getJSON(API.participate, {
-          method: "POST",
-          headers: authedHeaders({ "content-type":"application/json" }),
-          body: JSON.stringify({ week_id: currentWeekId, participate: next })
-        });
-
-        await refreshParticipationAndPlayers();
-        if(displayedWeek) await loadLeaderboardForWeek(displayedWeek);
-      }catch(e){
-        showMsg($("participationMsg"), "Participation error: " + e.message, "bad");
-      }finally{
-        if(btn) btn.disabled = false;
-      }
+  async function participateThisWeek(){
+    hideMsg($("participationMsg"));
+    const token = getAccessToken();
+    if(!token){
+      showMsg($("participationMsg"), "You must be logged in to participate.", "bad");
+      return;
     }
-
-    async function checkHealth(){
-      try{
-        const data = await getJSON(API.health);
-        if($("healthDot")) $("healthDot").className = "dot ok";
-        if($("healthText")) $("healthText").textContent = data && data.ok ? "ok" : "unknown";
-      }catch(e){
-        if($("healthDot")) $("healthDot").className = "dot bad";
-        if($("healthText")) $("healthText").textContent = "down";
-      }
+    if(!currentWeekId){
+      showMsg($("participationMsg"), "No week loaded yet.", "bad");
+      return;
     }
-
-    async function loadPros(){
-      const pr = await getJSON(API.pros);
-      pros = Array.isArray(pr) ? pr : (pr.pros || []);
-      indexPros(pros);
-      // Pro dropdown uses full list (unchanged behavior)
-      const sel = $("proSel");
-      if(sel){
-        sel.innerHTML = "";
-        for(const p of pros){
-          const opt = document.createElement("option");
-          opt.value = p.id;
-          opt.textContent = p.name;
-          sel.appendChild(opt);
-        }
-      }
-    }
-
-    async function loadSchedule(){
-      const res = await getJSON(API.schedule);
-      scheduleWeeks = res?.weeks || [];
-      return scheduleWeeks;
-    }
-
-    function pickDisplayedWeekFromSchedule(weeks){
-      const sorted = (weeks || [])
-        .filter(w => w.week_number != null)
-        .sort((a,b) => a.week_number - b.week_number);
-
-      if(!sorted.length) return null;
-
-      const today = new Date();
-
-      const inRange = sorted.find(w => {
-        if(!w.start_date || !w.end_date) return false;
-        const s = new Date(w.start_date + "T00:00:00");
-        const e = new Date(w.end_date + "T23:59:59");
-        return today >= s && today <= e;
+    try{
+      await getJSON(API.participate, {
+        method: "POST",
+        headers: authedHeaders({ "content-type":"application/json" }),
+        body: JSON.stringify({ week_id: currentWeekId })
       });
+      showMsg($("participationMsg"), "You're in for this week.", "ok");
+      await loadWeekParticipants();
+      await loadWeekLeaderboard();
+    }catch(e){
+      showMsg($("participationMsg"), `Couldn't participate: ${e.message}`, "bad");
+    }
+  }
 
-      if(inRange) return inRange;
+  // ------------------------
+  // LEADERBOARD
+  // ------------------------
+  async function loadWeekLeaderboard(){
+    hideMsg($("leaderboardMsg"));
+    const body = $("leaderboardBody");
+    if(body) body.innerHTML = `<tr><td colspan="6" class="muted">Loading…</td></tr>`;
 
-      const seasonStart = sorted[0].start_date ? new Date(sorted[0].start_date + "T00:00:00") : null;
-      if(seasonStart && today < seasonStart) return sorted[0];
-
-      return sorted[sorted.length - 1];
+    if(!displayedWeek){
+      if(body) body.innerHTML = `<tr><td colspan="6" class="muted">No week selected.</td></tr>`;
+      return;
     }
 
-    function computeCombined(){
-      const you = parseToPar($("playerScore")?.value);
-      const pro = parseToPar($("proScore")?.value);
-      if(you === null || pro === null) return null;
-      return you + pro;
-    }
-    function renderCombined(){
-      const c = computeCombined();
-      if($("combinedBadge")) $("combinedBadge").textContent = "Combined: " + fmtToPar(c);
-    }
+    try{
+      const week = displayedWeek;
+      const url = `${API.leaderboard}?week_id=${encodeURIComponent(week.week_number)}`;
+      const data = await getJSON(url);
+      const rows = data?.rows || [];
 
-    async function submitScore(){
+      setPill($("leaderboardUpdated"), `Updated: ${new Date().toLocaleTimeString()}`, "green");
+
+      if(!rows.length){
+        if(body) body.innerHTML = `<tr><td colspan="6" class="muted">No results yet.</td></tr>`;
+        return;
+      }
+
+      if(body){
+        body.innerHTML = rows.map((r, i) => {
+          const rank = r.rank ?? (i+1);
+          return `
+            <tr>
+              <td class="mono center">${rank ?? "—"}</td>
+              <td class="mono center"><span class="totalPill">${fmtToPar(r.rank_score)}</span></td>
+              <td>${escapeHtml(r.player_name || "—")}</td>
+              <td class="mono center">${fmtToPar(r.playerScore)}</td>
+              <td>${escapeHtml(r.pro_name || "—")}</td>
+              <td class="mono center">${fmtToPar(r.proScore)}</td>
+            </tr>
+          `;
+        }).join("");
+      }
+    }catch(e){
+      if(body) body.innerHTML = `<tr><td colspan="6" class="muted">Couldn't load leaderboard.</td></tr>`;
+      showMsg($("leaderboardMsg"), `Leaderboard error: ${e.message}`, "bad");
+    }
+  }
+
+  // ------------------------
+  // SEASON STANDINGS
+  // ------------------------
+  async function loadSeasonStandings(){
+    hideMsg($("seasonMsg"));
+    const body = $("seasonBody");
+    if(body) body.innerHTML = `<tr><td colspan="4" class="muted">Loading…</td></tr>`;
+
+    try{
+      const data = await getJSON(API.seasonStandings);
+      const rows = data?.rows || [];
+      setPill($("seasonUpdated"), `Updated: ${new Date().toLocaleTimeString()}`, "green");
+
+      if(!rows.length){
+        if(body) body.innerHTML = `<tr><td colspan="4" class="muted">No standings.</td></tr>`;
+        return;
+      }
+
+      if(body){
+        body.innerHTML = rows.map((r, i) => `
+          <tr>
+            <td class="mono center">${r.rank ?? (i+1)}</td>
+            <td>${escapeHtml(r.player_name || "—")}</td>
+            <td class="mono center">${r.points ?? "—"}</td>
+            <td class="mono center">${r.weeks ?? "—"}</td>
+          </tr>
+        `).join("");
+      }
+    }catch(e){
+      if(body) body.innerHTML = `<tr><td colspan="4" class="muted">Couldn't load standings.</td></tr>`;
+      showMsg($("seasonMsg"), `Standings error: ${e.message}`, "bad");
+    }
+  }
+
+  // ------------------------
+  // SUBMIT SCORE
+  // ------------------------
+  async function submitScore(){
       hideMsg($("submitMsg"));
 
       if (!currentWeekId) {
@@ -1296,95 +544,38 @@ const API = {
           body: JSON.stringify(payload)
         });
         showMsg($("submitMsg"), "Saved!", "ok");
-        if (displayedWeek) await loadLeaderboardForWeek(displayedWeek);
+        $("playerScore").value = "";
+        await loadWeekLeaderboard();
       }catch(e){
-        showMsg($("submitMsg"), "Submit error: " + e.message, "bad");
+        showMsg($("submitMsg"), `Couldn't submit: ${e.message}`, "bad");
       }
-    }
+  }
 
-    async function autoPullProScore(){
-      hideMsg($("submitMsg"));
-      const proId = $("proSel")?.value;
-      if(!proId){
-        showMsg($("submitMsg"), "Pick a Pro first.", "bad"); return;
-      }
-      try{
-        const data = await getJSON(API.proscore + "?pro_id=" + encodeURIComponent(proId));
-        const val = data.pro_to_par ?? data.to_par ?? data.score_to_par ?? null;
-        if(val === null || val === undefined){
-          showMsg($("submitMsg"), "Auto-pull worked but didn’t return a score field.", "bad"); return;
-        }
-        $("proScore").value = fmtToPar(Number(val));
-        renderCombined();
-        showMsg($("submitMsg"), "Pulled pro score: " + fmtToPar(Number(val)), "ok");
-      }catch(e){
-        showMsg($("submitMsg"), "Auto-pull error: " + e.message, "bad");
-      }
-    }
+  // ------------------------
+  // PRO SCORE AUTO-PULL (hidden UI)
+  // ------------------------
+  async function autoPullProScore(){
+    // Kept for compatibility; UI hidden
+    return;
+  }
 
-    async function setDisplayedWeek(week){
-      displayedWeek = week;
-     currentWeekId = week.week_number;
-      renderWeekDetails(week);
-      renderSchedule(scheduleWeeks, week.week_number);
-      // participation + participants-only player dropdown
-      await refreshParticipationAndPlayers();
+  // ------------------------
+  // UTIL
+  // ------------------------
+  function escapeHtml(s){
+    if(s === null || s === undefined) return "";
+    return String(s)
+      .replaceAll("&","&amp;")
+      .replaceAll("<","&lt;")
+      .replaceAll(">","&gt;")
+      .replaceAll('"',"&quot;")
+      .replaceAll("'","&#039;");
+  }
 
-      await loadLeaderboardForWeek(week);
-    }
-
-    $("playerScore")?.addEventListener("input", renderCombined);
-    $("proScore")?.addEventListener("input", renderCombined);
-    $("submitBtn")?.addEventListener("click", submitScore);
-    $("autoProBtn")?.addEventListener("click", autoPullProScore);
-    $("participateBtn")?.addEventListener("click", toggleParticipate);
-
-    $("refreshBtn") && ($("refreshBtn").onclick = async () => {
-      await boot();
-    });
-
-    async function boot(){
-      await checkHealth();
-      await loadPros();
-
-      try{
-        const weeks = await loadSchedule();
-        const wk = pickDisplayedWeekFromSchedule(weeks);
-        if(!wk) throw new Error("No week found in schedule");
-        await setDisplayedWeek(wk);
-      }catch(e){
-        try{
-          const cw = await getJSON(API.currentWeek);
-          const wk = cw?.week || null;
-          if (wk) {
-            try { await loadSchedule(); } catch(_){}
-            await setDisplayedWeek(wk);
-          } else {
-            renderWeekDetails(null);
-          }
-        }catch(_){
-          renderWeekDetails(null);
-        }
-      }
-
-      renderCombined();
-    }
-
-    boot();
+  // ------------------------
+  // BOOT
+  // ------------------------
+  init();
   </script>
-  <script>
-  (function () {
-    const link = document.getElementById("navAuthLink");
-    if (!link) return;
-
-    const token = localStorage.getItem("sb_access_token");
-    if (token) {
-      link.href = "./profile.html";
-      link.textContent = "Profile";
-    } else {
-      link.href = "./login.html";
-      link.textContent = "Log in";
-    }
-  })();
-</script></body>
+</body>
 </html>
