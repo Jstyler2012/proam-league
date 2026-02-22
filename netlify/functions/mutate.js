@@ -140,42 +140,79 @@ exports.handler = async (event) => {
     // submit-score (PUBLIC)
     // POST /api-mutate/submit-score { week_id, player_id, pro_id, player_to_par, pro_to_par }
     // -------------------------
-    if (path === "submit-score") {
-      const { week_id, player_id, pro_id, player_to_par, pro_to_par } = body;
+   // -------------------------
+// submit-score (LOCK ENFORCED)
+// -------------------------
+if (path === "submit-score") {
+  const { week_id, player_id, pro_id, player_to_par, pro_to_par } = body;
 
-      if (!week_id || !player_id || !pro_id) {
-        return json(400, { error: "Missing week_id, player_id, or pro_id" });
-      }
+  if (!week_id || !player_id || !pro_id) {
+    return json(400, { error: "Missing required fields" });
+  }
 
-      const your_score = Number(player_to_par);
-      const pro_score = pro_to_par != null ? Number(pro_to_par) : null;
+  // Load week lock time
+  const weeks = await sbService(
+    SUPABASE_URL,
+    SERVICE_KEY,
+    "GET",
+    `weeks?select=week_number,label,lock_at&week_number=eq.${week_id}&limit=1`
+  );
 
-      if (!Number.isFinite(your_score)) return json(400, { error: "Invalid player_to_par" });
-      if (pro_score != null && !Number.isFinite(pro_score)) return json(400, { error: "Invalid pro_to_par" });
+  const wk = weeks?.[0];
 
-      const total = pro_score != null ? your_score + pro_score : null;
+  if (!wk) {
+    return json(404, { error: "Week not found" });
+  }
 
-      const row = {
-        week_id,
-        player_id,
-        pga_golfer: pro_id,
-        your_score,
-        pro_score,
-        total,
-      };
+  if (!wk.lock_at) {
+    return json(403, {
+      error: "Scoring disabled: lock time not configured."
+    });
+  }
 
-      const inserted = await sbService(
-        SUPABASE_URL,
-        SERVICE_KEY,
-        "POST",
-        `week_entries?on_conflict=week_id,player_id`,
-        row,
-        "resolution=merge-duplicates,return=representation"
-      );
+  const now = new Date();
+  const lockAt = new Date(wk.lock_at);
 
-      return json(200, { ok: true, entry: inserted?.[0] || null });
-    }
+  if (now < lockAt) {
+    return json(403, {
+      error: "Draft still open. Scoring unlocks when tournament starts.",
+      unlock_at: wk.lock_at
+    });
+  }
 
+  const your_score = Number(player_to_par);
+  const pro_score = pro_to_par != null ? Number(pro_to_par) : null;
+
+  if (!Number.isFinite(your_score)) {
+    return json(400, { error: "Invalid player score" });
+  }
+
+  if (pro_score != null && !Number.isFinite(pro_score)) {
+    return json(400, { error: "Invalid pro score" });
+  }
+
+  const total = pro_score != null ? your_score + pro_score : null;
+
+  const row = {
+    week_id,
+    player_id,
+    pga_golfer: pro_id,
+    your_score,
+    pro_score,
+    total,
+  };
+
+  const inserted = await sbService(
+    SUPABASE_URL,
+    SERVICE_KEY,
+    "POST",
+    `week_entries?on_conflict=week_id,player_id`,
+    row,
+    "resolution=merge-duplicates,return=representation"
+  );
+
+  return json(200, { ok: true, entry: inserted?.[0] || null });
+}
     // -------------------------
     // draft-pick (AUTH REQUIRED)
     // POST /api-mutate/draft-pick { week_id, pro_id }
