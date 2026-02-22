@@ -18,11 +18,11 @@
   status = 200
 
 [[redirects]]
-  from = "/api-proscore"
-  to = "/.netlify/functions/proscore"
+  from = "/api-admin/*"
+  to = "/.netlify/functions/admin"
   status = 200
 
 [[redirects]]
-  from = "/api-admin/*"
-  to = "/.netlify/functions/admin"
+  from = "/api-proscore"
+  to = "/.netlify/functions/proscore"
   status = 200
