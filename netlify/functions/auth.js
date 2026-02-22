@@ -25,9 +25,11 @@ function text(statusCode, bodyText) {
 function routeFrom(event) {
   const raw = (event.path || "").split("?")[0];
 
+  // netlify redirect uses /.netlify/functions/auth/:splat
   if (raw.startsWith("/.netlify/functions/auth/")) {
     return raw.slice("/.netlify/functions/auth/".length);
   }
+  // fallback
   if (raw.startsWith("/api-auth/")) {
     return raw.slice("/api-auth/".length);
   }
@@ -74,7 +76,6 @@ exports.handler = async (event) => {
   // POST /api-auth/join
   if (route === "join" && event.httpMethod === "POST") {
     const authHeader = (event.headers?.authorization || event.headers?.Authorization || "").trim();
-
     const me = await getUserFromBearer(SUPABASE_URL, SUPABASE_ANON_KEY, authHeader);
     if (!me.ok) return json(me.status, { error: me.error });
 
@@ -92,7 +93,7 @@ exports.handler = async (event) => {
       user_id: me.user.id,
     };
 
-    // Use service role to upsert player row
+    // Upsert by user_id using service role (bypasses RLS)
     const r = await fetch(`${SUPABASE_URL}/rest/v1/players?on_conflict=user_id`, {
       method: "POST",
       headers: {
@@ -110,7 +111,8 @@ exports.handler = async (event) => {
     let out = null;
     try { out = JSON.parse(t); } catch { out = t; }
 
-    return json(200, { ok: true, player: Array.isArray(out) ? out[0] : out });
+    const player = Array.isArray(out) ? out[0] : out;
+    return json(200, { ok: true, player });
   }
 
   return json(404, { error: "Not found", route });
