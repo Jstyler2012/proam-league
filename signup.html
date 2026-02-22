@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>Sign Up • Wellman Golf Club PRO-AM 2026</title>
+  <title>Sign Up • WGC PRO AM</title>
   <link rel="stylesheet" href="./styles.css">
 </head>
 
@@ -11,7 +11,7 @@
   <div class="wrap">
     <div>
       <div class="pageTitle">Sign Up</div>
-      <div class="pageSub">Create your account • set your handicap • start drafting</div>
+      <div class="pageSub">Create your account and profile</div>
     </div>
 
     <div id="siteHeader" class="sectionRule"></div>
@@ -44,7 +44,6 @@
         </div>
 
         <button id="signupBtn" class="btnPrimary">Sign up</button>
-
         <div id="msg" class="msg" style="display:none;"></div>
 
         <div class="muted" style="margin-top:10px;">
@@ -54,14 +53,12 @@
     </div>
   </div>
 
-  <!-- Supabase JS + centralized config -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="/supabase-config.js"></script>
 
   <script>
     loadHeader("signup");
 
-    const API = { join: "/api-auth/join" };
     const $ = (id) => document.getElementById(id);
 
     function show(text, type){
@@ -87,7 +84,6 @@
       if(!name) return show("Name is required.", "bad");
       if(!email || !password) return show("Email and password required.", "bad");
 
-      // Allow blank handicap, otherwise validate number
       let handicap_index = null;
       if(hcpRaw){
         const n = Number(hcpRaw);
@@ -97,41 +93,42 @@
 
       setBusy(true);
       try {
-        // 1) Create auth user
+        // 1) create auth user
         const { data, error } = await window.sb.auth.signUp({ email, password });
-        if(error){
-          show(error.message || "Signup failed.", "bad");
+        if (error) return show(error.message || "Signup failed.", "bad");
+
+        // Some setups return session immediately; others require email confirm.
+        // If no session yet, tell user to confirm email.
+        const accessToken = data?.session?.access_token || "";
+        const refreshToken = data?.session?.refresh_token || "";
+
+        if (!accessToken) {
+          show("Account created. Check your email to confirm, then log in.", "good");
           return;
         }
 
-        // 2) If we got a session, store tokens so the rest of your site works immediately
-        const accessToken = data?.session?.access_token || "";
-        const refreshToken = data?.session?.refresh_token || "";
-        if (accessToken) {
-          localStorage.setItem("sb_access_token", accessToken);
-          if (refreshToken) localStorage.setItem("sb_refresh_token", refreshToken);
+        // 2) store token for rest of site
+        localStorage.setItem("sb_access_token", accessToken);
+        if (refreshToken) localStorage.setItem("sb_refresh_token", refreshToken);
+
+        // 3) create player profile via server
+        const r = await fetch("/api-auth/join", {
+          method: "POST",
+          headers: {
+            "content-type":"application/json",
+            "authorization":"Bearer " + accessToken,
+          },
+          body: JSON.stringify({ name, handicap_index }),
+        });
+
+        if (!r.ok) {
+          const t = await r.text();
+          return show("Signed up, but profile creation failed: " + t, "bad");
         }
 
-        // 3) Create/update player profile via your server function (uses logged-in user)
-        if (accessToken) {
-          const r = await fetch(API.join, {
-            method: "POST",
-            headers: {
-              "content-type":"application/json",
-              "authorization":"Bearer " + accessToken
-            },
-            body: JSON.stringify({ name, handicap_index })
-          });
+        show("Signup + profile created. Redirecting...", "good");
+        setTimeout(() => (window.location.href = "./index.html"), 500);
 
-          if(!r.ok){
-            const t = await r.text();
-            show("Signed up but profile creation failed: " + t, "bad");
-            return;
-          }
-        }
-
-        show("Signup successful.", "good");
-        setTimeout(() => (window.location.href = "./index.html"), 600);
       } catch (e) {
         show(e.message || "Unexpected error.", "bad");
       } finally {
