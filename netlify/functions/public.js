@@ -25,20 +25,34 @@ function text(statusCode, bodyText) {
 function getRoute(event) {
   const raw = (event.path || "").split("?")[0];
 
-  // If routed via /.netlify/functions/public/:splat
+  // routed via /.netlify/functions/public/:splat
   if (raw.startsWith("/.netlify/functions/public")) {
     const rest = raw.slice("/.netlify/functions/public".length);
-    return rest.replace(/^\/+|\/+$/g, ""); // trim slashes
+    return rest.replace(/^\/+|\/+$/g, "");
   }
 
-  // If somehow still hit via /api/*
+  // fallback if hit via /api/*
   if (raw.startsWith("/api/")) {
     return raw.slice("/api/".length).replace(/^\/+|\/+$/g, "");
   }
   if (raw === "/api") return "";
 
-  // fallback
   return raw.replace(/^\/+|\/+$/g, "");
+}
+
+async function sbAnon(SUPABASE_URL, SUPABASE_ANON_KEY, method, restPath) {
+  const url = `${SUPABASE_URL}/rest/v1/${restPath}`;
+  const r = await fetch(url, {
+    method,
+    headers: {
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+    },
+  });
+  const t = await r.text();
+  if (!r.ok) return { ok: false, status: r.status, text: t };
+  if (!t) return { ok: true, json: null };
+  try { return { ok: true, json: JSON.parse(t) }; } catch { return { ok: true, json: t }; }
 }
 
 exports.handler = async (event) => {
@@ -49,7 +63,6 @@ exports.handler = async (event) => {
   try {
     const route = getRoute(event);
 
-    // health
     if (route === "" || route === "health") {
       return json(200, { ok: true, route, rawPath: event.path });
     }
@@ -61,142 +74,29 @@ exports.handler = async (event) => {
       return text(500, "Missing SUPABASE_URL or SUPABASE_ANON_KEY");
     }
 
-    const sb = async (method, restPath, bodyObj, extraHeaders = {}) => {
-      const url = `${SUPABASE_URL}/rest/v1/${restPath}`;
-      const headers = {
-        apikey: SUPABASE_ANON_KEY,
-        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-        ...extraHeaders,
-      };
-      if (method !== "GET") headers["content-type"] = "application/json";
-
-      const r = await fetch(url, {
-        method,
-        headers,
-        body: bodyObj ? JSON.stringify(bodyObj) : undefined,
-      });
-
-      const t = await r.text();
-      if (!r.ok) return { ok: false, status: r.status, text: t };
-
-      if (!t) return { ok: true, json: null };
-      try {
-        return { ok: true, json: JSON.parse(t) };
-      } catch {
-        return { ok: true, json: t };
-      }
-    };
-
-    // -------------------------
-    // me (auth -> player row)
-    // -------------------------
-    if (route === "me") {
-      const auth = (event.headers?.authorization || event.headers?.Authorization || "").trim();
-      if (!auth.startsWith("Bearer ")) return json(401, { error: "Not logged in" });
-
-      const meResp = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
-        headers: {
-          apikey: SUPABASE_ANON_KEY,
-          Authorization: auth,
-        },
-      });
-
-      const meText = await meResp.text();
-      if (!meResp.ok) return json(meResp.status, { error: meText });
-
-      let user = null;
-      try { user = JSON.parse(meText); } catch { user = null; }
-      const userId = user?.id;
-      if (!userId) return json(401, { error: "Invalid session" });
-
-      const p = await sb(
-        "GET",
-        `players?select=id,name,handicap_index,user_id&user_id=eq.${userId}&limit=1`
-      );
-      if (!p.ok) return text(p.status, p.text);
-
-      const player = (p.json || [])[0] || null;
-      return json(200, { user: { id: userId, email: user?.email || null }, player });
-    }
-
-    // -------------------------
-    // players (all players)
-    // -------------------------
-    if (route === "players") {
-      const out = await sb("GET", "players?select=id,name,handicap_index&order=name.asc");
-      if (!out.ok) return text(out.status, out.text);
-      return json(200, out.json || []);
-    }
-
-    // -------------------------
-    // participants (participants for a week)
-    // GET /api/participants?week_id=...
-    // -------------------------
-    if (route === "participants") {
-      const params = event.queryStringParameters || {};
-      const weekId = params.week_id;
-      if (!weekId) return json(400, { error: "Missing week_id" });
-
-      const out = await sb(
-        "GET",
-        `week_participants?week_id=eq.${weekId}` +
-          `&select=player_id,created_at,player:players(id,name,handicap_index)` +
-          `&order=created_at.asc`
-      );
-      if (!out.ok) return text(out.status, out.text);
-
-      const rows = (out.json || []).map((r) => ({
-        player_id: r.player_id,
-        player_name: r?.player?.name || "—",
-        handicap_index: r?.player?.handicap_index ?? null,
-        created_at: r.created_at || null,
-      }));
-
-      rows.sort((a, b) => {
-        const ah = a.handicap_index, bh = b.handicap_index;
-        const aNull = ah == null, bNull = bh == null;
-        if (aNull && bNull) return (a.player_name || "").localeCompare(b.player_name || "");
-        if (aNull) return 1;
-        if (bNull) return -1;
-        if (bh !== ah) return bh - ah;
-        return (a.player_name || "").localeCompare(b.player_name || "");
-      });
-
-      return json(200, { week_id: weekId, rows });
-    }
-
-    // -------------------------
-    // pros (static for now)
-    // -------------------------
-    if (route === "pros") {
-      const pros = [
-        { id: "Rory McIlroy", name: "Rory McIlroy" },
-        { id: "Scottie Scheffler", name: "Scottie Scheffler" },
-        { id: "Jon Rahm", name: "Jon Rahm" },
-        { id: "Xander Schauffele", name: "Xander Schauffele" },
-      ];
-      return json(200, pros);
-    }
-
     // -------------------------
     // schedule
     // -------------------------
     if (route === "schedule") {
-      const out = await sb(
+      const out = await sbAnon(
+        SUPABASE_URL,
+        SUPABASE_ANON_KEY,
         "GET",
-        "weeks?select=id,week_number,tournament_name,start_date,end_date,logo_url,label,winner_player_name&order=week_number.asc.nullslast"
+        "weeks?select=week_number,label,tournament_name,start_date,end_date,logo_url,winner_player_name&order=week_number.asc"
       );
       if (!out.ok) return text(out.status, out.text);
       return json(200, { weeks: out.json || [] });
     }
 
     // -------------------------
-    // current-week
+    // current-week (uses dates; if today < first start_date, returns first)
     // -------------------------
     if (route === "current-week") {
-      const out = await sb(
+      const out = await sbAnon(
+        SUPABASE_URL,
+        SUPABASE_ANON_KEY,
         "GET",
-        "weeks?select=id,label,week_number,start_date,end_date,tournament_name,logo_url,winner_player_name&week_number=not.is.null&order=week_number.asc"
+        "weeks?select=week_number,label,tournament_name,start_date,end_date,logo_url,winner_player_name&order=week_number.asc"
       );
       if (!out.ok) return text(out.status, out.text);
 
@@ -204,6 +104,7 @@ exports.handler = async (event) => {
       if (!weeks.length) return json(200, { week: null });
 
       const today = new Date();
+
       const inRange = weeks.find((w) => {
         if (!w.start_date || !w.end_date) return false;
         const s = new Date(w.start_date + "T00:00:00");
@@ -221,17 +122,83 @@ exports.handler = async (event) => {
     }
 
     // -------------------------
-    // draft-board (participants only)
+    // pros (placeholder list for now)
     // -------------------------
-    if (route === "draft-board") {
-      const params = event.queryStringParameters || {};
-      const weekId = params.week_id;
-      if (!weekId) return json(400, { error: "Missing week_id" });
+    if (route === "pros") {
+      const pros = [
+        { id: "Rory McIlroy", name: "Rory McIlroy" },
+        { id: "Scottie Scheffler", name: "Scottie Scheffler" },
+        { id: "Jon Rahm", name: "Jon Rahm" },
+        { id: "Xander Schauffele", name: "Xander Schauffele" },
+      ];
+      return json(200, pros);
+    }
 
-      const part = await sb(
+    // -------------------------
+    // me (requires Authorization bearer token)
+    // -------------------------
+    if (route === "me") {
+      const auth = (event.headers?.authorization || event.headers?.Authorization || "").trim();
+      if (!auth.startsWith("Bearer ")) return json(401, { error: "Not logged in" });
+
+      const meResp = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+        headers: { apikey: SUPABASE_ANON_KEY, Authorization: auth },
+      });
+
+      const meText = await meResp.text();
+      if (!meResp.ok) return json(meResp.status, { error: meText });
+
+      let user = null;
+      try { user = JSON.parse(meText); } catch { user = null; }
+      const userId = user?.id;
+      if (!userId) return json(401, { error: "Invalid session" });
+
+      const p = await sbAnon(
+        SUPABASE_URL,
+        SUPABASE_ANON_KEY,
         "GET",
-        `week_participants?week_id=eq.${weekId}` +
-          `&select=player_id,player:players(id,name,handicap_index)`
+        `players?select=id,name,handicap_index,user_id&user_id=eq.${userId}&limit=1`
+      );
+      if (!p.ok) return text(p.status, p.text);
+
+      const player = (p.json || [])[0] || null;
+      return json(200, { user: { id: userId, email: user?.email || null }, player });
+    }
+
+    // -------------------------
+    // players (public list)
+    // -------------------------
+    if (route === "players") {
+      const out = await sbAnon(
+        SUPABASE_URL,
+        SUPABASE_ANON_KEY,
+        "GET",
+        "players?select=id,name,handicap_index&order=name.asc"
+      );
+      if (!out.ok) return text(out.status, out.text);
+      return json(200, out.json || []);
+    }
+
+    // -------------------------
+    // leaderboard
+    // Ranking rule:
+    // - best_player = MIN(player_rounds.score_to_par)
+    // - combined = best_player + proScore (when pro scoring exists)
+    // - rank_score = COALESCE(combined, best_player)
+    //
+    // NOTE: for now proScore may be null until you integrate the API.
+    // -------------------------
+    if (route === "leaderboard") {
+      const q = event.queryStringParameters || {};
+      const weekId = Number(q.week_id);
+      if (!Number.isFinite(weekId)) return json(400, { error: "Missing/invalid week_id" });
+
+      // Pull all participants for the week
+      const part = await sbAnon(
+        SUPABASE_URL,
+        SUPABASE_ANON_KEY,
+        "GET",
+        `week_participants?week_id=eq.${weekId}&select=player_id,player:players(id,name,handicap_index)`
       );
       if (!part.ok) return text(part.status, part.text);
 
@@ -241,28 +208,77 @@ exports.handler = async (event) => {
         handicap_index: r?.player?.handicap_index ?? null,
       }));
 
-      const e = await sb(
+      // Pull all rounds for the week; compute best per player
+      const rounds = await sbAnon(
+        SUPABASE_URL,
+        SUPABASE_ANON_KEY,
         "GET",
-        `week_entries?select=player_id,pga_golfer&week_id=eq.${weekId}`
+        `player_rounds?week_id=eq.${weekId}&select=player_id,score_to_par,played_at`
       );
-      if (!e.ok) return text(e.status, e.text);
-      const entries = e.json || [];
-      const byPlayerId = new Map(entries.map((x) => [x.player_id, x.pga_golfer]));
+      if (!rounds.ok) return text(rounds.status, rounds.text);
 
-      const rows = participants.map((pl) => ({
-        player_id: pl.player_id,
-        player_name: pl.player_name,
-        handicap_index: pl.handicap_index ?? null,
-        pro_id: byPlayerId.get(pl.player_id) ?? null,
-      }));
+      const bestByPlayer = new Map();
+      for (const r of (rounds.json || [])) {
+        const pid = r.player_id;
+        const s = Number(r.score_to_par);
+        if (!Number.isFinite(s)) continue;
+        const cur = bestByPlayer.get(pid);
+        if (cur === undefined || s < cur) bestByPlayer.set(pid, s);
+      }
 
+      // Pull pro picks (stored in week_entries right now)
+      const picks = await sbAnon(
+        SUPABASE_URL,
+        SUPABASE_ANON_KEY,
+        "GET",
+        `week_entries?week_id=eq.${weekId}&select=player_id,pga_golfer,pro_score`
+      );
+      if (!picks.ok) return text(picks.status, picks.text);
+
+      const pickByPlayer = new Map();
+      const proScoreByPlayer = new Map();
+      for (const p of (picks.json || [])) {
+        pickByPlayer.set(p.player_id, p.pga_golfer ?? null);
+        // pro_score may be null until pro data integration
+        const ps = p.pro_score;
+        proScoreByPlayer.set(p.player_id, ps === null || ps === undefined ? null : Number(ps));
+      }
+
+      // Build rows:
+      // - playerScore = best round (min)
+      // - combined = playerScore + proScore if proScore is number
+      // - rank_score = combined ?? playerScore
+      const rows = participants.map((pl) => {
+        const playerScore = bestByPlayer.has(pl.player_id) ? bestByPlayer.get(pl.player_id) : null;
+        const proScore = proScoreByPlayer.has(pl.player_id) ? proScoreByPlayer.get(pl.player_id) : null;
+
+        const hasPlayer = Number.isFinite(playerScore);
+        const hasPro = Number.isFinite(proScore);
+
+        const combined = (hasPlayer && hasPro) ? (playerScore + proScore) : null;
+        const rank_score = (combined !== null) ? combined : (hasPlayer ? playerScore : null);
+
+        return {
+          player_id: pl.player_id,
+          player_name: pl.player_name,
+          handicap_index: pl.handicap_index,
+          playerScore: hasPlayer ? playerScore : null,
+          proScore: hasPro ? proScore : null,
+          combined: combined,          // may be null early
+          rank_score: rank_score,      // this is what we sort by
+          pga_golfer: pickByPlayer.get(pl.player_id) ?? null,
+        };
+      });
+
+      // Sort by rank_score ascending (lowest wins). Players with no rounds go last.
       rows.sort((a, b) => {
-        const ah = a.handicap_index, bh = b.handicap_index;
-        const aNull = ah == null, bNull = bh == null;
+        const ar = a.rank_score, br = b.rank_score;
+        const aNull = ar === null || ar === undefined;
+        const bNull = br === null || br === undefined;
         if (aNull && bNull) return (a.player_name || "").localeCompare(b.player_name || "");
         if (aNull) return 1;
         if (bNull) return -1;
-        if (bh !== ah) return bh - ah;
+        if (ar !== br) return ar - br;
         return (a.player_name || "").localeCompare(b.player_name || "");
       });
 
@@ -270,99 +286,12 @@ exports.handler = async (event) => {
     }
 
     // -------------------------
-    // leaderboard (participants only)
-    // -------------------------
-    if (route === "leaderboard") {
-      const params = event.queryStringParameters || {};
-      const weekIdParam = params.week_id;
-
-      let week = null;
-
-      if (weekIdParam) {
-        const w = await sb("GET", `weeks?id=eq.${weekIdParam}&select=id,label,week_number,start_date,end_date`);
-        if (!w.ok) return text(w.status, w.text);
-        week = w.json && w.json[0] ? w.json[0] : null;
-      } else {
-        const cw = await sb(
-          "GET",
-          "weeks?select=id,label,week_number,start_date,end_date&week_number=not.is.null&order=week_number.asc"
-        );
-        if (!cw.ok) return text(cw.status, cw.text);
-
-        const weeks = cw.json || [];
-        if (!weeks.length) return json(200, { week: null, week_id: null, rows: [] });
-
-        const today = new Date();
-        const inRange = weeks.find((w) => {
-          if (!w.start_date || !w.end_date) return false;
-          const s = new Date(w.start_date + "T00:00:00");
-          const e = new Date(w.end_date + "T23:59:59");
-          return today >= s && today <= e;
-        });
-
-        week =
-          inRange ||
-          (weeks[0]?.start_date && today < new Date(weeks[0].start_date + "T00:00:00")
-            ? weeks[0]
-            : weeks[weeks.length - 1]);
-      }
-
-      if (!week) return json(200, { week: null, week_id: null, rows: [] });
-
-      const part = await sb(
-        "GET",
-        `week_participants?week_id=eq.${week.id}` +
-          `&select=player_id,player:players(id,name,handicap_index)`
-      );
-      if (!part.ok) return text(part.status, part.text);
-
-      const participants = (part.json || []).map((r) => ({
-        player_id: r.player_id,
-        player_name: r?.player?.name || "—",
-        handicap_index: r?.player?.handicap_index ?? null,
-      }));
-
-      const e = await sb(
-        "GET",
-        `week_entries?select=player_id,your_score,pro_score,total,pga_golfer&week_id=eq.${week.id}`
-      );
-      if (!e.ok) return text(e.status, e.text);
-      const entries = e.json || [];
-      const byPlayerId = new Map(entries.map((x) => [x.player_id, x]));
-
-      const rows = participants.map((pl) => {
-        const ent = byPlayerId.get(pl.player_id) || {};
-        return {
-          player_id: pl.player_id,
-          player_name: pl.player_name,
-          handicap_index: pl.handicap_index ?? null,
-          playerScore: ent.your_score ?? null,
-          proScore: ent.pro_score ?? null,
-          combined: ent.total ?? null,
-          pga_golfer: ent.pga_golfer ?? null,
-        };
-      });
-
-      rows.sort((a, b) => {
-        const ac = a.combined;
-        const bc = b.combined;
-        const aNull = ac == null;
-        const bNull = bc == null;
-        if (aNull && bNull) return (a.player_name || "").localeCompare(b.player_name || "");
-        if (aNull) return 1;
-        if (bNull) return -1;
-        if (ac !== bc) return ac - bc;
-        return (a.player_name || "").localeCompare(b.player_name || "");
-      });
-
-      return json(200, { week: week.label || `Week ${week.week_number}`, week_id: week.id, rows });
-    }
-
-    // -------------------------
     // season-standings
     // -------------------------
     if (route === "season-standings") {
-      const out = await sb(
+      const out = await sbAnon(
+        SUPABASE_URL,
+        SUPABASE_ANON_KEY,
         "GET",
         "season_standings?select=player_id,player_name,points&order=points.desc,player_name.asc"
       );
