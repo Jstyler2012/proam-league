@@ -18,705 +18,368 @@
       --ok:#49e28b;
 
       --majorBorder: rgba(255,207,90,.55);
-      --majorText: #ffe6ad;
-      --majorBg: rgba(255,207,90,.10);
+      --majorText: #f7d26f;
 
-      --border:rgba(255,255,255,.10);
-      --shadow: 0 12px 40px rgba(0,0,0,.35);
-      --radius: 18px;
+      --card: rgba(255,255,255,.06);
+      --card2: rgba(255,255,255,.08);
+      --border: rgba(233,241,255,.12);
+      --shadow: 0 12px 30px rgba(0,0,0,.35);
+
+      --radius: 16px;
+      --radius2: 12px;
     }
 
-    *{ box-sizing:border-box; }
-    html, body { height:100%; }
+    html,body{height:100%}
     body{
       margin:0;
-      background: radial-gradient(900px 520px at 20% 0%, rgba(90,167,255,.10), transparent 55%),
-                  radial-gradient(900px 520px at 80% 0%, rgba(71,215,172,.10), transparent 55%),
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+      background: radial-gradient(1000px 700px at 20% 0%, rgba(90,167,255,.18), transparent 55%),
+                  radial-gradient(900px 650px at 80% 0%, rgba(71,215,172,.15), transparent 55%),
                   var(--bg);
       color: var(--text);
-      font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
     }
-    a{ color:inherit; text-decoration:none; }
-
-    .wrap{ max-width:1100px; margin:0 auto; padding:22px 16px 56px; }
-
-    /* ---------- Masthead: ONE box (image + season pill + nav pills) ---------- */
-    .masthead{
+    a{color:inherit}
+    .wrap{
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 20px 16px 44px;
+    }
+    .topHero{
+      position:relative;
+      overflow:hidden;
       border-radius: var(--radius);
-      border: 1px solid var(--border);
-      overflow: hidden;
+      background: linear-gradient(135deg, rgba(71,215,172,.22), rgba(90,167,255,.18));
       box-shadow: var(--shadow);
-      margin-bottom: 16px;
-      background: rgba(0,0,0,.18);
+      border: 1px solid rgba(233,241,255,.12);
     }
-
-.mastBanner{
-  width: 100%;
-  height: 96px; /* was 110px — shorter = less cropping so logo fits */
-  background-image: url("/assets/header-banner.jpg");
-  background-repeat: no-repeat;
-
-  /* Fill the box */
-  background-size: 35% auto;
-
-  /* Favor the logo/text area */
-  background-position: left 42%;
-
-  background-color: rgba(0,0,0,.18);
-}
-
-    /* Controls live inside SAME box (below banner) */
-    .mastControls{
-      border-top: 1px solid rgba(255,255,255,.08);
-      padding: 12px 12px 14px;
-      background: rgba(0,0,0,.16);
-    }
-
-    .mastControlsInner{
+    .heroInner{
       display:flex;
       align-items:center;
       justify-content:space-between;
-      gap:12px;
+      gap:18px;
+      padding: 18px 18px;
       flex-wrap:wrap;
-
-      border-radius: 16px;
-      padding: 10px 12px;
-      border: 1px solid rgba(255,255,255,.12);
-      background: rgba(0,0,0,.24);
-
-      /* IMPORTANT: no blur */
-      backdrop-filter: none;
     }
-
-    .seasonPill{
+    .heroTitle{
+      font-size: 22px;
+      font-weight: 800;
+      letter-spacing: .2px;
+    }
+    .heroSub{
+      margin-top:4px;
+      color: rgba(233,241,255,.72);
+      font-size: 14px;
+    }
+    .heroRight{
+      display:flex;
+      gap:10px;
+      align-items:center;
+      flex-wrap:wrap;
+    }
+    .pill{
       display:inline-flex;
       align-items:center;
-      justify-content:center;
       gap:8px;
-      padding:7px 12px;
-      border-radius:999px;
-      border:1px solid rgba(255,255,255,.12);
-      background: rgba(255,255,255,.06);
-      color: rgba(233,241,255,.86);
-      font-size:13px;
-      white-space: nowrap;
+      padding: 10px 12px;
+      border-radius: 999px;
+      background: rgba(0,0,0,.22);
+      border: 1px solid rgba(233,241,255,.14);
+      font-size: 13px;
+      color: rgba(233,241,255,.92);
     }
-
-    .navRow{
-      display:flex;
-      gap:8px;
-      flex-wrap:wrap;
-      justify-content:flex-end;
+    .dot{
+      width:9px;height:9px;border-radius:99px;
+      background: var(--warn);
+      box-shadow: 0 0 0 3px rgba(255,207,90,.12);
     }
-
-    /* Keep your existing nav pill styles */
-    .navTab{
-      padding:8px 14px;
-      border-radius:999px;
-      border:1px solid var(--border);
-      text-decoration:none;
-      font-size:13px;
-      color:var(--muted);
-      font-weight:700;
-      transition:.15s;
-      background: rgba(255,255,255,.04);
+    .dotOk{background: var(--ok); box-shadow: 0 0 0 3px rgba(73,226,139,.14)}
+    .dotBad{background: var(--danger); box-shadow: 0 0 0 3px rgba(255,90,122,.14)}
+    .btn{
+      border: 1px solid rgba(233,241,255,.15);
+      background: rgba(255,255,255,.08);
+      color: var(--text);
+      padding: 10px 12px;
+      border-radius: 12px;
+      cursor:pointer;
+      font-weight: 700;
     }
-    .navTab:hover{
-      border-color:rgba(90,167,255,.45);
-      color:#cfe3ff;
-      background: rgba(255,255,255,.06);
+    .btnPrimary{
+      background: linear-gradient(135deg, rgba(71,215,172,.95), rgba(90,167,255,.85));
+      color: #07101d;
+      border: none;
     }
-    .navTabActive{
-      border-color:rgba(71,215,172,.45);
-      color:#c9fff0;
-      background:rgba(71,215,172,.12);
-    }
-
- @media (max-width: 700px){
-
-  /* Banner strip */
-  .mastBanner{
-    height: 88px;
-    background-size: cover;
-    background-position: center 43%;
-  }
-
-  /* Make the bar itself shorter */
-  .mastBar{
-    padding: 8px 10px 10px;
-  }
-
-  /* Make the inner panel shorter */
-  .mastBarInner{
-    padding: 8px 10px;
-    gap: 8px;
-    justify-content:center;
-    text-align:center;
-  }
-
-  /* Season pill shorter */
-  .seasonPill{
-    padding: 6px 10px;
-    font-size: 12.5px;
-    width: 100%;
-    justify-content:center;
-    white-space: normal;
-  }
-
-  /* Nav row tighter */
-  .navRow{
-    width:100%;
-    justify-content:center;
-    gap: 6px;
-  }
-
-  /* Nav buttons shorter */
-  .navTab{
-    padding: 7px 12px;
-    font-size: 12.5px;
-  }
-}
-
-    /* Kept for JS updates, hidden */
-    .pillrow{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; justify-content:flex-start; }
-    .pill{
-      border:1px solid var(--border);
-      background: rgba(255,255,255,.06);
-      padding:8px 10px; border-radius:999px;
-      font-size:12px; color:var(--muted);
-      display:flex; gap:8px; align-items:center;
-    }
-    .dot{ width:8px; height:8px; border-radius:50%; background:var(--warn); }
-    .dot.ok{ background:var(--ok); }
-    .dot.bad{ background:var(--danger); }
-    .mastheadControls{ display:none !important; }
-
-    /* ---------- Cards + layout ---------- */
     .grid{
       display:grid;
-      grid-template-columns: 1fr 1.4fr; /* leaderboard wider on desktop */
-      gap:16px;
+      grid-template-columns: 1.15fr .85fr;
+      gap: 14px;
+      margin-top: 14px;
     }
-    @media (max-width: 980px){
-      .grid{ grid-template-columns: 1fr; gap:12px; } /* stack on mobile for clean fit */
+    @media (max-width: 920px){
+      .grid{grid-template-columns:1fr}
     }
 
     .card{
-      background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
-      border:1px solid var(--border);
+      background: var(--card);
+      border: 1px solid rgba(233,241,255,.12);
       border-radius: var(--radius);
-      box-shadow: var(--shadow);
+      box-shadow: 0 8px 22px rgba(0,0,0,.28);
       overflow:hidden;
     }
     .card .hd{
-      padding:14px 16px;
-      display:flex; align-items:center; justify-content:space-between; gap:12px;
-      background: rgba(0,0,0,.14);
-      border-bottom:1px solid var(--border);
-    }
-    .card .hd h2{
-      margin:0;
-      font-size:14px;
-      letter-spacing:.3px;
-      text-transform:uppercase;
-      color:var(--muted);
-    }
-    .card .bd{ padding:16px; }
-
-    @media (max-width:560px){
-      .card .hd{ padding: 10px 12px; }
-      .card .bd{ padding: 12px; }
-    }
-
-    .btn{
-      appearance:none; border:none; cursor:pointer;
-      background: linear-gradient(135deg, var(--brand2), var(--brand));
-      color:#04101e; font-weight:800;
-      padding:10px 12px; border-radius:12px;
-      box-shadow: 0 10px 24px rgba(0,0,0,.28);
-      transition: transform .08s ease;
-      font-size:13px;
-    }
-    .btn:active{ transform: translateY(1px); }
-    .btn.secondary{
-      background: rgba(255,255,255,.08);
-      color:var(--text);
-      border:1px solid var(--border);
-      box-shadow:none;
-      font-weight:700;
-    }
-
-    .row{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
-    .field{
-      display:flex; flex-direction:column; gap:6px;
-      min-width: 180px;
-      flex: 1;
-    }
-    label{ font-size:12px; color:var(--muted); }
-    input, select{
-      width:100%;
-      padding:10px 12px;
-      border-radius:12px;
-      border:1px solid var(--border);
-      background: rgba(0,0,0,.25);
-      color:var(--text);
-      outline:none;
-    }
-    input::placeholder{ color: rgba(233,241,255,.35); }
-
-    .split{ display:grid; grid-template-columns: 1fr 1fr; gap:10px; }
-    @media(max-width:560px){ .split{ grid-template-columns:1fr; } }
-
-    .submitActions{
       display:flex;
-      gap:10px;
+      justify-content:space-between;
+      align-items:center;
+      gap: 10px;
+      padding: 14px 14px;
+      background: rgba(255,255,255,.05);
+      border-bottom: 1px solid rgba(233,241,255,.10);
       flex-wrap:wrap;
-      margin-top:12px;
     }
-    @media(max-width:560px){
-      .submitActions{ flex-direction:column; }
-      .submitActions .btn{ width:100%; }
-    }
-
-    .badge{
-      display:inline-flex; align-items:center; gap:8px;
-      padding:6px 10px; border-radius:999px;
-      background: rgba(71,215,172,.12);
-      border:1px solid rgba(71,215,172,.28);
-      color:#c9fff0;
-      font-weight:700; font-size:12px;
-      white-space: nowrap;
-    }
-    .badge.gray{
-      background: rgba(255,255,255,.06);
-      border:1px solid var(--border);
-      color: var(--muted);
-      font-weight:700;
-    }
-    .badge.weekPill{
-      font-size:13px;
-      padding:7px 12px;
-      font-weight:900;
-      letter-spacing:.2px;
-    }
-
-    .msg{
-      margin-top:10px;
-      border:1px solid var(--border);
-      background: rgba(0,0,0,.22);
-      padding:10px 12px;
-      border-radius:12px;
-      color:var(--muted);
-      font-size:13px;
-      white-space: pre-wrap;
-    }
-    .msg.ok{ border-color: rgba(73,226,139,.3); color:#c9ffde; }
-    .msg.bad{ border-color: rgba(255,90,122,.35); color:#ffd0da; }
-
-    .footer{
-      margin-top:16px;
-      color:rgba(233,241,255,.45);
-      font-size:12px;
-      text-align:center;
-    }
-
-    /* Hide Public pill beside Submit title (keep for JS state updates) */
-    #lockBadge{ display:none !important; }
-
-    /* ---------- Week hero ---------- */
-    .weekHero{
-      position: relative;
-      min-height: 150px;
-      padding: 16px;
-      border-top: 1px solid var(--border);
-      background: rgba(0,0,0,.16);
-      overflow: hidden;
-      background-repeat: no-repeat;
-      background-size: cover;
-      background-position: right center;
-    }
-    .weekHeroOverlay{
-      position:absolute;
-      inset:0;
-      background:
-        linear-gradient(90deg, rgba(5,10,20,.92) 0%, rgba(5,10,20,.78) 44%, rgba(5,10,20,.35) 100%),
-        radial-gradient(900px 320px at 20% 10%, rgba(90,167,255,.18), transparent 60%),
-        radial-gradient(800px 280px at 80% 0%, rgba(71,215,172,.14), transparent 60%);
-    }
-    .weekHeroContent{
-      position: relative;
-      z-index: 1;
-      display:flex;
-      align-items:center;
-      gap: 14px;
-      flex-wrap: wrap;
-    }
-    .weekHeroLogo{
-      width: 88px;
-      height: 88px;
-      border-radius: 18px;
-      border: 1px solid var(--border);
-      background: rgba(0,0,0,.18);
-      object-fit: contain;
-      flex: 0 0 auto;
-    }
-    .weekHeroText{ flex: 1; min-width: 240px; }
-    .weekHeroTitle{
+    .card .bd{ padding: 14px 14px; }
+    .hTitle{
       font-weight: 900;
-      font-size: 18px;
       letter-spacing: .2px;
-      line-height: 1.15;
-    }
-    .weekHeroDates{
-      margin-top: 6px;
-      color: rgba(233,241,255,.75);
-      font-size: 13px;
-    }
-
-    /* ---------- Schedule carousel ---------- */
-    .scheduleCarouselWrap{
-      border-top: 1px solid var(--border);
-      background: rgba(0,0,0,.14);
-      padding: 12px 12px 14px;
-    }
-    .scheduleCarouselHd{
       display:flex;
       align-items:center;
-      justify-content:space-between;
-      gap:12px;
-      margin-bottom:10px;
+      gap: 10px;
     }
-    .scheduleCarouselHd .hint{
-      color: rgba(233,241,255,.55);
-      font-size: 12px;
-    }
-    .scheduleCarousel{
-      display:flex;
-      gap:10px;
-      overflow-x:auto;
-      padding-bottom: 6px;
-      scroll-snap-type: x mandatory;
-      scroll-padding: 0 50%;
-      scroll-behavior: smooth;
-      -webkit-overflow-scrolling: touch;
-    }
-    .scheduleCarousel::-webkit-scrollbar{ height: 8px; }
-    .scheduleCarousel::-webkit-scrollbar-thumb{
-      background: rgba(255,255,255,.12);
-      border-radius: 999px;
-    }
-    .scheduleItem{
-      flex: 0 0 auto;
-      min-width: 260px;
-      max-width: 340px;
-      scroll-snap-align: center;
-      scroll-snap-stop: always;
-
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:12px;
-      padding:12px 12px;
-      border-radius:14px;
-      border:1px solid var(--border);
-      background: rgba(0,0,0,.18);
-      cursor:pointer;
-      transition: transform .08s ease, background .12s ease, border-color .12s ease;
-    }
-    .scheduleItem:active{ transform: translateY(1px); }
-    .scheduleItem.active{
-      border-color: rgba(71,215,172,.35);
-      background: rgba(71,215,172,.08);
-    }
-    .scheduleLeft{
-      display:flex;
-      align-items:center;
-      gap:12px;
-      min-width:0;
-      flex:1;
-    }
-    .scheduleLogo{
-      width:40px; height:40px;
-      border-radius:12px;
-      border:1px solid var(--border);
-      background: rgba(0,0,0,.18);
-      object-fit: contain;
-      flex:0 0 auto;
-    }
-    .scheduleText{ min-width:0; }
-    .scheduleName{
-      font-weight:800;
-      font-size:13px;
-      white-space:nowrap;
-      overflow:hidden;
-      text-overflow:ellipsis;
-      max-width: 230px;
-    }
-    .scheduleMeta{ margin-top:2px; color:var(--muted); font-size:12px; }
-
-    .tag{
+    .badgeMajor{
       display:inline-flex;
-      align-items:center;
-      gap:8px;
-      padding:6px 10px;
-      border-radius:999px;
-      border:1px solid var(--border);
-      background: rgba(255,255,255,.06);
-      color: var(--muted);
-      font-weight:800;
-      font-size:12px;
-      flex: 0 0 auto;
-      white-space: nowrap;
-    }
-    .tag.major{
-      border-color: var(--majorBorder);
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 900;
       color: var(--majorText);
-      background: var(--majorBg);
+      border: 1px solid var(--majorBorder);
+      background: rgba(255,207,90,.08);
     }
-
-    .card.weekMajorCard{
-      border-color: var(--majorBorder);
-      box-shadow:
-        0 12px 40px rgba(0,0,0,.35),
-        0 0 0 1px rgba(255,207,90,.12),
-        0 0 26px rgba(255,207,90,.14);
+    .muted{ color: rgba(233,241,255,.68); }
+    .row{ display:flex; gap:12px; flex-wrap:wrap; align-items:center;}
+    .fieldRow{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-top:10px;}
+    .label{ font-size: 12px; color: rgba(233,241,255,.7); font-weight: 800; text-transform: uppercase; letter-spacing:.6px; }
+    .input, select{
+      background: rgba(0,0,0,.20);
+      border: 1px solid rgba(233,241,255,.14);
+      color: var(--text);
+      padding: 10px 10px;
+      border-radius: 12px;
+      outline: none;
+      min-width: 160px;
     }
-    .card.weekMajorCard .hd{ border-bottom-color: rgba(255,207,90,.25); }
-    .badge.majorBadge{
-      border-color: var(--majorBorder) !important;
-      color: var(--majorText) !important;
-      background: var(--majorBg) !important;
-      font-weight: 800 !important;
+    .msg{
+      margin-top: 10px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid rgba(233,241,255,.16);
+      background: rgba(0,0,0,.20);
+      color: rgba(233,241,255,.92);
+      font-weight: 700;
     }
-    .badge.majorPts{
-      border-color: rgba(255,207,90,.55) !important;
-      color: #ffe6ad !important;
-      background: rgba(255,207,90,.10) !important;
-      font-weight: 800 !important;
+    .msg.ok{ border-color: rgba(73,226,139,.35); background: rgba(73,226,139,.09); }
+    .msg.bad{ border-color: rgba(255,90,122,.35); background: rgba(255,90,122,.09); }
+    .msg.warn{ border-color: rgba(255,207,90,.35); background: rgba(255,207,90,.09); color: rgba(255,232,170,.95); }
+    .tableWrap{
+      overflow:auto;
+      border-radius: 14px;
+      border: 1px solid rgba(233,241,255,.10);
+      background: rgba(0,0,0,.20);
     }
-
-    /* ---------- Leaderboard (KEEP desktop look on mobile) ---------- */
     table{
       width:100%;
-      border-collapse:collapse;
-      border-radius: 14px;
-      border:1px solid var(--border);
-      background: rgba(0,0,0,.18);
-      overflow:hidden;
+      border-collapse: collapse;
+      font-size: 14px;
     }
     th, td{
-      padding:10px 10px;
-      border-bottom:1px solid rgba(255,255,255,.07);
-      text-align:left;
-      font-size:13px;
-      vertical-align: middle;
+      padding: 10px 10px;
+      border-bottom: 1px solid rgba(233,241,255,.10);
       white-space: nowrap;
     }
     th{
-      color:var(--muted);
-      font-weight:700;
-      font-size:12px;
-      text-transform:uppercase;
-      letter-spacing:.3px;
+      text-align:left;
+      font-size: 12px;
+      color: rgba(233,241,255,.70);
+      text-transform: uppercase;
+      letter-spacing: .6px;
     }
-    tr:last-child td{ border-bottom:none; }
-
-    .mono{ font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
-    .center{ text-align:center !important; }
-
-    .rankPill{
-      display:inline-flex;
-      align-items:center;
-      justify-content:center;
-      min-width:34px;
-      padding:6px 8px;
-      border-radius:999px;
-      background: rgba(255,255,255,.06);
-      border:1px solid var(--border);
-      font-weight:900;
-    }
+    tr:last-child td{border-bottom:none;}
+    .mono{font-variant-numeric: tabular-nums; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;}
+    .center{text-align:center}
+    .right{text-align:right}
     .totalPill{
       display:inline-flex;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: rgba(71,215,172,.12);
+      border: 1px solid rgba(71,215,172,.28);
+      color: rgba(189,255,236,.95);
+      font-weight: 900;
+    }
+    .totalPill.blank{
+      background: rgba(255,255,255,.06);
+      border-color: rgba(233,241,255,.14);
+      color: rgba(233,241,255,.60);
+      font-weight: 800;
+    }
+    .footer{
+      margin-top: 14px;
+      color: rgba(233,241,255,.55);
+      font-size: 12px;
+      text-align:center;
+    }
+    .navBar{
+      display:flex;
+      gap:10px;
       align-items:center;
-      justify-content:center;
-      min-width:54px;
-      padding:6px 8px;
-      border-radius:999px;
+      flex-wrap:wrap;
+    }
+    .navTab{
+      text-decoration:none;
+      display:inline-flex;
+      padding: 9px 12px;
+      border-radius: 999px;
+      border: 1px solid rgba(233,241,255,.14);
+      background: rgba(255,255,255,.06);
+      font-weight: 900;
+      font-size: 13px;
+    }
+    .navTabActive{
+      border-color: rgba(71,215,172,.35);
       background: rgba(71,215,172,.10);
-      border:1px solid rgba(71,215,172,.24);
-      font-weight:900;
-    }
-
-    /* Let the table stay “desktop style”; allow horizontal scroll ONLY if needed */
-    .tableWrap{
-      width:100%;
-      overflow-x:auto;
-      -webkit-overflow-scrolling: touch;
-      border-radius: 14px;
-    }
-
-    @media (max-width:560px){
-      th, td{ padding: 7px 6px; font-size: 12px; }
-      th{ font-size: 10.5px; letter-spacing:.35px; }
-
-      .playerCell{
-        max-width: 110px;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-        font-weight: 800;
-      }
     }
   </style>
 </head>
 
 <body>
   <div class="wrap">
-    <!-- Masthead (ONE box that includes image + season + nav) -->
-    <div class="masthead">
-      <div class="mastBanner" aria-label="Wellman banner"></div>
+    <div class="topHero">
+      <div class="heroInner">
+        <div>
+          <div class="heroTitle">Wellman Golf Club PRO-AM League</div>
+          <div class="heroSub">Draft a PGA Pro • Post your best 18-hole round • Lowest combined wins</div>
+        </div>
 
-      <div class="mastControls">
-        <div class="mastControlsInner">
-          <div class="seasonPill">Season 1: March 9 - June 21, 2026</div>
-
-          <div class="navRow">
+        <div class="heroRight">
+          <div class="pill"><span class="dot" id="statusDot"></span><span id="statusText">Loading…</span></div>
+          <div class="navBar">
             <a href="./index.html" class="navTab navTabActive">Home</a>
             <a href="./draft.html" class="navTab">Draft</a>
             <a href="./rules.html" class="navTab">Rules</a>
-           <a href="./login.html" class="navTab" id="navAuthLink">Log in</a>  
-          </div>
-
-          <!-- Kept for JS updates, hidden via .mastheadControls -->
-          <div class="pillrow mastheadControls" aria-label="Top controls">
-            <div class="pill" title="Netlify Functions health">
-              <span id="healthDot" class="dot"></span>
-              <span>API:</span>
-              <span id="healthText" class="mono">checking…</span>
-            </div>
-            <div class="pill" title="Current / displayed week">
-              <span class="mono">Week:</span>
-              <span id="weekLabel" class="mono">—</span>
-            </div>
-            <button class="btn secondary" id="refreshBtn">Refresh</button>
+            <a href="./login.html" class="navTab" id="navAuthLink">Log in</a>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Week details -->
-    <div class="card" id="weekDetailsCard" style="margin-bottom:16px;">
-      <div class="hd">
-        <span class="badge weekPill" id="tournamentWeekBadge">—</span>
-        <div class="row" style="justify-content:flex-end;">
-          <span class="badge gray" id="majorPtsBadge" style="display:none;">Major 2X Pts</span>
-        </div>
-      </div>
-
-      <div id="weekHero" class="weekHero">
-        <div class="weekHeroOverlay"></div>
-        <div class="weekHeroContent">
-          <img id="tournamentLogo" class="weekHeroLogo" alt="" style="display:none;">
-          <div class="weekHeroText">
-            <div class="weekHeroTitle" id="tournamentName">—</div>
-            <div class="weekHeroDates" id="tournamentDates">—</div>
-          </div>
-        </div>
-      </div>
-
-      <div class="scheduleCarouselWrap">
-        <div class="scheduleCarouselHd">
-          <div style="font-weight:800; color: rgba(233,241,255,.82); font-size:13px;">Weeks</div>
-          <div class="hint">Swipe to browse • Tap to select</div>
-        </div>
-        <div id="scheduleList" class="scheduleCarousel">
-          <div style="color:rgba(233,241,255,.45); padding: 8px 2px;">Loading schedule…</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Submit + leaderboard -->
     <div class="grid">
+
       <div class="card">
         <div class="hd">
-          <h2>Submit Your Score</h2>
-          <span class="badge gray" id="lockBadge">Public</span>
+          <div class="hTitle">
+            This Week
+            <span class="badgeMajor" id="weekBadge">Loading…</span>
+          </div>
+          <div class="row">
+            <button class="btn btnPrimary" id="refreshBtn">Refresh</button>
+            <button class="btn" id="participateBtn">Participate this week</button>
+          </div>
         </div>
 
         <div class="bd">
-          <!-- Participation (NEW) -->
-          <div class="row" style="justify-content:space-between; gap:10px; margin-bottom:10px;">
-            <span class="badge gray" id="participationBadge">Participation: —</span>
-            <button class="btn secondary" id="participateBtn" type="button" disabled>Participate this week</button>
-          </div>
-          <div id="participationMsg" class="msg" style="display:none;"></div>
-
-          <div class="split">
-            <div class="field">
-              <label for="playerSel">Player</label>
-              <select id="playerSel"></select>
+          <div class="row" style="justify-content:space-between;">
+            <div>
+              <div class="label">Tournament</div>
+              <div id="tournamentName" style="font-weight:900; margin-top:4px;">—</div>
+              <div class="muted" id="tournamentDates" style="margin-top:4px;">—</div>
             </div>
-            <div class="field">
-              <label for="proSel">Pro</label>
-              <select id="proSel"></select>
+            <div>
+              <div class="label">Participation</div>
+              <div id="participationText" style="font-weight:900; margin-top:4px;">—</div>
+              <div class="muted" id="participationNote" style="margin-top:4px;">—</div>
             </div>
           </div>
 
-          <div class="split" style="margin-top:10px;">
-            <div class="field">
-              <label for="playerScore">Your score to par (example: +10)</label>
-              <input id="playerScore" placeholder="+10" />
+          <div id="weekMsg" class="msg" style="display:none;"></div>
+
+          <div class="card" style="margin-top:14px;">
+            <div class="hd">
+              <div class="hTitle">Submit Your Score</div>
+              <div class="muted">You can submit multiple rounds • Best round counts</div>
             </div>
-            <div class="field">
-              <label for="proScore">Pro score to par (optional if auto-pulled)</label>
-              <input id="proScore" placeholder="-22" />
+            <div class="bd">
+
+              <div class="fieldRow">
+                <div>
+                  <div class="label">Your Score (To Par)</div>
+                  <input id="playerScore" class="input mono" placeholder="+10" />
+                </div>
+
+                <button id="submitBtn" class="btn btnPrimary">Submit</button>
+              </div>
+
+              <div id="submitMsg" class="msg" style="display:none;"></div>
+
+              <div class="muted" style="margin-top:10px;">
+                Pro picks & pro scoring will fill in once the draft opens and the PGA event starts.
+              </div>
             </div>
           </div>
 
-          <div class="submitActions">
-            <button class="btn" id="submitBtn">Submit</button>
-            <button class="btn secondary" id="autoProBtn">Auto-pull Pro Score</button>
-          </div>
-
-          <div id="submitMsg" class="msg" style="display:none;"></div>
-
-          <div class="row" style="margin-top:12px; justify-content:flex-end;">
-            <span class="badge" id="combinedBadge">Combined: —</span>
-          </div>
         </div>
       </div>
 
       <div class="card">
         <div class="hd">
-          <h2 id="leaderboardTitle">Week — Leaderboard</h2>
-          <span class="badge" id="lastUpdated">Updated: —</span>
+          <div class="hTitle">Season Schedule</div>
+          <div class="muted">Click a week to view</div>
         </div>
-
         <div class="bd">
-          <div class="tableWrap">
+          <div id="scheduleWrap" class="tableWrap">
             <table>
               <thead>
                 <tr>
-                  <th class="rank" rowspan="2">Rank</th>
-                  <th class="mono center" rowspan="2">Score Total</th>
-                  <th class="center" colspan="2">Player</th>
-                  <th class="center" colspan="2">Pro</th>
-                </tr>
-                <tr>
-                  <th>Player</th>
-                  <th class="mono center">Score</th>
-                  <th>Pro</th>
-                  <th class="mono center">Score</th>
+                  <th class="center">Week</th>
+                  <th>Tournament</th>
+                  <th class="right">Dates</th>
                 </tr>
               </thead>
-              <tbody id="lbBody">
-                <tr><td colspan="6" style="color:rgba(233,241,255,.45);">Loading…</td></tr>
+              <tbody id="scheduleBody">
+                <tr><td colspan="3" style="color:rgba(233,241,255,.45);">Loading…</td></tr>
               </tbody>
             </table>
           </div>
 
-          <div id="lbMsg" class="msg" style="display:none;"></div>
+          <div id="scheduleMsg" class="msg" style="display:none;"></div>
         </div>
+      </div>
+
+    </div>
+
+    <div class="card" style="margin-top:14px;">
+      <div class="hd">
+        <div class="hTitle">Weekly Leaderboard</div>
+        <div class="muted">Ranks by best round until pro scoring exists, then ranks by combined</div>
+      </div>
+      <div class="bd">
+        <div class="tableWrap">
+          <table>
+            <thead>
+              <tr>
+                <th class="center">#</th>
+                <th>Player</th>
+                <th class="center">HCP</th>
+                <th class="center">Your Best</th>
+                <th class="center">Pro</th>
+                <th class="center">Pro Score</th>
+                <th class="center">Rank Score</th>
+              </tr>
+            </thead>
+            <tbody id="lbBody">
+              <tr><td colspan="7" style="color:rgba(233,241,255,.45);">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div id="lbMsg" class="msg" style="display:none;"></div>
       </div>
     </div>
 
@@ -735,58 +398,51 @@ const API = {
 
   submit: "/api-mutate/submit-round",
   participate: "/api-mutate/participate",
-  me: "/api/me",
-  participants: "/api/participants",
-
-  proscore: "/api-proscore"
 };
 
-    const $ = (id) => document.getElementById(id);
+    function $(id){ return document.getElementById(id); }
 
-    function showMsg(el, text, type){
+    function showMsg(el, text, kind){
       if(!el) return;
       el.style.display = "block";
-      el.className = "msg" + (type ? " " + type : "");
+      el.className = "msg" + (kind ? " " + kind : "");
       el.textContent = text;
     }
-    function hideMsg(el){ if(el) el.style.display="none"; }
+    function hideMsg(el){
+      if(!el) return;
+      el.style.display = "none";
+      el.textContent = "";
+    }
 
     async function getJSON(url, opts={}){
-      const res = await fetch(url, { ...opts, headers: { "accept":"application/json", ...(opts.headers||{}) }});
-      const text = await res.text();
-      let data = null;
-      try { data = text ? JSON.parse(text) : null; } catch(e) {}
+      const res = await fetch(url, opts);
+      const txt = await res.text();
+      let j = null;
+      try{ j = txt ? JSON.parse(txt) : null; }catch{ j = null; }
       if(!res.ok){
-        const msg = (data && (data.error || data.message)) ? (data.error || data.message) : (text || res.statusText);
+        const msg = (j && (j.error || j.message)) ? (j.error || j.message) : txt || res.statusText;
         throw new Error(msg);
       }
-      return data;
+      return j;
     }
 
-    function parseToPar(str){
-      if(!str) return null;
-      let s = String(str).trim();
-      s = s.replace(/[−–—]/g, "-").replace(/[＋]/g, "+");
-      s = s.replace(/\u00A0/g, "");
-      if(/^[-+]?\d+$/.test(s)) return Number(s);
-      return null;
+    function parseToPar(s){
+      if(s === null || s === undefined) return null;
+      const t = String(s).trim();
+      if(!t) return null;
+      const n = Number(t.replace("+",""));
+      if(Number.isNaN(n)) return null;
+      return n;
     }
-
     function fmtToPar(n){
-      if(n === null || n === undefined || Number.isNaN(n)) return "—";
-      return (n > 0 ? "+" : "") + String(n);
+      if(n === null || n === undefined || Number.isNaN(Number(n))) return "—";
+      const v = Number(n);
+      if(v > 0) return "+" + v;
+      return String(v);
     }
 
-    function fmtDateRange(startISO, endISO){
-      if(!startISO || !endISO) return "—";
-      const opts = { month:"short", day:"numeric", year:"numeric" };
-      const s = new Date(startISO + "T00:00:00");
-      const e = new Date(endISO + "T00:00:00");
-      return `${s.toLocaleDateString("en-US", opts)} – ${e.toLocaleDateString("en-US", opts)}`;
-    }
-
-    function isMajor(tournamentName){
-      const n = (tournamentName || "").toLowerCase();
+    function isMajorName(tn){
+      const n = String(tn||"").toLowerCase();
       return (
         n.includes("masters") ||
         n.includes("pga championship") ||
@@ -808,468 +464,233 @@ const API = {
     }
 
     // State
-    let pros = [];
-    let prosById = new Map();
     let scheduleWeeks = [];
-    let displayedWeek = null;
-    let currentWeekId = null;
+    let displayedWeek = null;     // week object currently displayed
+    let currentWeekId = null;     // uses week_number
+    let isParticipating = false;
 
-    // Participation
-    let me = null;               // { user, player }
-    let participantRows = [];    // [{player_id, player_name, handicap_index, ...}]
-    let isMeParticipating = false;
+    // Init
+    $("refreshBtn")?.addEventListener("click", init);
+    $("participateBtn")?.addEventListener("click", toggleParticipate);
+    $("submitBtn")?.addEventListener("click", submitScore);
 
-    // Swipe-to-select
-    let ignoreAutoSelectUntil = 0;
-    let scheduleScrollTimer = null;
-
-    function pickCenteredWeekId(){
-      const root = $("scheduleList");
-      if(!root) return null;
-      const rootRect = root.getBoundingClientRect();
-      const centerX = rootRect.left + rootRect.width / 2;
-
-      let bestId = null;
-      let bestDist = Infinity;
-
-      root.querySelectorAll(".scheduleItem").forEach(el => {
-        const r = el.getBoundingClientRect();
-        const elCenter = r.left + r.width / 2;
-        const dist = Math.abs(elCenter - centerX);
-        if(dist < bestDist){
-          bestDist = dist;
-          bestId = el.getAttribute("data-week-id");
-        }
-      });
-
-      return bestId;
-    }
-
-    function attachScheduleScrollStop(weeks){
-      const root = $("scheduleList");
-      if(!root) return;
-      root.onscroll = null;
-
-      root.onscroll = () => {
-        if(Date.now() < ignoreAutoSelectUntil) return;
-
-        clearTimeout(scheduleScrollTimer);
-        scheduleScrollTimer = setTimeout(() => {
-          const id = pickCenteredWeekId();
-          if(!id) return;
-
-          const w = weeks.find(x => x.id === id);
-          if(!w) return;
-          if(displayedWeek?.id === w.id) return;
-
-          setDisplayedWeek(w);
-        }, 140);
-      };
-    }
-
-    function indexPros(list){
-      prosById = new Map();
-      for (const p of (list || [])){
-        const id = p?.id ?? p?.pro_id ?? p?.proId;
-        if(id != null) prosById.set(String(id), p);
-      }
-    }
-
-    function proNameFromRow(r){
-      const direct =
-        r?.pro_name ?? r?.proName ?? r?.pro ?? r?.drafted_pro_name ?? r?.draftedProName ?? null;
-      if(direct && String(direct).trim()) return String(direct);
-
-      const pid = r?.pro_id ?? r?.proId ?? r?.proID ?? r?.proid ?? r?.pga_golfer ?? null;
-      if(pid == null) return "—";
-      const p = prosById.get(String(pid));
-      return p?.name ?? p?.full_name ?? p?.player_name ?? String(pid);
-    }
-
-    function renderWeekDetails(week){
-      const hero = $("weekHero");
-      const img = $("tournamentLogo");
-      const badge = $("tournamentWeekBadge");
-      const weekCard = $("weekDetailsCard");
-
-      weekCard.classList.remove("weekMajorCard");
-      badge.classList.remove("majorBadge");
-
-      if(!week){
-        $("tournamentName").textContent = "—";
-        $("tournamentDates").textContent = "—";
-        badge.textContent = "—";
-        img.style.display = "none";
-        hero.style.backgroundImage = "none";
-        return;
-      }
-
-      const majorBadge = $("majorPtsBadge");
-      const major = isMajor(week?.tournament_name);
-
-      if (major) {
-        majorBadge.style.display = "inline-flex";
-        majorBadge.classList.add("majorPts");
-      } else {
-        majorBadge.style.display = "none";
-        majorBadge.classList.remove("majorPts");
-      }
-
-      badge.textContent = week.label || `Week ${week.week_number || "—"}`;
-      $("tournamentName").textContent = week.tournament_name || "—";
-      $("tournamentDates").textContent = fmtDateRange(week.start_date, week.end_date);
-
-      if (week.logo_url) {
-        hero.style.backgroundImage = `url("${week.logo_url}")`;
-        img.src = week.logo_url;
-        img.alt = `${week.tournament_name || "Tournament"} logo`;
-        img.style.display = "block";
-      } else {
-        hero.style.backgroundImage = "none";
-        img.style.display = "none";
-      }
-
-      if (major) {
-        weekCard.classList.add("weekMajorCard");
-        badge.classList.add("majorBadge");
-      }
-    }
-
-    function scrollScheduleToActive(activeWeekId){
-      const root = $("scheduleList");
-      if(!root || !activeWeekId) return;
-      const el = root.querySelector(`.scheduleItem[data-week-id="${CSS.escape(activeWeekId)}"]`);
-      if(!el) return;
-
-      ignoreAutoSelectUntil = Date.now() + 700;
-
-      const rootRect = root.getBoundingClientRect();
-      const elRect = el.getBoundingClientRect();
-      const delta = (elRect.left + elRect.width/2) - (rootRect.left + rootRect.width/2);
-      root.scrollBy({ left: delta, behavior: "smooth" });
-    }
-
-    function renderSchedule(weeks, activeWeekId){
-      const el = $("scheduleList");
-      if(!el) return;
-
-      if(!Array.isArray(weeks) || weeks.length === 0){
-        el.innerHTML = `<div style="color:rgba(233,241,255,.45);">No weeks found.</div>`;
-        return;
-      }
-
-      const sorted = weeks
-        .filter(w => w.week_number != null)
-        .sort((a,b) => a.week_number - b.week_number);
-
-      el.innerHTML = sorted.map(w => {
-        const active = (w.id === activeWeekId) ? "active" : "";
-        const dates = fmtDateRange(w.start_date, w.end_date);
-        const logo = w.logo_url
-          ? `<img class="scheduleLogo" alt="" src="${w.logo_url}">`
-          : `<div class="scheduleLogo"></div>`;
-        const tag = isMajor(w.tournament_name)
-          ? `<span class="tag major">Major</span>`
-          : `<span class="tag">Week ${w.week_number}</span>`;
-
-        return `
-          <div class="scheduleItem ${active}" data-week-id="${w.id}">
-            <div class="scheduleLeft">
-              ${logo}
-              <div class="scheduleText">
-                <div class="scheduleName">Week ${w.week_number} • ${w.tournament_name || "—"}</div>
-                <div class="scheduleMeta">${dates}</div>
-              </div>
-            </div>
-            ${tag}
-          </div>
-        `;
-      }).join("");
-
-      el.querySelectorAll(".scheduleItem").forEach(item => {
-        item.addEventListener("click", async () => {
-          const weekId = item.getAttribute("data-week-id");
-          const w = weeks.find(x => x.id === weekId);
-          if(!w) return;
-          await setDisplayedWeek(w);
-        });
-      });
-
-      attachScheduleScrollStop(sorted);
-      scrollScheduleToActive(activeWeekId);
-    }
-
-    function setLeaderboardTitleFromLabel(label, fallbackWeekNumber){
-      const wkNum = Number(String(label).match(/\d+/)?.[0] || fallbackWeekNumber || "");
-      const titleEl = $("leaderboardTitle");
-      if(titleEl) titleEl.textContent = `Week ${wkNum || "—"} Leaderboard`;
-    }
-
-    async function loadLeaderboardForWeek(week){
+    async function init(){
+      hideMsg($("weekMsg"));
+      hideMsg($("scheduleMsg"));
       hideMsg($("lbMsg"));
-      $("lbBody").innerHTML = `<tr><td colspan="6" style="color:rgba(233,241,255,.45);">Loading…</td></tr>`;
+      setStatus("Loading…", "warn");
 
       try{
-        const url = `${API.leaderboard}?week_id=${encodeURIComponent(week.id)}`;
-        const data = await getJSON(url);
+        // Load schedule list (and map week.id = week_number)
+        await loadSchedule();
 
-        const label = week.label || data.week || "—";
-        if($("weekLabel")) $("weekLabel").textContent = label;
-        setLeaderboardTitleFromLabel(label, week.week_number);
+        // Load current week (also uses week_number)
+        const cw = await getJSON(API.currentWeek);
+        const week = cw?.week || null;
 
-        const rows = data.rows || [];
-        if(!Array.isArray(rows) || rows.length === 0){
-          $("lbBody").innerHTML = `<tr><td colspan="6" style="color:rgba(233,241,255,.45);">No scores yet.</td></tr>`;
-        }else{
-          $("lbBody").innerHTML = rows.map((r, idx) => {
-            const proName = proNameFromRow(r);
-            return `
-              <tr>
-                <td><span class="rankPill">#${idx+1}</span></td>
-                <td class="mono center"><span class="totalPill">${fmtToPar(r.rank_score)}</span>/td>
-                <td class="playerCell">${r.player_name || "—"}</td>
-                <td class="mono center">${fmtToPar(r.playerScore)}</td>
-                <td>${proName || "—"}</td>
-                <td class="mono center">${fmtToPar(r.proScore)}</td>
-              </tr>
-            `;
-          }).join("");
+        if(!week){
+          showMsg($("weekMsg"), "No week configured yet. Add weeks in Supabase.", "warn");
+          setStatus("No week configured", "bad");
+          renderScheduleTable(scheduleWeeks);
+          return;
         }
 
-        $("lastUpdated").textContent = "Updated: " + new Date().toLocaleTimeString();
+        // Make it compatible with rest of app (id is week_number)
+        displayedWeek = { ...week, id: (week.id ?? week.week_number) };
+        currentWeekId = displayedWeek.id;
+
+        renderWeekHeader(displayedWeek);
+        renderScheduleTable(scheduleWeeks);
+
+        // Load participation state + leaderboard
+        await refreshParticipationState();
+        await loadLeaderboardForWeek(displayedWeek);
+
+        setStatus("Ready", "ok");
       }catch(e){
-        $("lbBody").innerHTML = `<tr><td colspan="6" style="color:rgba(233,241,255,.45);">Couldn’t load leaderboard.</td></tr>`;
-        showMsg($("lbMsg"), "Leaderboard error: " + e.message, "bad");
+        showMsg($("weekMsg"), "Init error: " + e.message, "bad");
+        setStatus("Error", "bad");
       }
     }
 
-    function setParticipationUI(ready){
-      const badge = $("participationBadge");
-      const btn = $("participateBtn");
-      const token = getAccessToken();
-      const loggedIn = !!token;
-
-      if(!ready){
-        if(badge){ badge.textContent = "Participation: —"; badge.className = "badge gray"; }
-        if(btn){ btn.disabled = true; btn.textContent = "Participate this week"; }
-        return;
-      }
-
-      if(!loggedIn){
-        if(badge){ badge.textContent = "Participation: Login required"; badge.className = "badge gray"; }
-        if(btn){ btn.disabled = true; btn.textContent = "Participate this week"; }
-        return;
-      }
-
-      if(badge){
-        badge.textContent = "Participation: " + (isMeParticipating ? "ON" : "OFF");
-        badge.className = "badge " + (isMeParticipating ? "" : "gray");
-      }
-      if(btn){
-        btn.disabled = false;
-        btn.textContent = isMeParticipating ? "You're participating (tap to remove)" : "Participate this week";
-      }
-    }
-
-    async function loadMe(){
-      const token = getAccessToken();
-      if(!token){ me = null; return null; }
-      try{
-        me = await getJSON(API.me, { headers: authedHeaders() });
-        return me;
-      }catch{
-        me = null;
-        return null;
-      }
-    }
-
-    async function loadParticipantsForWeek(weekId){
-      const data = await getJSON(`${API.participants}?week_id=${encodeURIComponent(weekId)}`);
-      participantRows = Array.isArray(data?.rows) ? data.rows : [];
-      return participantRows;
-    }
-
-    function recomputeMeParticipating(){
-      const myPlayerId = me?.player?.id ? String(me.player.id) : null;
-      if(!myPlayerId){
-        isMeParticipating = false;
-        return false;
-      }
-      isMeParticipating = participantRows.some(r => String(r.player_id) === myPlayerId);
-      return isMeParticipating;
-    }
-
-    function populatePlayersFromParticipants(){
-      const sel = $("playerSel");
-      if(!sel) return;
-
-      const prev = sel.value ? String(sel.value) : null;
-      const items = (participantRows || []).map(r => ({
-        id: String(r.player_id),
-        name: r.player_name || "—"
-      }));
-
-      sel.innerHTML = "";
-      for(const it of items){
-        const opt = document.createElement("option");
-        opt.value = it.id;
-        opt.textContent = it.name;
-        sel.appendChild(opt);
-      }
-
-      if(prev && items.some(x => x.id === prev)) sel.value = prev;
-
-      const myPlayerId = me?.player?.id ? String(me.player.id) : null;
-      if(myPlayerId && isMeParticipating && items.some(x => x.id === myPlayerId)){
-        sel.value = myPlayerId;
-      }
-    }
-
-    async function refreshParticipationAndPlayers(){
-      hideMsg($("participationMsg"));
-      setParticipationUI(false);
-
-      const weekId = currentWeekId;
-      if(!weekId){
-        participantRows = [];
-        me = null;
-        isMeParticipating = false;
-        populatePlayersFromParticipants();
-        setParticipationUI(true);
-        return;
-      }
-
-      await loadMe();
-
-      try{
-        await loadParticipantsForWeek(weekId);
-      }catch(e){
-        participantRows = [];
-        recomputeMeParticipating();
-        populatePlayersFromParticipants();
-        setParticipationUI(true);
-        showMsg($("participationMsg"), "Couldn’t load participants: " + e.message, "bad");
-        return;
-      }
-
-      recomputeMeParticipating();
-      populatePlayersFromParticipants();
-      setParticipationUI(true);
-
-      const token = getAccessToken();
-      if(!token){
-        showMsg($("participationMsg"), "Log in to join the field and auto-select yourself.", "");
-      } else if(!me?.player?.id){
-        showMsg($("participationMsg"), "No player linked to this login yet. Go to Sign Up and create your profile.", "bad");
-      } else if(isMeParticipating){
-        showMsg($("participationMsg"), "You're participating for this week.", "ok");
-      } else {
-        showMsg($("participationMsg"), "Tap “Participate this week” to join the field.", "");
-      }
-    }
-
-    async function toggleParticipate(){
-      hideMsg($("participationMsg"));
-
-      if(!currentWeekId){
-        showMsg($("participationMsg"), "No week loaded yet. Click refresh and try again.", "bad");
-        return;
-      }
-
-      const token = getAccessToken();
-      if(!token){
-        showMsg($("participationMsg"), "You must be logged in to toggle participation.", "bad");
-        return;
-      }
-
-      const btn = $("participateBtn");
-      if(btn) btn.disabled = true;
-
-      const next = !isMeParticipating;
-
-      try{
-        await getJSON(API.participate, {
-          method: "POST",
-          headers: authedHeaders({ "content-type":"application/json" }),
-          body: JSON.stringify({ week_id: currentWeekId, participate: next })
-        });
-
-        await refreshParticipationAndPlayers();
-        if(displayedWeek) await loadLeaderboardForWeek(displayedWeek);
-      }catch(e){
-        showMsg($("participationMsg"), "Participation error: " + e.message, "bad");
-      }finally{
-        if(btn) btn.disabled = false;
-      }
-    }
-
-    async function checkHealth(){
-      try{
-        const data = await getJSON(API.health);
-        if($("healthDot")) $("healthDot").className = "dot ok";
-        if($("healthText")) $("healthText").textContent = data && data.ok ? "ok" : "unknown";
-      }catch(e){
-        if($("healthDot")) $("healthDot").className = "dot bad";
-        if($("healthText")) $("healthText").textContent = "down";
-      }
-    }
-
-    async function loadPros(){
-      const pr = await getJSON(API.pros);
-      pros = Array.isArray(pr) ? pr : (pr.pros || []);
-      indexPros(pros);
-      // Pro dropdown uses full list (unchanged behavior)
-      const sel = $("proSel");
-      if(sel){
-        sel.innerHTML = "";
-        for(const p of pros){
-          const opt = document.createElement("option");
-          opt.value = p.id;
-          opt.textContent = p.name;
-          sel.appendChild(opt);
-        }
-      }
+    function setStatus(text, kind){
+      if($("statusText")) $("statusText").textContent = text;
+      const dot = $("statusDot");
+      if(!dot) return;
+      dot.className = "dot" + (kind === "ok" ? " dotOk" : (kind === "bad" ? " dotBad" : ""));
     }
 
     async function loadSchedule(){
       const res = await getJSON(API.schedule);
-      scheduleWeeks = res?.weeks || [];
+      scheduleWeeks = (res?.weeks || []).map(w => ({
+        ...w,
+        id: (w.id ?? w.week_number) // keep existing code working; id = week_number
+      }));
       return scheduleWeeks;
     }
 
-    function pickDisplayedWeekFromSchedule(weeks){
-      const sorted = (weeks || [])
-        .filter(w => w.week_number != null)
-        .sort((a,b) => a.week_number - b.week_number);
+    function renderWeekHeader(week){
+      const major = isMajorName(week.tournament_name);
+      if($("weekBadge")){
+        $("weekBadge").textContent = week.label || ("Week " + week.week_number);
+        $("weekBadge").style.display = "inline-flex";
+        $("weekBadge").className = "badgeMajor" + (major ? "" : "");
+      }
+      if($("tournamentName")) $("tournamentName").textContent = week.tournament_name || "—";
+      if($("tournamentDates")){
+        const sd = week.start_date ? new Date(week.start_date + "T00:00:00") : null;
+        const ed = week.end_date ? new Date(week.end_date + "T00:00:00") : null;
+        const fmt = (d) => d ? d.toLocaleDateString(undefined, { month:"short", day:"numeric", year:"numeric" }) : "—";
+        $("tournamentDates").textContent = `${fmt(sd)} – ${fmt(ed)}`;
+      }
+    }
 
-      if(!sorted.length) return null;
+    function renderScheduleTable(weeks){
+      const tbody = $("scheduleBody");
+      if(!tbody) return;
 
-      const today = new Date();
+      if(!weeks || !weeks.length){
+        tbody.innerHTML = `<tr><td colspan="3" style="color:rgba(233,241,255,.45);">No weeks loaded.</td></tr>`;
+        return;
+      }
 
-      const inRange = sorted.find(w => {
-        if(!w.start_date || !w.end_date) return false;
-        const s = new Date(w.start_date + "T00:00:00");
-        const e = new Date(w.end_date + "T23:59:59");
-        return today >= s && today <= e;
+      tbody.innerHTML = weeks.map(w => {
+        const isActive = (displayedWeek && String(displayedWeek.id) === String(w.id));
+        const sd = w.start_date ? new Date(w.start_date + "T00:00:00") : null;
+        const ed = w.end_date ? new Date(w.end_date + "T00:00:00") : null;
+        const fmt = (d) => d ? d.toLocaleDateString(undefined, { month:"short", day:"numeric" }) : "—";
+        return `
+          <tr data-week="${String(w.id)}" style="cursor:pointer; ${isActive ? "background:rgba(71,215,172,.06)" : ""}">
+            <td class="center mono">${w.week_number ?? "—"}</td>
+            <td style="font-weight:900;">${w.tournament_name || "—"}</td>
+            <td class="right muted">${fmt(sd)} – ${fmt(ed)}</td>
+          </tr>
+        `;
+      }).join("");
+
+      // click handlers
+      tbody.querySelectorAll("tr[data-week]").forEach(tr => {
+        tr.addEventListener("click", async () => {
+          const id = tr.getAttribute("data-week");
+          const w = scheduleWeeks.find(x => String(x.id) === String(id));
+          if(!w) return;
+          displayedWeek = w;
+          currentWeekId = w.id;
+          renderWeekHeader(w);
+          renderScheduleTable(scheduleWeeks);
+          await refreshParticipationState();
+          await loadLeaderboardForWeek(w);
+        });
       });
-
-      if(inRange) return inRange;
-
-      const seasonStart = sorted[0].start_date ? new Date(sorted[0].start_date + "T00:00:00") : null;
-      if(seasonStart && today < seasonStart) return sorted[0];
-
-      return sorted[sorted.length - 1];
     }
 
-    function computeCombined(){
-      const you = parseToPar($("playerScore")?.value);
-      const pro = parseToPar($("proScore")?.value);
-      if(you === null || pro === null) return null;
-      return you + pro;
+    async function refreshParticipationState(){
+      // Participation is stored server-side; we treat "participating" as:
+      // - if user is logged in, and week_participants contains their player_id for current week
+      // For now the UI gets state indirectly by trying to join/leave.
+      // We'll show a simple text and allow toggle; backend enforces player linkage.
+
+      const t = getAccessToken();
+      if(!t){
+        isParticipating = false;
+        if($("participationText")) $("participationText").textContent = "Not logged in";
+        if($("participationNote")) $("participationNote").textContent = "Log in to participate and submit scores.";
+        $("participateBtn").textContent = "Participate this week";
+        $("participateBtn").disabled = false;
+        return;
+      }
+
+      // We don't have a separate "participation status" endpoint yet, so we keep last known state.
+      // UX: user clicks participate, we set state based on response.
+      if($("participationText")) $("participationText").textContent = isParticipating ? "ON" : "OFF";
+      if($("participationNote")) $("participationNote").textContent = isParticipating ? "You're participating for this week." : "Click Participate to join this week.";
+      $("participateBtn").textContent = isParticipating ? "Leave this week" : "Participate this week";
+      $("participateBtn").disabled = false;
     }
-    function renderCombined(){
-      const c = computeCombined();
-      if($("combinedBadge")) $("combinedBadge").textContent = "Combined: " + fmtToPar(c);
+
+    async function toggleParticipate(){
+      hideMsg($("weekMsg"));
+
+      if(!currentWeekId){
+        showMsg($("weekMsg"), "No week loaded yet.", "bad"); return;
+      }
+
+      const token = getAccessToken();
+      if(!token){
+        showMsg($("weekMsg"), "You must be logged in to participate.", "bad"); return;
+      }
+
+      $("participateBtn").disabled = true;
+
+      try{
+        const payload = { week_id: currentWeekId, participate: !isParticipating };
+        await getJSON(API.participate, {
+          method: "POST",
+          headers: authedHeaders({ "content-type":"application/json" }),
+          body: JSON.stringify(payload)
+        });
+
+        isParticipating = !isParticipating;
+        await refreshParticipationState();
+
+        showMsg($("weekMsg"),
+          isParticipating ? "You're participating for this week." : "You left this week.",
+          "ok"
+        );
+
+        if (displayedWeek) await loadLeaderboardForWeek(displayedWeek);
+
+      }catch(e){
+        showMsg($("weekMsg"), "Participation error: " + e.message, "bad");
+      }finally{
+        $("participateBtn").disabled = false;
+      }
+    }
+
+    async function loadLeaderboardForWeek(week){
+      hideMsg($("lbMsg"));
+      const tbody = $("lbBody");
+      if(!tbody) return;
+
+      tbody.innerHTML = `<tr><td colspan="7" style="color:rgba(233,241,255,.45);">Loading…</td></tr>`;
+
+      try{
+        const url = `${API.leaderboard}?week_id=${encodeURIComponent(week.id)}`;
+        const res = await getJSON(url);
+        const rows = res?.rows || [];
+
+        if(!rows.length){
+          tbody.innerHTML = `<tr><td colspan="7" style="color:rgba(233,241,255,.45);">No participants yet.</td></tr>`;
+          return;
+        }
+
+        tbody.innerHTML = rows.map((r, idx) => {
+          const name = r.player_name || "—";
+          const hcp = (r.handicap_index === null || r.handicap_index === undefined) ? "—" : Number(r.handicap_index).toFixed(1);
+          const proName = r.pga_golfer || "—";
+          const proScore = (r.proScore === null || r.proScore === undefined) ? "—" : fmtToPar(r.proScore);
+
+          const rankVal = (r.rank_score === null || r.rank_score === undefined)
+            ? `<span class="totalPill blank">—</span>`
+            : `<span class="totalPill">${fmtToPar(r.rank_score)}</span>`;
+
+          return `
+            <tr>
+              <td class="center mono">${idx+1}</td>
+              <td style="font-weight:900;">${name}</td>
+              <td class="center mono">${hcp}</td>
+              <td class="center mono">${fmtToPar(r.playerScore)}</td>
+              <td class="center">${proName}</td>
+              <td class="center mono">${proScore}</td>
+              <td class="mono center">${rankVal}</td>
+            </tr>
+          `;
+        }).join("");
+
+      }catch(e){
+        showMsg($("lbMsg"), "Leaderboard error: " + e.message, "bad");
+        tbody.innerHTML = `<tr><td colspan="7" style="color:rgba(233,241,255,.45);">Error loading leaderboard.</td></tr>`;
+      }
     }
 
     async function submitScore(){
@@ -1280,25 +701,28 @@ const API = {
         return;
       }
 
-      const playerId = $("playerSel")?.value;
-      const proId = $("proSel")?.value;
+      const token = getAccessToken();
+      if (!token) {
+        showMsg($("submitMsg"), "You must be logged in to submit a score.", "bad");
+        return;
+      }
+
       const you = parseToPar($("playerScore")?.value);
-      const pro = parseToPar($("proScore")?.value);
-
-      if(!playerId || !proId){
-        showMsg($("submitMsg"), "Pick a Player and a Pro.", "bad"); return;
-      }
-      if(you === null){
-        showMsg($("submitMsg"), "Enter your score to par (example: +10).", "bad"); return;
+      if (you === null) {
+        showMsg($("submitMsg"), "Enter your score to par (example: +10).", "bad");
+        return;
       }
 
-      const payload = { week_id: currentWeekId, player_id: playerId, pro_id: proId, player_to_par: you };
-      if (pro !== null) payload.pro_to_par = pro;
+      // NEW payload for submit-round
+      const payload = {
+        week_id: currentWeekId,
+        score_to_par: you
+      };
 
       try{
         await getJSON(API.submit, {
           method:"POST",
-          headers: { "content-type":"application/json" },
+          headers: authedHeaders({ "content-type":"application/json" }),
           body: JSON.stringify(payload)
         });
 
@@ -1309,91 +733,23 @@ const API = {
       }
     }
 
-    async function autoPullProScore(){
-      hideMsg($("submitMsg"));
-      const proId = $("proSel")?.value;
-      if(!proId){
-        showMsg($("submitMsg"), "Pick a Pro first.", "bad"); return;
+    // Init once on load
+    init();
+
+    // Home nav "Log in" / "Profile" behavior
+    (function () {
+      const link = document.getElementById("navAuthLink");
+      if (!link) return;
+
+      const token = localStorage.getItem("sb_access_token");
+      if (token) {
+        link.href = "./profile.html";
+        link.textContent = "Profile";
+      } else {
+        link.href = "./login.html";
+        link.textContent = "Log in";
       }
-      try{
-        const data = await getJSON(API.proscore + "?pro_id=" + encodeURIComponent(proId));
-        const val = data.pro_to_par ?? data.to_par ?? data.score_to_par ?? null;
-        if(val === null || val === undefined){
-          showMsg($("submitMsg"), "Auto-pull worked but didn’t return a score field.", "bad"); return;
-        }
-        $("proScore").value = fmtToPar(Number(val));
-        renderCombined();
-        showMsg($("submitMsg"), "Pulled pro score: " + fmtToPar(Number(val)), "ok");
-      }catch(e){
-        showMsg($("submitMsg"), "Auto-pull error: " + e.message, "bad");
-      }
-    }
-
-    async function setDisplayedWeek(week){
-      displayedWeek = week;
-      currentWeekId = week.id;
-
-      renderWeekDetails(week);
-      renderSchedule(scheduleWeeks, week.id);
-
-      // participation + participants-only player dropdown
-      await refreshParticipationAndPlayers();
-
-      await loadLeaderboardForWeek(week);
-    }
-
-    $("playerScore")?.addEventListener("input", renderCombined);
-    $("proScore")?.addEventListener("input", renderCombined);
-    $("submitBtn")?.addEventListener("click", submitScore);
-    $("autoProBtn")?.addEventListener("click", autoPullProScore);
-    $("participateBtn")?.addEventListener("click", toggleParticipate);
-
-    $("refreshBtn") && ($("refreshBtn").onclick = async () => {
-      await boot();
-    });
-
-    async function boot(){
-      await checkHealth();
-      await loadPros();
-
-      try{
-        const weeks = await loadSchedule();
-        const wk = pickDisplayedWeekFromSchedule(weeks);
-        if(!wk) throw new Error("No week found in schedule");
-        await setDisplayedWeek(wk);
-      }catch(e){
-        try{
-          const cw = await getJSON(API.currentWeek);
-          const wk = cw?.week || null;
-          if (wk) {
-            try { await loadSchedule(); } catch(_){}
-            await setDisplayedWeek(wk);
-          } else {
-            renderWeekDetails(null);
-          }
-        }catch(_){
-          renderWeekDetails(null);
-        }
-      }
-
-      renderCombined();
-    }
-
-    boot();
-  </script>
-  <script>
-  (function () {
-    const link = document.getElementById("navAuthLink");
-    if (!link) return;
-
-    const token = localStorage.getItem("sb_access_token");
-    if (token) {
-      link.href = "./profile.html";
-      link.textContent = "Profile";
-    } else {
-      link.href = "./login.html";
-      link.textContent = "Log in";
-    }
-  })();
-</script></body>
+    })();
+</script>
+</body>
 </html>
