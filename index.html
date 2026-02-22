@@ -733,9 +733,8 @@ const API = {
   leaderboard: "/api/leaderboard",
   seasonStandings: "/api/season-standings",
 
-  submit: "/api-mutate/submit-score",
+  submit: "/api-mutate/submit-round",
   participate: "/api-mutate/participate",
-
   me: "/api/me",
   participants: "/api/participants",
 
@@ -1027,7 +1026,7 @@ const API = {
             return `
               <tr>
                 <td><span class="rankPill">#${idx+1}</span></td>
-                <td class="mono center"><span class="totalPill">${fmtToPar(r.combined)}</span></td>
+                <td class="mono center"><span class="totalPill">${fmtToPar(r.rank_score)}</span>/td>
                 <td class="playerCell">${r.player_name || "—"}</td>
                 <td class="mono center">${fmtToPar(r.playerScore)}</td>
                 <td>${proName || "—"}</td>
