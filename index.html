@@ -584,7 +584,7 @@
             <a href="./index.html" class="navTab navTabActive">Home</a>
             <a href="./draft.html" class="navTab">Draft</a>
             <a href="./rules.html" class="navTab">Rules</a>
-            <a href="./signup.html" class="navTab">Sign Up</a>
+           <a href="./login.html" class="navTab" id="navAuthLink">Log in</a>  
           </div>
 
           <!-- Kept for JS updates, hidden via .mastheadControls -->
@@ -1382,5 +1382,19 @@ const API = {
 
     boot();
   </script>
-</body>
+  <script>
+  (function () {
+    const link = document.getElementById("navAuthLink");
+    if (!link) return;
+
+    const token = localStorage.getItem("sb_access_token");
+    if (token) {
+      link.href = "./profile.html";
+      link.textContent = "Profile";
+    } else {
+      link.href = "./login.html";
+      link.textContent = "Log in";
+    }
+  })();
+</script></body>
 </html>
