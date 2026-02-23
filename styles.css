@@ -221,7 +221,11 @@ body::after{
   color: var(--muted);
   font-weight:700;
 }
-
+.badge.red{
+  background:#dc2626;
+  color:#fff;
+  border-color:#dc2626;
+}
 .btn{
   appearance:none; border:none; cursor:pointer;
   background: linear-gradient(135deg, var(--brand2), var(--brand));
