@@ -123,8 +123,10 @@ exports.handler = async (event) => {
       }
 
       const want = (participate === undefined || participate === null) ? true : Boolean(participate);
-
-      // week_participants.week_id might be either INTEGER (week_number) or UUID (weeks.id)
+// Participation is locked once enabled: do not allow leaving
+if (want === false) {
+  return json(403, { error: "Participation is locked for the week once confirmed." });
+}      // week_participants.week_id might be either INTEGER (week_number) or UUID (weeks.id)
       let weekKey = week_id;
 
       if (want) {
