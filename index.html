@@ -1228,11 +1228,11 @@ const ADMIN_EMAILS = ["jstyler2012@yahoo.com".toLowerCase()];
         showMsg($("participationMsg"), "Log in to join the field.", "");
       } else if(!me?.player?.id){
         showMsg($("participationMsg"), "No player linked to this login yet. Go to Sign Up and create your profile.", "bad");
-      } else if(isMeParticipating){
-        showMsg($("participationMsg"), "You're participating for this week.", "ok");
-      } else {
-        showMsg($("participationMsg"), "Tap “Participate this week” to join the field.", "");
-      }
+      }else if(isMeParticipating){
+  hideMsg($("participationMsg"));
+}else{
+  showMsg($("participationMsg"), "Tap “Participate this week” to join the field.", "");
+}   
     }
 async function adminRemoveParticipant(){
   hideMsg($("adminRemoveMsg"));
