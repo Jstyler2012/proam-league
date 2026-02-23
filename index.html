@@ -1128,7 +1128,21 @@ const ADMIN_EMAILS = ["jstyler2012@yahoo.com".toLowerCase()];
         name: r.player_name || "—"
       }));
 
+            const loggedIn = !!getAccessToken();
+
       sel.innerHTML = "";
+
+      if(!loggedIn){
+        const opt = document.createElement("option");
+        opt.value = "";
+        opt.textContent = "Log in to select your name";
+        sel.appendChild(opt);
+        sel.disabled = true;
+        return;
+      }
+
+      sel.disabled = false;
+
       for(const it of items){
         const opt = document.createElement("option");
         opt.value = it.id;
@@ -1139,10 +1153,9 @@ const ADMIN_EMAILS = ["jstyler2012@yahoo.com".toLowerCase()];
       if(prev && items.some(x => x.id === prev)) sel.value = prev;
 
       const myPlayerId = me?.player?.id ? String(me.player.id) : null;
-        if(myPlayerId && isMeParticipating && items.some(x => x.id === myPlayerId)){
-    sel.value = myPlayerId;
-  }
-
+      if(myPlayerId && isMeParticipating && items.some(x => x.id === myPlayerId)){
+        sel.value = myPlayerId;
+      }
   // Admin remove dropdown population
   const adminWrap = $("adminRemoveWrap");
   const adminSel = $("adminRemovePlayerSel");
