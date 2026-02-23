@@ -1085,14 +1085,13 @@ const ADMIN_EMAILS = ["jstyler2012@yahoo.com".toLowerCase()];
         }
         return;
    }
-      if(btn){ btn.style.display = ""; }      if(badge){
-        badge.textContent = "Participating: " + (isMeParticipating ? "YES" : "NO");
-        badge.className = "badge " + (isMeParticipating ? "" : "gray");
-      }
-          if(btn){
+      if(badge){
+  badge.textContent = "Participating: " + (isMeParticipating ? "YES" : "NO");
+  badge.className = isMeParticipating ? "badge green" : "badge gray";
+}         
+      if(btn){
         btn.disabled = isMeParticipating;
-        btn.textContent = isMeParticipating ? "You're participating (locked)" : "Participate this week";
-      }
+        btn.textContent = isMeParticipating ? "You're Participating" : "Participate this week";      }
     }
         async function loadMe(){
       const token = getAccessToken();
