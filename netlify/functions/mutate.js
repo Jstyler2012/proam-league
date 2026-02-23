@@ -54,8 +54,10 @@ async function sbService(SUPABASE_URL, SERVICE_KEY, method, restPath, bodyObj, p
   if (!r.ok) throw new Error(t || r.statusText);
   return t ? JSON.parse(t) : null;
 }
-
-async function getWeekUuidFromNumberService(SUPABASE_URL, SERVICE_KEY, weekNumber) {
+function safeJson(body) {
+  if (!body) return {};
+  try { return JSON.parse(body); } catch { return {}; }
+}async function getWeekUuidFromNumberService(SUPABASE_URL, SERVICE_KEY, weekNumber) {
   const wk = await sbService(
     SUPABASE_URL,
     SERVICE_KEY,
@@ -191,7 +193,79 @@ if (want === false) {
         }
       }
     }
+    // -------------------------
+// admin-remove-participant (ADMIN ONLY)
+// POST body: { week_id, player_id }
+// - Removes from week_participants
+// - Also deletes any player_rounds for that week/player
+// Auth required + email allowlist
 // -------------------------
+if (path === "admin-remove-participant") {
+  const auth = event.headers?.authorization || event.headers?.Authorization || "";
+  if (!auth.startsWith("Bearer ")) return json(401, { error: "Missing auth" });
+
+  // Identify user
+  const meResp = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+    headers: { apikey: SERVICE_KEY, Authorization: auth },
+  });
+  if (!meResp.ok) return json(401, { error: "Invalid auth" });
+
+  const user = await meResp.json();
+
+  // ✅ Put your email here (lowercase)
+  const ADMIN_EMAILS = ["jstyler2012@yahoo.com".toLowerCase()];
+  const email = String(user?.email || "").toLowerCase();
+  if (!ADMIN_EMAILS.includes(email)) {
+    return json(403, { error: "Admin only" });
+  }
+
+  const body = safeJson(event.body);
+  const week_id = Number(body?.week_id);
+  const player_id = String(body?.player_id || "").trim();
+
+  if (!Number.isFinite(week_id) || !player_id) {
+    return json(400, { error: "week_id and player_id required" });
+  }
+
+  // week_participants.week_id might be INT or UUID, so try INT first
+  let weekKey = week_id;
+
+  // 1) Remove from week_participants (with uuid fallback)
+  try {
+    await sbService(
+      SUPABASE_URL,
+      SERVICE_KEY,
+      "DELETE",
+      `week_participants?week_id=eq.${weekKey}&player_id=eq.${player_id}`
+    );
+  } catch (e) {
+    const msg = String(e?.message || "");
+    if (msg.includes("invalid input syntax for type uuid")) {
+      const uuid = await getWeekUuidFromNumberService(SUPABASE_URL, SERVICE_KEY, week_id);
+      if (!uuid) return json(404, { error: "Week not found" });
+      weekKey = uuid;
+
+      await sbService(
+        SUPABASE_URL,
+        SERVICE_KEY,
+        "DELETE",
+        `week_participants?week_id=eq.${weekKey}&player_id=eq.${player_id}`
+      );
+    } else {
+      throw e;
+    }
+  }
+
+  // 2) Also delete any submitted rounds for that player/week (player_rounds uses week_number)
+  await sbService(
+    SUPABASE_URL,
+    SERVICE_KEY,
+    "DELETE",
+    `player_rounds?week_id=eq.${week_id}&player_id=eq.${player_id}`
+  );
+
+  return json(200, { ok: true });
+}// -------------------------
 // submit-round
 // POST /api-mutate/submit-round
 // -------------------------
