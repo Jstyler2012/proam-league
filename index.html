@@ -1197,14 +1197,7 @@ const API = {
     });
 
     showMsg($("participationMsg"), "You’re participating for this week (locked).", "ok");
-    await refreshParticipationAndPlayers?.();
-    if (displayedWeek) await loadLeaderboardForWeek?.(displayedWeek);
-  }catch(e){
-    showMsg($("participationMsg"), "Participation error: " + e.message, "bad");
-  }finally{
-    if (btn) btn.disabled = false;
-  }
-}
+
         await refreshParticipationAndPlayers();
         if(displayedWeek) await loadLeaderboardForWeek(displayedWeek);
       }catch(e){
