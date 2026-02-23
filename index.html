@@ -1201,7 +1201,7 @@ const ADMIN_EMAILS = ["jstyler2012@yahoo.com".toLowerCase()];
 
       const token = getAccessToken();
       if(!token){
-        showMsg($("participationMsg"), "Log in to join the field and auto-select yourself.", "");
+        showMsg($("participationMsg"), "Log in to join the field.", "");
       } else if(!me?.player?.id){
         showMsg($("participationMsg"), "No player linked to this login yet. Go to Sign Up and create your profile.", "bad");
       } else if(isMeParticipating){
