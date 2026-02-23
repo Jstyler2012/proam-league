@@ -651,6 +651,17 @@
           </div>
           <div id="participationMsg" class="msg" style="display:none;"></div>
 
+<!-- Admin-only controls (hidden unless admin email) -->
+<div id="adminRemoveWrap" style="display:none; margin-top:10px;">
+  <div class="row" style="justify-content:space-between; gap:10px;">
+    <div class="field" style="min-width:240px; flex: 1;">
+      <label for="adminRemovePlayerSel">Admin: Remove player from this week</label>
+      <select id="adminRemovePlayerSel"></select>
+    </div>
+    <button class="btn secondary" id="adminRemoveBtn" type="button">Remove</button>
+  </div>
+  <div id="adminRemoveMsg" class="msg" style="display:none;"></div>
+</div>
           <div class="split">
             <div class="field">
               <label for="playerSel">Player</label>
@@ -795,7 +806,8 @@ const API = {
         n.includes("open championship")
       );
     }
-
+// Admin allowlist (lowercase)
+const ADMIN_EMAILS = ["jstyler2012@yahoo.com".toLowerCase()];
     // Auth (exact key from your login.html)
     function getAccessToken(){
       const t = localStorage.getItem("sb_access_token");
@@ -1066,7 +1078,10 @@ const API = {
   btn.textContent = isMeParticipating ? "You're participating (locked)" : "Participate this week";
 }    }
 
-    async function loadMe(){
+    async function loadMe()function isAdminUser(){
+  const email = String(me?.user?.email || "").toLowerCase();
+  return email && ADMIN_EMAILS.includes(email);
+}
       const token = getAccessToken();
       if(!token){ me = null; return null; }
       try{
@@ -1115,11 +1130,35 @@ const API = {
       if(prev && items.some(x => x.id === prev)) sel.value = prev;
 
       const myPlayerId = me?.player?.id ? String(me.player.id) : null;
-      if(myPlayerId && isMeParticipating && items.some(x => x.id === myPlayerId)){
-        sel.value = myPlayerId;
-      }
+        if(myPlayerId && isMeParticipating && items.some(x => x.id === myPlayerId)){
+    sel.value = myPlayerId;
+  }
+
+  // Admin remove dropdown population
+  const adminWrap = $("adminRemoveWrap");
+  const adminSel = $("adminRemovePlayerSel");
+  if (adminWrap && adminSel && isAdminUser()){
+    adminWrap.style.display = "block";
+    const prevAdmin = adminSel.value ? String(adminSel.value) : "";
+    adminSel.innerHTML = "";
+
+    const opts = (participantRows || []).map(r => ({
+      id: String(r.player_id),
+      name: r.player_name || "—"
+    }));
+
+    for(const it of opts){
+      const opt = document.createElement("option");
+      opt.value = it.id;
+      opt.textContent = it.name;
+      adminSel.appendChild(opt);
     }
 
+    if (prevAdmin && opts.some(x => x.id === prevAdmin)) adminSel.value = prevAdmin;
+  } else {
+    if (adminWrap) adminWrap.style.display = "none";
+  }
+}
     async function refreshParticipationAndPlayers(){
       hideMsg($("participationMsg"));
       setParticipationUI(false);
@@ -1162,8 +1201,51 @@ const API = {
         showMsg($("participationMsg"), "Tap “Participate this week” to join the field.", "");
       }
     }
+async function adminRemoveParticipant(){
+  hideMsg($("adminRemoveMsg"));
 
-    async function toggleParticipate(){
+  if (!isAdminUser()){
+    showMsg($("adminRemoveMsg"), "Admin only.", "bad");
+    return;
+  }
+  if (!currentWeekId){
+    showMsg($("adminRemoveMsg"), "No week loaded.", "bad");
+    return;
+  }
+
+  const playerId = $("adminRemovePlayerSel")?.value;
+  if (!playerId){
+    showMsg($("adminRemoveMsg"), "Select a player to remove.", "bad");
+    return;
+  }
+
+  const ok = confirm("Remove this player from the week? This will also delete their submitted round(s) for the week.");
+  if (!ok) return;
+
+  const btn = $("adminRemoveBtn");
+  if (btn) btn.disabled = true;
+
+  try{
+    const token = getAccessToken();
+    if (!token) throw new Error("Not logged in.");
+
+    const out = await getJSON("/api-mutate/admin-remove-participant", {
+      method: "POST",
+      headers: authedHeaders({ "content-type":"application/json" }),
+      body: JSON.stringify({ week_id: currentWeekId, player_id: playerId })
+    });
+
+    if (!out?.ok) throw new Error("Remove failed.");
+
+    showMsg($("adminRemoveMsg"), "Removed.", "ok");
+    await refreshParticipationAndPlayers();
+    if (displayedWeek) await loadLeaderboardForWeek(displayedWeek);
+  }catch(e){
+    showMsg($("adminRemoveMsg"), "Remove error: " + e.message, "bad");
+  }finally{
+    if (btn) btn.disabled = false;
+  }
+}    async function toggleParticipate(){
   hideMsg($("participationMsg"));
 
   if (!currentWeekId){
@@ -1418,7 +1500,7 @@ function confirmParticipationLock() {
     $("submitBtn")?.addEventListener("click", submitScore);
     $("autoProBtn")?.addEventListener("click", autoPullProScore);
     $("participateBtn")?.addEventListener("click", toggleParticipate);
-
+    $("adminRemoveBtn")?.addEventListener("click", adminRemoveParticipant);
     $("refreshBtn") && ($("refreshBtn").onclick = async () => {
       await boot();
     });
