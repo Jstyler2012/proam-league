@@ -55,6 +55,16 @@ async function sbService(SUPABASE_URL, SERVICE_KEY, method, restPath, bodyObj, p
   return t ? JSON.parse(t) : null;
 }
 
+async function getWeekUuidFromNumberService(SUPABASE_URL, SERVICE_KEY, weekNumber) {
+  const wk = await sbService(
+    SUPABASE_URL,
+    SERVICE_KEY,
+    "GET",
+    `weeks?select=id&week_number=eq.${weekNumber}&limit=1`
+  );
+  return wk?.[0]?.id || null;
+}
+
 function routeFrom(event) {
   const raw = (event.path || "").split("?")[0];
 
@@ -114,25 +124,69 @@ exports.handler = async (event) => {
 
       const want = (participate === undefined || participate === null) ? true : Boolean(participate);
 
+      // week_participants.week_id might be either INTEGER (week_number) or UUID (weeks.id)
+      let weekKey = week_id;
+
       if (want) {
-        const row = { week_id, player_id: playerId };
-        const saved = await sbService(
-          SUPABASE_URL,
-          SERVICE_KEY,
-          "POST",
-          `week_participants?on_conflict=week_id,player_id`,
-          row,
-          "resolution=merge-duplicates,return=representation"
-        );
-        return json(200, { ok: true, mode: "joined", row: saved?.[0] || null });
+        try {
+          const row = { week_id: weekKey, player_id: playerId };
+          const saved = await sbService(
+            SUPABASE_URL,
+            SERVICE_KEY,
+            "POST",
+            `week_participants?on_conflict=week_id,player_id`,
+            row,
+            "resolution=merge-duplicates,return=representation"
+          );
+          return json(200, { ok: true, mode: "joined", row: saved?.[0] || null });
+        } catch (e) {
+          const msg = String(e?.message || "");
+          if (msg.includes("invalid input syntax for type uuid")) {
+            const weekNumber = Number(week_id);
+            if (!Number.isFinite(weekNumber)) return json(400, { error: "Invalid week_id" });
+            const uuid = await getWeekUuidFromNumberService(SUPABASE_URL, SERVICE_KEY, weekNumber);
+            if (!uuid) return json(404, { error: "Week not found" });
+            weekKey = uuid;
+            const row = { week_id: weekKey, player_id: playerId };
+            const saved = await sbService(
+              SUPABASE_URL,
+              SERVICE_KEY,
+              "POST",
+              `week_participants?on_conflict=week_id,player_id`,
+              row,
+              "resolution=merge-duplicates,return=representation"
+            );
+            return json(200, { ok: true, mode: "joined", row: saved?.[0] || null });
+          }
+          throw e;
+        }
       } else {
-        await sbService(
-          SUPABASE_URL,
-          SERVICE_KEY,
-          "DELETE",
-          `week_participants?week_id=eq.${week_id}&player_id=eq.${playerId}`
-        );
-        return json(200, { ok: true, mode: "left" });
+        try {
+          await sbService(
+            SUPABASE_URL,
+            SERVICE_KEY,
+            "DELETE",
+            `week_participants?week_id=eq.${weekKey}&player_id=eq.${playerId}`
+          );
+          return json(200, { ok: true, mode: "left" });
+        } catch (e) {
+          const msg = String(e?.message || "");
+          if (msg.includes("invalid input syntax for type uuid")) {
+            const weekNumber = Number(week_id);
+            if (!Number.isFinite(weekNumber)) return json(400, { error: "Invalid week_id" });
+            const uuid = await getWeekUuidFromNumberService(SUPABASE_URL, SERVICE_KEY, weekNumber);
+            if (!uuid) return json(404, { error: "Week not found" });
+            weekKey = uuid;
+            await sbService(
+              SUPABASE_URL,
+              SERVICE_KEY,
+              "DELETE",
+              `week_participants?week_id=eq.${weekKey}&player_id=eq.${playerId}`
+            );
+            return json(200, { ok: true, mode: "left" });
+          }
+          throw e;
+        }
       }
     }
 // -------------------------
