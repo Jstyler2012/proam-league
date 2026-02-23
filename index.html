@@ -1090,14 +1090,10 @@ const ADMIN_EMAILS = ["jstyler2012@yahoo.com".toLowerCase()];
         badge.className = "badge " + (isMeParticipating ? "" : "gray");
       }
           if(btn){
-  if(isMeParticipating){
-    btn.style.display = "none";
-  } else {
-    btn.style.display = "";
-    btn.disabled = false;
-    btn.textContent = "Participate this week";
-  }
-}
+        btn.disabled = isMeParticipating;
+        btn.textContent = isMeParticipating ? "You're participating (locked)" : "Participate this week";
+      }
+    }
         async function loadMe(){
       const token = getAccessToken();
       if(!token){ me = null; return null; }
