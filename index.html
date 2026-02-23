@@ -1320,8 +1320,81 @@ const API = {
         showMsg($("submitMsg"), "Auto-pull error: " + e.message, "bad");
       }
     }
+function confirmParticipationLock() {
+  return new Promise((resolve) => {
+    // If modal already exists, remove it
+    const existing = document.getElementById("confirmParticipateOverlay");
+    if (existing) existing.remove();
 
-    async function setDisplayedWeek(week){
+    const overlay = document.createElement("div");
+    overlay.id = "confirmParticipateOverlay";
+    overlay.style.position = "fixed";
+    overlay.style.inset = "0";
+    overlay.style.background = "rgba(0,0,0,0.55)";
+    overlay.style.display = "flex";
+    overlay.style.alignItems = "center";
+    overlay.style.justifyContent = "center";
+    overlay.style.zIndex = "9999";
+
+    const card = document.createElement("div");
+    card.style.width = "min(520px, calc(100vw - 32px))";
+    card.style.background = "rgba(16, 22, 32, 0.96)";
+    card.style.border = "1px solid rgba(255,255,255,0.12)";
+    card.style.borderRadius = "16px";
+    card.style.boxShadow = "0 20px 60px rgba(0,0,0,0.45)";
+    card.style.padding = "18px";
+
+    const title = document.createElement("div");
+    title.textContent = "Confirm participation";
+    title.style.fontSize = "16px";
+    title.style.fontWeight = "700";
+    title.style.marginBottom = "8px";
+
+    const msg = document.createElement("div");
+    msg.textContent =
+      "Once you confirm participation for this week, you are locked in and cannot remove your entry later. This helps keep the field stable while scoring is in progress.";
+    msg.style.opacity = "0.9";
+    msg.style.lineHeight = "1.35";
+    msg.style.marginBottom = "14px";
+
+    const actions = document.createElement("div");
+    actions.style.display = "flex";
+    actions.style.gap = "10px";
+    actions.style.justifyContent = "flex-end";
+
+    const cancelBtn = document.createElement("button");
+    cancelBtn.className = "btn secondary";
+    cancelBtn.type = "button";
+    cancelBtn.textContent = "No, don’t participate";
+
+    const okBtn = document.createElement("button");
+    okBtn.className = "btn";
+    okBtn.type = "button";
+    okBtn.textContent = "Yes, participate";
+
+    function cleanup(result) {
+      overlay.remove();
+      resolve(result);
+    }
+
+    cancelBtn.addEventListener("click", () => cleanup(false));
+    okBtn.addEventListener("click", () => cleanup(true));
+
+    // Click outside to cancel
+    overlay.addEventListener("click", (e) => {
+      if (e.target === overlay) cleanup(false);
+    });
+
+    actions.appendChild(cancelBtn);
+    actions.appendChild(okBtn);
+
+    card.appendChild(title);
+    card.appendChild(msg);
+    card.appendChild(actions);
+    overlay.appendChild(card);
+    document.body.appendChild(overlay);
+  });
+}    async function setDisplayedWeek(week){
       displayedWeek = week;
      currentWeekId = week.week_number;
       renderWeekDetails(week);
