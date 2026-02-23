@@ -138,4 +138,3 @@ exports.handler = async (event) => {
     return text(500, `Server error: ${e?.message || String(e)}`);
   }
 };
-
