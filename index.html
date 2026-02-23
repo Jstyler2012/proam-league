@@ -656,7 +656,7 @@
               <label for="playerSel">Player</label>
               <select id="playerSel"></select>
             </div>
-            <div class="field">
+            <div class="field" style="display:none;">
               <label for="proSel">Pro</label>
               <select id="proSel"></select>
             </div>
@@ -667,7 +667,7 @@
               <label for="playerScore">Your score to par (example: +10)</label>
               <input id="playerScore" placeholder="+10" />
             </div>
-            <div class="field">
+            <div class="field" style="display:none;">
               <label for="proScore">Pro score to par (optional if auto-pulled)</label>
               <input id="proScore" placeholder="-22" />
             </div>
@@ -675,7 +675,7 @@
 
           <div class="submitActions">
             <button class="btn" id="submitBtn">Submit</button>
-            <button class="btn secondary" id="autoProBtn">Auto-pull Pro Score</button>
+            <button class="btn secondary" id="autoProBtn" style="display:none;">Auto-pull Pro Score</button>
           </div>
 
           <div id="submitMsg" class="msg" style="display:none;"></div>
