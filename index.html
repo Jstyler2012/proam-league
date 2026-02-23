@@ -1062,7 +1062,7 @@ const API = {
         badge.className = "badge " + (isMeParticipating ? "" : "gray");
       }
       if(btn){
-       btn.disabled = false;
+      btn.disabled = isMeParticipating;
         btn.textContent = "You're participating (locked)";      }
     }
 
