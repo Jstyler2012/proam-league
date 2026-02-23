@@ -1077,7 +1077,7 @@ const ADMIN_EMAILS = ["jstyler2012@yahoo.com".toLowerCase()];
         }
         return;
    }
-      if(badge){
+      if(btn){ btn.style.display = ""; }      if(badge){
         badge.textContent = "Participating: " + (isMeParticipating ? "YES" : "NO");
         badge.className = "badge " + (isMeParticipating ? "" : "gray");
       }
