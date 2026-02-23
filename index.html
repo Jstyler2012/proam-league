@@ -609,14 +609,18 @@
       <div class="hd" style="display:flex; align-items:center; gap:10px;">
   <span class="badge weekPill" id="tournamentWeekBadge">—</span>
 
-  <span class="badge gray" id="majorPtsBadge" style="display:none; margin-left:auto;">
+  <span class="badge gray" id="majorPtsBadge" style="display:none;">
     Major 2X Pts
+  </span>
+
+  <span class="badge gray" id="participationBadge" style="margin-left:auto;">
+    Participation: —
   </span>
 
   <button class="btn" id="participateBtn" type="button" disabled>
     Participate this week
   </button>
-</div>
+</div> 
       <div id="weekHero" class="weekHero">
         <div class="weekHeroOverlay"></div>
         <div class="weekHeroContent">
@@ -648,10 +652,7 @@
         </div>
 
         <div class="bd">
-          <!-- Participation (NEW) -->
-         <div class="row" style="margin-bottom:10px;">
-  <span class="badge gray" id="participationBadge">Participation: —</span>
-</div>      
+          <!-- Participation (NEW) -->     
           <div id="participationMsg" class="msg" style="display:none;">
           </div>
 <!-- Admin-only controls (hidden unless admin email) -->
