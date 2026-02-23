@@ -1073,15 +1073,12 @@ const ADMIN_EMAILS = ["jstyler2012@yahoo.com".toLowerCase()];
         badge.textContent = "Participation: " + (isMeParticipating ? "ON" : "OFF");
         badge.className = "badge " + (isMeParticipating ? "" : "gray");
       }
-      if(btn){
-  btn.disabled = isMeParticipating;
-  btn.textContent = isMeParticipating ? "You're participating (locked)" : "Participate this week";
-}    }
-
-    async function loadMe()function isAdminUser(){
-  const email = String(me?.user?.email || "").toLowerCase();
-  return email && ADMIN_EMAILS.includes(email);
-}
+          if(btn){
+        btn.disabled = isMeParticipating;
+        btn.textContent = isMeParticipating ? "You're participating (locked)" : "Participate this week";
+      }
+    }
+        async function loadMe(){
       const token = getAccessToken();
       if(!token){ me = null; return null; }
       try{
@@ -1093,6 +1090,10 @@ const ADMIN_EMAILS = ["jstyler2012@yahoo.com".toLowerCase()];
       }
     }
 
+    function isAdminUser(){
+      const email = String(me?.user?.email || "").toLowerCase();
+      return email && ADMIN_EMAILS.includes(email);
+    }
     async function loadParticipantsForWeek(weekId){
       const data = await getJSON(`${API.participants}?week_id=${encodeURIComponent(weekId)}`);
       participantRows = Array.isArray(data?.rows) ? data.rows : [];
