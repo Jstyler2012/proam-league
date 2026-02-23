@@ -606,12 +606,14 @@
 
     <!-- Week details -->
     <div class="card" id="weekDetailsCard" style="margin-bottom:16px;">
-      <div class="hd">
-        <span class="badge weekPill" id="tournamentWeekBadge">—</span>
-        <div class="row" style="justify-content:flex-end;">
-          <span class="badge gray" id="majorPtsBadge" style="display:none;">Major 2X Pts</span>
-        </div>
-      </div>
+      <div class="hd" style="display:flex; align-items:center; gap:10px;">
+  <span class="badge weekPill" id="tournamentWeekBadge">—</span>
+<button class="btn" id="participateBtn" type="button" disabled style="margin-left:auto;">
+  Participate this week   
+</button>
+  <span class="badge gray" id="majorPtsBadge" style="display:none;">Major 2X Pts</span>
+</div>     
+    </div>
 
       <div id="weekHero" class="weekHero">
         <div class="weekHeroOverlay"></div>
@@ -645,12 +647,11 @@
 
         <div class="bd">
           <!-- Participation (NEW) -->
-          <div class="row" style="justify-content:space-between; gap:10px; margin-bottom:10px;">
-            <span class="badge gray" id="participationBadge">Participation: —</span>
-            <button class="btn" id="participateBtn">Participate this week</button>   
+         <div class="row" style="margin-bottom:10px;">
+  <span class="badge gray" id="participationBadge">Participation: —</span>
+</div>      
+          <div id="participationMsg" class="msg" style="display:none;">
           </div>
-          <div id="participationMsg" class="msg" style="display:none;"></div>
-
 <!-- Admin-only controls (hidden unless admin email) -->
 <div id="adminRemoveWrap" style="display:none; margin-top:10px;">
   <div class="row" style="justify-content:space-between; gap:10px;">
