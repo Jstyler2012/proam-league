@@ -222,11 +222,10 @@ body::after{
   font-weight:700;
 }
 .badge.red{
-  background:#dc2626;
-  color:#fff;
-  border-color:#dc2626;
-}
-.btn{
+  background: rgba(255,90,122,.12);
+  border:1px solid rgba(255,90,122,.28);
+  color:#ffc9d4;
+}.btn{
   appearance:none; border:none; cursor:pointer;
   background: linear-gradient(135deg, var(--brand2), var(--brand));
   color:#04101e; font-weight:800;
