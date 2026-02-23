@@ -55,6 +55,19 @@ async function sbAnon(SUPABASE_URL, SUPABASE_ANON_KEY, method, restPath) {
   try { return { ok: true, json: JSON.parse(t) }; } catch { return { ok: true, json: t }; }
 }
 
+async function getWeekUuidFromNumber(SUPABASE_URL, SUPABASE_ANON_KEY, weekNumber) {
+  const out = await sbAnon(
+    SUPABASE_URL,
+    SUPABASE_ANON_KEY,
+    "GET",
+    `weeks?select=id&week_number=eq.${weekNumber}&limit=1`
+  );
+  if (!out.ok) return { ok: false, status: out.status, text: out.text };
+  const id = (out.json || [])[0]?.id || null;
+  if (!id) return { ok: false, status: 404, text: "Week not found" };
+  return { ok: true, id };
+}
+
 exports.handler = async (event) => {
   if (event.httpMethod === "OPTIONS") {
     return { statusCode: 204, headers: corsHeaders, body: "" };
@@ -180,6 +193,73 @@ exports.handler = async (event) => {
     }
 
     // -------------------------
+    // participants
+    // Returns all participants for a week.
+    // If Authorization is provided, also returns is_participating for the authed user.
+    // Query param: week_id (WEEK NUMBER)
+    // -------------------------
+    if (route === "participants") {
+      const q = event.queryStringParameters || {};
+      const weekNumber = Number(q.week_id);
+      if (!Number.isFinite(weekNumber)) return json(400, { error: "Missing/invalid week_id" });
+
+      // week_participants.week_id might be either INTEGER (week_number) or UUID (weeks.id)
+      let weekKey = weekNumber;
+      let part = await sbAnon(
+        SUPABASE_URL,
+        SUPABASE_ANON_KEY,
+        "GET",
+        `week_participants?week_id=eq.${weekKey}&select=player_id,player:players(id,name,handicap_index)`
+      );
+
+      if (!part.ok && String(part.text || "").includes("invalid input syntax for type uuid")) {
+        const wk = await getWeekUuidFromNumber(SUPABASE_URL, SUPABASE_ANON_KEY, weekNumber);
+        if (!wk.ok) return text(wk.status, wk.text);
+        weekKey = wk.id;
+        part = await sbAnon(
+          SUPABASE_URL,
+          SUPABASE_ANON_KEY,
+          "GET",
+          `week_participants?week_id=eq.${weekKey}&select=player_id,player:players(id,name,handicap_index)`
+        );
+      }
+      if (!part.ok) return text(part.status, part.text);
+
+      const rows = (part.json || []).map((r) => ({
+        player_id: r.player_id,
+        player_name: r?.player?.name || "—",
+        handicap_index: r?.player?.handicap_index ?? null,
+      }));
+
+      // Optional: determine if the authed user is participating
+      let is_participating = false;
+      const auth = (event.headers?.authorization || event.headers?.Authorization || "").trim();
+      if (auth.startsWith("Bearer ")) {
+        const meResp = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+          headers: { apikey: SUPABASE_ANON_KEY, Authorization: auth },
+        });
+        if (meResp.ok) {
+          const user = await meResp.json();
+          const userId = user?.id;
+          if (userId) {
+            const p = await sbAnon(
+              SUPABASE_URL,
+              SUPABASE_ANON_KEY,
+              "GET",
+              `players?select=id&user_id=eq.${userId}&limit=1`
+            );
+            const playerId = (p.ok ? (p.json || [])[0]?.id : null) || null;
+            if (playerId) {
+              is_participating = rows.some((r) => String(r.player_id) === String(playerId));
+            }
+          }
+        }
+      }
+
+      return json(200, { week_id: weekNumber, rows, is_participating });
+    }
+
+    // -------------------------
     // leaderboard
     // Ranking rule:
     // - best_player = MIN(player_rounds.score_to_par)
@@ -190,16 +270,31 @@ exports.handler = async (event) => {
     // -------------------------
     if (route === "leaderboard") {
       const q = event.queryStringParameters || {};
-      const weekId = Number(q.week_id);
-      if (!Number.isFinite(weekId)) return json(400, { error: "Missing/invalid week_id" });
+      const weekNumber = Number(q.week_id);
+      if (!Number.isFinite(weekNumber)) return json(400, { error: "Missing/invalid week_id" });
+
+      // week_participants/week_entries might key on INTEGER week_number OR UUID weeks.id
+      let weekKey = weekNumber;
 
       // Pull all participants for the week
-      const part = await sbAnon(
+      let part = await sbAnon(
         SUPABASE_URL,
         SUPABASE_ANON_KEY,
         "GET",
-        `week_participants?week_id=eq.${weekId}&select=player_id,player:players(id,name,handicap_index)`
+        `week_participants?week_id=eq.${weekKey}&select=player_id,player:players(id,name,handicap_index)`
       );
+
+      if (!part.ok && String(part.text || "").includes("invalid input syntax for type uuid")) {
+        const wk = await getWeekUuidFromNumber(SUPABASE_URL, SUPABASE_ANON_KEY, weekNumber);
+        if (!wk.ok) return text(wk.status, wk.text);
+        weekKey = wk.id;
+        part = await sbAnon(
+          SUPABASE_URL,
+          SUPABASE_ANON_KEY,
+          "GET",
+          `week_participants?week_id=eq.${weekKey}&select=player_id,player:players(id,name,handicap_index)`
+        );
+      }
       if (!part.ok) return text(part.status, part.text);
 
       const participants = (part.json || []).map((r) => ({
@@ -213,7 +308,7 @@ exports.handler = async (event) => {
         SUPABASE_URL,
         SUPABASE_ANON_KEY,
         "GET",
-        `player_rounds?week_id=eq.${weekId}&select=player_id,score_to_par,played_at`
+        `player_rounds?week_id=eq.${weekNumber}&select=player_id,score_to_par,played_at`
       );
       if (!rounds.ok) return text(rounds.status, rounds.text);
 
@@ -231,7 +326,7 @@ exports.handler = async (event) => {
         SUPABASE_URL,
         SUPABASE_ANON_KEY,
         "GET",
-        `week_entries?week_id=eq.${weekId}&select=player_id,pga_golfer,pro_score`
+        `week_entries?week_id=eq.${weekKey}&select=player_id,pga_golfer,pro_score`
       );
       if (!picks.ok) return text(picks.status, picks.text);
 
@@ -282,7 +377,7 @@ exports.handler = async (event) => {
         return (a.player_name || "").localeCompare(b.player_name || "");
       });
 
-      return json(200, { week_id: weekId, rows });
+      return json(200, { week_id: weekNumber, rows });
     }
 
     // -------------------------
