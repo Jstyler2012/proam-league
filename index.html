@@ -1074,7 +1074,7 @@ const ADMIN_EMAILS = ["jstyler2012@yahoo.com".toLowerCase()];
       }
 
       if(badge){
-        badge.textContent = "Participation: " + (isMeParticipating ? "ON" : "OFF");
+        badge.textContent = "Participation: " + (isMeParticipating ? "YES" : "NO");
         badge.className = "badge " + (isMeParticipating ? "" : "gray");
       }
           if(btn){
@@ -1166,7 +1166,7 @@ const ADMIN_EMAILS = ["jstyler2012@yahoo.com".toLowerCase()];
 }
     async function refreshParticipationAndPlayers(){
       hideMsg($("participationMsg"));
-      setParticipationUI(false);
+      (false);
 
       const weekId = currentWeekId;
       if(!weekId){
