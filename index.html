@@ -1062,9 +1062,8 @@ const API = {
         badge.className = "badge " + (isMeParticipating ? "" : "gray");
       }
       if(btn){
-        btn.disabled = false;
-        btn.textContent = isMeParticipating ? "You're participating (tap to remove)" : "Participate this week";
-      }
+       btn.disabled = false;
+        btn.textContent = "You're participating (locked)";      }
     }
 
     async function loadMe(){
@@ -1165,31 +1164,47 @@ const API = {
     }
 
     async function toggleParticipate(){
-      hideMsg($("participationMsg"));
+  hideMsg($("participationMsg"));
 
-      if(!currentWeekId){
-        showMsg($("participationMsg"), "No week loaded yet. Click refresh and try again.", "bad");
-        return;
-      }
+  if (!currentWeekId){
+    showMsg($("participationMsg"), "No week loaded yet.", "bad");
+    return;
+  }
 
-      const token = getAccessToken();
-      if(!token){
-        showMsg($("participationMsg"), "You must be logged in to toggle participation.", "bad");
-        return;
-      }
+  const token = getAccessToken();
+  if(!token){
+    showMsg($("participationMsg"), "You must be logged in to participate.", "bad");
+    return;
+  }
 
-      const btn = $("participateBtn");
-      if(btn) btn.disabled = true;
+  // If already participating, do not allow un-participate
+  if (isMeParticipating){
+    showMsg($("participationMsg"), "You’re already participating for this week (locked).", "ok");
+    return;
+  }
 
-      const next = !isMeParticipating;
+  const ok = await confirmParticipationLock();
+  if (!ok) return;
 
-      try{
-        await getJSON(API.participate, {
-          method: "POST",
-          headers: authedHeaders({ "content-type":"application/json" }),
-          body: JSON.stringify({ week_id: currentWeekId, participate: next })
-        });
+  const btn = $("participateBtn");
+  if (btn) btn.disabled = true;
 
+  try{
+    await getJSON(API.participate, {
+      method: "POST",
+      headers: authedHeaders({ "content-type":"application/json" }),
+      body: JSON.stringify({ week_id: currentWeekId, participate: true })
+    });
+
+    showMsg($("participationMsg"), "You’re participating for this week (locked).", "ok");
+    await refreshParticipationAndPlayers?.();
+    if (displayedWeek) await loadLeaderboardForWeek?.(displayedWeek);
+  }catch(e){
+    showMsg($("participationMsg"), "Participation error: " + e.message, "bad");
+  }finally{
+    if (btn) btn.disabled = false;
+  }
+}
         await refreshParticipationAndPlayers();
         if(displayedWeek) await loadLeaderboardForWeek(displayedWeek);
       }catch(e){
