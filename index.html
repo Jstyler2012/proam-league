@@ -1062,9 +1062,9 @@ const API = {
         badge.className = "badge " + (isMeParticipating ? "" : "gray");
       }
       if(btn){
-      btn.disabled = isMeParticipating;
-        btn.textContent = "You're participating (locked)";      }
-    }
+  btn.disabled = isMeParticipating;
+  btn.textContent = isMeParticipating ? "You're participating (locked)" : "Participate this week";
+}    }
 
     async function loadMe(){
       const token = getAccessToken();
@@ -1402,8 +1402,8 @@ function confirmParticipationLock() {
     overlay.appendChild(card);
     document.body.appendChild(overlay);
   });
-}    async function setDisplayedWeek(week){
-      displayedWeek = week;
+}    
+    async function setDisplayedWeek(week){      displayedWeek = week;
      currentWeekId = week.week_number;
       renderWeekDetails(week);
       renderSchedule(scheduleWeeks, week.week_number);
