@@ -1068,11 +1068,15 @@ const ADMIN_EMAILS = ["jstyler2012@yahoo.com".toLowerCase()];
       }
 
       if(!loggedIn){
-        if(badge){ badge.textContent = "Participation: Login required"; badge.className = "badge gray"; }
-        if(btn){ btn.disabled = true; }
+        if(badge){
+           badge.textContent = "Participating: Login required";
+          badge.className = "badge gray";
+        }
+        if(btn){
+           btn.style.display = "none";
+        }
         return;
-      }
-
+   }
       if(badge){
         badge.textContent = "Participating: " + (isMeParticipating ? "YES" : "NO");
         badge.className = "badge " + (isMeParticipating ? "" : "gray");
