@@ -52,7 +52,7 @@ async function sbAnon(SUPABASE_URL, SUPABASE_ANON_KEY, method, restPath) {
   const t = await r.text();
   if (!r.ok) return { ok: false, status: r.status, text: t };
   if (!t) return { ok: true, json: null };
-  try { return { ok: true, json: JSON.parse(t) }; } catch { return { ok: true, json: t }; }
+  try { return { ok: true, json: JSON.parse(t) }; } catch (e) { return { ok: true, json: t }; }
 }
 
 async function getWeekUuidFromNumber(SUPABASE_URL, SUPABASE_ANON_KEY, weekNumber) {
