@@ -57,9 +57,19 @@ async function sbService(SUPABASE_URL, SERVICE_KEY, method, restPath, bodyObj, p
 function safeJson(body) {
   if (!body) return {};
   try { return JSON.parse(body); } catch { return {}; }
-}async function getWeekUuidFromNumberService(SUPABASE_URL, SERVICE_KEY, weekNumber) {
-  const wk = await sbService(
-    SUPABASE_URL,
+}
+
+function allowedTiersFromHandicap(handicapIndex) {
+  const h = Number(handicapIndex);
+  if (!Number.isFinite(h)) return [1, 2, 3, 4];
+  if (h >= 16.0) return [1, 2, 3, 4];
+  if (h >= 11.0) return [2, 3, 4];
+  if (h >= 6.0) return [3, 4];
+  return [4];
+}
+
+async function getWeekUuidFromNumberService(SUPABASE_URL, SERVICE_KEY, weekNumber) {
+  const wk = await sbService(    SUPABASE_URL,
     SERVICE_KEY,
     "GET",
     `weeks?select=id&week_number=eq.${weekNumber}&limit=1`
@@ -412,28 +422,80 @@ if (path === "submit-score") {
     // draft-pick (AUTH REQUIRED)
     // POST /api-mutate/draft-pick { week_id, pro_id }
     // -------------------------
+        // -------------------------
+    // draft-pick (AUTH REQUIRED)
+    // Creates initial weekly pick. Once set, user must wait until swap phase to change.
+    // POST /api-mutate/draft-pick { week_id, pro_id }
+    // -------------------------
     if (path === "draft-pick") {
       const { week_id, pro_id } = body;
 
-      if (!week_id || !pro_id) {
-        return json(400, { error: "Missing week_id or pro_id" });
+      const weekNumber = Number(week_id);
+      const proId = String(pro_id || "").trim();
+
+      if (!Number.isFinite(weekNumber) || !proId) {
+        return json(400, { error: "Missing/invalid week_id or pro_id" });
       }
 
       const userId = await getAuthedUserId(event, SUPABASE_URL, SUPABASE_ANON_KEY);
       if (!userId) return json(401, { error: "Not logged in" });
 
-      const found = await sbService(
+      // Resolve player + handicap
+      const meRow = await sbService(
         SUPABASE_URL,
         SERVICE_KEY,
         "GET",
-        `players?select=id&user_id=eq.${userId}&limit=1`
+        `players?select=id,handicap_index&user_id=eq.${userId}&limit=1`
       );
-      const playerId = found?.[0]?.id || null;
+      const playerId = meRow?.[0]?.id || null;
+      const handicap = meRow?.[0]?.handicap_index;
+
       if (!playerId) {
         return json(403, { error: "No player linked to this login yet. Go to Sign Up and create your profile." });
       }
 
-      const row = { week_id, player_id: playerId, pga_golfer: pro_id };
+      // Must be participating this week
+      const part = await sbService(
+        SUPABASE_URL,
+        SERVICE_KEY,
+        "GET",
+        `week_participants?week_id=eq.${weekNumber}&player_id=eq.${playerId}&select=player_id&limit=1`
+      );
+      if (!part?.length) {
+        return json(403, { error: "You must participate for the week before drafting." });
+      }
+
+      // If already picked, draft is locked until swap phase
+      const existing = await sbService(
+        SUPABASE_URL,
+        SERVICE_KEY,
+        "GET",
+        `week_entries?week_id=eq.${weekNumber}&player_id=eq.${playerId}&select=pga_golfer&limit=1`
+      );
+      const existingPick = existing?.[0]?.pga_golfer || null;
+      if (existingPick) {
+        return json(403, { error: "Draft pick already submitted. Wait until swaps open to change your pick." });
+      }
+
+      // Look up pro tier for the week (server-side enforcement)
+      const proRow = await sbService(
+        SUPABASE_URL,
+        SERVICE_KEY,
+        "GET",
+        `week_pros?week_number=eq.${weekNumber}&pro_id=eq.${encodeURIComponent(proId)}&select=pro_id,tier&limit=1`
+      );
+      const tier = Number(proRow?.[0]?.tier);
+      if (!Number.isFinite(tier)) {
+        return json(400, { error: "That pro is not in this week's field." });
+      }
+
+      const allowed = allowedTiersFromHandicap(handicap);
+      if (!allowed.includes(tier)) {
+        return json(403, { error: "Your handicap tier does not allow drafting from that tier." });
+      }
+
+      // Save pick into existing week_entries row for leaderboard compatibility
+      const row = { week_id: weekNumber, player_id: playerId, pga_golfer: proId };
 
       const saved = await sbService(
         SUPABASE_URL,
@@ -447,6 +509,122 @@ if (path === "submit-score") {
       return json(200, { ok: true, entry: saved?.[0] || null });
     }
 
+    // -------------------------
+    // draft-swap (AUTH REQUIRED)
+    // Allowed only when swap phase is open (draft complete or admin opens)
+    // POST /api-mutate/draft-swap { week_id, pro_id }
+    // -------------------------
+    if (path === "draft-swap") {
+      const { week_id, pro_id } = body;
+
+      const weekNumber = Number(week_id);
+      const proId = String(pro_id || "").trim();
+
+      if (!Number.isFinite(weekNumber) || !proId) {
+        return json(400, { error: "Missing/invalid week_id or pro_id" });
+      }
+
+      const userId = await getAuthedUserId(event, SUPABASE_URL, SUPABASE_ANON_KEY);
+      if (!userId) return json(401, { error: "Not logged in" });
+
+      // Resolve player + handicap
+      const meRow = await sbService(
+        SUPABASE_URL,
+        SERVICE_KEY,
+        "GET",
+        `players?select=id,handicap_index&user_id=eq.${userId}&limit=1`
+      );
+      const playerId = meRow?.[0]?.id || null;
+      const handicap = meRow?.[0]?.handicap_index;
+
+      if (!playerId) {
+        return json(403, { error: "No player linked to this login yet. Go to Sign Up and create your profile." });
+      }
+
+      // Must already have a pick to swap
+      const existing = await sbService(
+        SUPABASE_URL,
+        SERVICE_KEY,
+        "GET",
+        `week_entries?week_id=eq.${weekNumber}&player_id=eq.${playerId}&select=pga_golfer&limit=1`
+      );
+      const existingPick = existing?.[0]?.pga_golfer || null;
+      if (!existingPick) {
+        return json(403, { error: "You must submit an initial draft pick before swapping." });
+      }
+
+      // Determine swap phase open:
+      // 1) explicit week_draft_state.swap_open
+      // 2) OR auto-open when all participants have picked
+      let explicitSwapOpen = false;
+      try {
+        const st = await sbService(
+          SUPABASE_URL,
+          SERVICE_KEY,
+          "GET",
+          `week_draft_state?week_number=eq.${weekNumber}&select=swap_open&limit=1`
+        );
+        explicitSwapOpen = Boolean(st?.[0]?.swap_open);
+      } catch {
+        explicitSwapOpen = false;
+      }
+
+      const participants = await sbService(
+        SUPABASE_URL,
+        SERVICE_KEY,
+        "GET",
+        `week_participants?week_id=eq.${weekNumber}&select=player_id`
+      );
+
+      const picks = await sbService(
+        SUPABASE_URL,
+        SERVICE_KEY,
+        "GET",
+        `week_entries?week_id=eq.${weekNumber}&select=player_id,pga_golfer`
+      );
+
+      const participantsCount = (participants || []).length;
+      let picksCount = 0;
+      for (const r of (picks || [])) if (r.pga_golfer) picksCount += 1;
+
+      const draftComplete = participantsCount > 0 && picksCount >= participantsCount;
+      const swapOpen = explicitSwapOpen || draftComplete;
+
+      if (!swapOpen) {
+        return json(403, { error: "Swaps are not open yet. Waiting for all participants to submit picks." });
+      }
+
+      // Enforce weekly field + tier eligibility
+      const proRow = await sbService(
+        SUPABASE_URL,
+        SERVICE_KEY,
+        "GET",
+        `week_pros?week_number=eq.${weekNumber}&pro_id=eq.${encodeURIComponent(proId)}&select=pro_id,tier&limit=1`
+      );
+      const tier = Number(proRow?.[0]?.tier);
+      if (!Number.isFinite(tier)) {
+        return json(400, { error: "That pro is not in this week's field." });
+      }
+
+      const allowed = allowedTiersFromHandicap(handicap);
+      if (!allowed.includes(tier)) {
+        return json(403, { error: "Your handicap tier does not allow swapping to that tier." });
+      }
+
+      // Save swap (overwrite pick)
+      const row = { week_id: weekNumber, player_id: playerId, pga_golfer: proId };
+
+      const saved = await sbService(
+        SUPABASE_URL,
+        SERVICE_KEY,
+        "POST",
+        `week_entries?on_conflict=week_id,player_id`,
+        row,
+        "resolution=merge-duplicates,return=representation"
+      );
+
+      return json(200, { ok: true, entry: saved?.[0] || null });
+    }  
     return json(404, { error: "Not found", path });
   } catch (err) {
     return json(500, { error: err?.message || String(err) });
