@@ -57,28 +57,34 @@ async function sbService(SUPABASE_URL, SERVICE_KEY, method, restPath, bodyObj, p
 function safeJson(body) {
   if (!body) return {};
   try { return JSON.parse(body); } catch { return {}; }
-}async function getWeekUuidFromNumberService(SUPABASE_URL, SERVICE_KEY, weekNumber) {
+}
+
+async function getWeekUuidFromNumberService(SUPABASE_URL, SERVICE_KEY, weekNumber) {
   const wk = await sbService(
     SUPABASE_URL,
     SERVICE_KEY,
     "GET",
     `weeks?select=id&week_number=eq.${weekNumber}&limit=1`
   );
-  function sortByHandicapDesc(rows){
-  return rows.slice().sort((a,b) => {
+  return wk?.[0]?.id || null;
+}
+
+// Used by draft logic (keep at top-level, NOT nested)
+function sortByHandicapDesc(rows) {
+  return rows.slice().sort((a, b) => {
     const ah = a?.player?.handicap_index;
     const bh = b?.player?.handicap_index;
     const aNull = ah === null || ah === undefined;
     const bNull = bh === null || bh === undefined;
-    if(aNull && bNull) return String(a?.player?.name||"").localeCompare(String(b?.player?.name||""));
-    if(aNull) return 1;
-    if(bNull) return -1;
-    if(bh !== ah) return Number(bh) - Number(ah);
-    return String(a?.player?.name||"").localeCompare(String(b?.player?.name||""));
+    if (aNull && bNull) return String(a?.player?.name || "").localeCompare(String(b?.player?.name || ""));
+    if (aNull) return 1;
+    if (bNull) return -1;
+    if (bh !== ah) return Number(bh) - Number(ah);
+    return String(a?.player?.name || "").localeCompare(String(b?.player?.name || ""));
   });
 }
 
-async function getDraftRow(SUPABASE_URL, SERVICE_KEY, weekIdText){
+async function getDraftRow(SUPABASE_URL, SERVICE_KEY, weekIdText) {
   const rows = await sbService(
     SUPABASE_URL,
     SERVICE_KEY,
@@ -88,7 +94,7 @@ async function getDraftRow(SUPABASE_URL, SERVICE_KEY, weekIdText){
   return rows?.[0] || null;
 }
 
-async function upsertDraftRow(SUPABASE_URL, SERVICE_KEY, row){
+async function upsertDraftRow(SUPABASE_URL, SERVICE_KEY, row) {
   const out = await sbService(
     SUPABASE_URL,
     SERVICE_KEY,
@@ -98,10 +104,7 @@ async function upsertDraftRow(SUPABASE_URL, SERVICE_KEY, row){
     "resolution=merge-duplicates,return=representation"
   );
   return out?.[0] || null;
-}  return wk?.[0]?.id || null;
-}
-
-function routeFrom(event) {
+}function routeFrom(event) {
   const raw = (event.path || "").split("?")[0];
 
   // because netlify.toml uses /.netlify/functions/mutate/:splat
