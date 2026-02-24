@@ -548,3 +548,13 @@ tr:last-child td{ border-bottom:none; }
   color: rgba(233,241,255,.70);
   margin-left:6px;
 }
+/* Draft page warning flash (subtle red) */
+body.draft-warning .wrap {
+  animation: draftWarnPulse 1s ease-in-out infinite;
+}
+
+@keyframes draftWarnPulse {
+  0% { box-shadow: 0 0 0 rgba(255,0,0,0); }
+  50% { box-shadow: 0 0 0 9999px rgba(255,0,0,0.045); }
+  100% { box-shadow: 0 0 0 rgba(255,0,0,0); }
+}
