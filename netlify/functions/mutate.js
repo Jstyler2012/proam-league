@@ -56,8 +56,7 @@ async function sbService(SUPABASE_URL, SERVICE_KEY, method, restPath, bodyObj, p
 }
 function safeJson(body) {
   if (!body) return {};
-  try { return JSON.parse(body); } catch { return {}; }
-}
+ try { return JSON.parse(body); } catch (e) { return {}; }}
 
 async function getWeekUuidFromNumberService(SUPABASE_URL, SERVICE_KEY, weekNumber) {
   const wk = await sbService(
