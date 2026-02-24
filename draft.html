@@ -110,9 +110,8 @@
       </div>
     </div>
 
-    <div class="footer">Draft opens Monday 12:00 PM ET • closes Wednesday 11:59 PM ET.</div>
-  </div>
-
+    <div class="footer">Draft starts Wednesday 8:00 PM ET • 1:00 timer per pick + 0:10 warning • auto-pick on expiry.
+    </div>
 <script>
 const API = {
   currentWeek: "/api/current-week",
@@ -120,10 +119,13 @@ const API = {
   draftBoard: "/api/draft-board",
   pros: "/api/pros",
   me: "/api/me",
+
+  draftState: "/api/draft-state",
+  draftTick: "/api-mutate/draft-tick",
+
   participate: "/api-mutate/participate",
   draftPick: "/api-mutate/draft-pick",
 };
-
 const $ = (id) => document.getElementById(id);
 
 function showMsg(el, text, type){
@@ -217,7 +219,45 @@ let pros = [];
 let participants = [];
 let isParticipating = false;
 let timer = null;
+let draftState = null;
+let liveLoop = null;
 
+async function loadDraftState(){
+  if(!currentWeek?.week_number) return;
+  draftState = await getJSON(`${API.draftState}?week_id=${encodeURIComponent(currentWeek.week_number)}`);
+}
+
+function setWarningFlash(on){
+  document.body.classList.toggle("draft-warning", !!on);
+}
+
+function startLiveLoop(){
+  if(liveLoop) clearInterval(liveLoop);
+
+  liveLoop = setInterval(async () => {
+    if(!currentWeek?.week_number) return;
+
+    // Drive server-side autopick/advancement
+    try{
+      await getJSON(API.draftTick, {
+        method:"POST",
+        headers:{ "content-type":"application/json" },
+        body: JSON.stringify({ week_id: currentWeek.week_number })
+      });
+    }catch(e){
+      // ignore tick errors; state fetch below will surface real issues
+    }
+
+    try{
+      await loadDraftState();
+      await loadBoard();
+      renderBoard();
+      renderDraftStatus();
+    }catch(e){
+      // Keep loop alive; show once if desired
+    }
+  }, 3000);
+}
 function setWeekHeader(w){
   const label = w.label || `Week ${w.week_number || "—"}`;
   $("weekBadge").textContent = label;
@@ -251,7 +291,10 @@ function renderBoard(){
     `Participants: ${boardRows.length} • Order: highest handicap → lowest • ${ctx.allDrafted ? "All drafted" : "On pick #" + (ctx.nextIdx+1)}`;
 
   $("boardBody").innerHTML = boardRows.map((r, i) => {
-    const isOnClock = (!ctx.allDrafted && i === ctx.nextIdx);
+    const isOnClock =
+  (draftState?.status === "LIVE") &&
+  String(draftState?.turn_player_id || "") &&
+  String(r.player_id) === String(draftState.turn_player_id);
     const pill = isOnClock ? `<span class="badge">On the clock</span>` : "";
     return `
       <tr>
@@ -263,14 +306,17 @@ function renderBoard(){
     `;
   }).join("");
 
-  if(ctx.allDrafted){
-    $("turnDot").className = "dot ok";
-    $("turnText").textContent = "All drafted • swaps allowed (until lock)";
-  } else {
-    $("turnDot").className = "dot";
-    $("turnText").textContent = `On the clock: ${ctx.nextPlayer?.player_name || "—"}`;
-  }
-
+  if(draftState?.status === "LIVE"){
+  $("turnDot").className = "dot";
+  const on = boardRows.find(r => String(r.player_id) === String(draftState.turn_player_id));
+  $("turnText").textContent = `On the clock: ${on?.player_name || "—"}`;
+} else if(draftState?.status === "COMPLETE"){
+  $("turnDot").className = "dot ok";
+  $("turnText").textContent = "Draft complete";
+} else {
+  $("turnDot").className = "dot";
+  $("turnText").textContent = "Draft scheduled";
+}
   const myPlayerId = me?.player?.id;
   const myRow = boardRows.find(r => String(r.player_id) === String(myPlayerId));
   const myCurrentPro = myRow?.pro_id ? String(myRow.pro_id) : null;
@@ -290,54 +336,78 @@ function renderBoard(){
 }
 
 function renderDraftStatus(){
-  const st = getDraftState(currentWeek);
-  $("windowText").textContent = `Opens: ${fmtET(st.open)} • Closes: ${fmtET(st.close)}`;
-
-  if(st.state === "not_open"){
-    $("draftStateBadge").textContent = "Not Open";
+  if(!draftState){
+    $("windowText").textContent = "—";
+    $("draftStateBadge").textContent = "—";
     $("draftStateBadge").className = "badge gray";
-  } else if(st.state === "open"){
-    $("draftStateBadge").textContent = "Open";
-    $("draftStateBadge").className = "badge";
-  } else {
-    $("draftStateBadge").textContent = "Locked";
-    $("draftStateBadge").className = "badge gray";
+    return;
   }
 
-  if(timer) clearInterval(timer);
-  const tick = () => {
-    const now = new Date();
-    const st2 = getDraftState(currentWeek);
-    if(st2.state === "not_open"){
-      showMsg($("countdownMsg"), `Draft opens in: ${partsToStr(msToParts(st2.open - now))}`, "");
-    } else if(st2.state === "open"){
-      showMsg($("countdownMsg"), `Draft locks in: ${partsToStr(msToParts(st2.close - now))}`, "");
-    } else {
-      showMsg($("countdownMsg"), `Draft is locked.`, "bad");
-    }
-  };
-  tick();
-  timer = setInterval(tick, 1000);
-}
+  const now = new Date(draftState.server_now);
+  const startsAt = draftState.starts_at ? new Date(draftState.starts_at) : null;
 
+  $("windowText").textContent =
+    startsAt ? `Starts: ${fmtET(startsAt)}` : "Starts: —";
+
+  const status = draftState.status || "SCHEDULED";
+
+  if(status === "SCHEDULED"){
+    $("draftStateBadge").textContent = "Scheduled";
+    $("draftStateBadge").className = "badge gray";
+
+    if(startsAt){
+      const ms = startsAt - now;
+      showMsg($("countdownMsg"), ms > 0 ? `Draft starts in: ${partsToStr(msToParts(ms))}` : "Draft starting…", "");
+    } else {
+      showMsg($("countdownMsg"), "Draft not configured (missing starts_at).", "bad");
+    }
+
+    setWarningFlash(false);
+    return;
+  }
+
+  if(status === "COMPLETE"){
+    $("draftStateBadge").textContent = "Complete";
+    $("draftStateBadge").className = "badge gray";
+    showMsg($("countdownMsg"), "Draft complete.", "");
+    setWarningFlash(false);
+    return;
+  }
+
+  // LIVE
+  $("draftStateBadge").textContent = "Live";
+  $("draftStateBadge").className = "badge";
+
+  const turnStarted = draftState.turn_started_at ? new Date(draftState.turn_started_at) : null;
+  const elapsedSec = turnStarted ? Math.max(0, Math.floor((now - turnStarted) / 1000)) : 0;
+  const remaining = Math.max(0, 60 - elapsedSec);
+  const inWarning = elapsedSec >= 60 && elapsedSec < 70;
+  const warningRemain = Math.max(0, 70 - elapsedSec);
+
+  if(inWarning){
+    showMsg($("countdownMsg"), `⚠️ Pick NOW — auto-pick in ${warningRemain}s`, "bad");
+  } else {
+    showMsg($("countdownMsg"), `Time left: ${remaining}s`, "");
+  }
+
+  setWarningFlash(inWarning);
+}
 function canPickNow(){
   if(!isParticipating) return { ok:false, reason:"You are not marked as participating this week. Click “Participate this week” first." };
+  if(!draftState) return { ok:false, reason:"Draft state unavailable. Click Refresh." };
 
-  const st = getDraftState(currentWeek);
-  if(st.state !== "open") return { ok:false, reason:"Draft is not open." };
+  if(draftState.status !== "LIVE") return { ok:false, reason:"Draft is not live." };
 
-  const ctx = computeDraftContext();
   const myPlayerId = me?.player?.id;
-  const myRow = boardRows.find(r => String(r.player_id) === String(myPlayerId));
-  if(!myRow) return { ok:false, reason:"You are not in the participant list for this week." };
+  if(!myPlayerId) return { ok:false, reason:"No player profile found." };
 
-  if(!ctx.allDrafted){
-    if(String(ctx.nextPlayer?.player_id) !== String(myPlayerId)){
-      return { ok:false, reason:`Not your turn. On the clock: ${ctx.nextPlayer?.player_name || "—"}.` };
-    }
-    return { ok:true, mode:"draft" };
+  if(String(draftState.turn_player_id) !== String(myPlayerId)){
+    const on = boardRows.find(r => String(r.player_id) === String(draftState.turn_player_id));
+    return { ok:false, reason:`Not your turn. On the clock: ${on?.player_name || "—"}.` };
   }
 
+  return { ok:true, mode:"draft" };
+}
   return { ok:true, mode:"swap" };
 }
 
@@ -365,7 +435,7 @@ async function submitPick(){
         "content-type":"application/json",
         "authorization":"Bearer " + token
       },
-      body: JSON.stringify({ week_id: currentWeek.week_number, pro_id: proId })  
+       body: JSON.stringify({ week_id: currentWeek.week_number, pro_id: proId })  
     });
 
     showMsg($("pickMsg"), gate.mode === "draft" ? "Draft pick saved!" : "Pick updated!", "ok");
@@ -394,8 +464,7 @@ async function loadPros(){
 }
 
 async function loadParticipants(){
-  const data = await getJSON(`${API.participants}?week_id=${encodeURIComponent(currentWeek.week_number)}`);
-  participants = data.rows || [];
+  const data = await getJSON(`${API.participants}?week_id=${encodeURIComponent(currentWeek.week_number)}`);  participants = data.rows || [];
   const myId = me?.player?.id;
   isParticipating = !!participants.find(r => String(r.player_id) === String(myId));
   renderParticipateUI();
@@ -416,10 +485,9 @@ async function toggleParticipate(){
         "content-type":"application/json",
         "authorization":"Bearer " + token
       },
-      body: JSON.stringify({ week_id: currentWeek.week_number, participate: want })
+      body: JSON.stringify({ week_id: currentWeek.week_number, participate: want })  
     });
-    await loadParticipants();
-    await loadBoard();
+   await Promise.all([ loadPros(), loadParticipants(), loadBoard(), loadDraftState() ]);
     renderBoard();
     showMsg($("pickMsg"), want ? "You are participating this week." : "You left this week.", "ok");
   }catch(e){
@@ -450,8 +518,9 @@ async function boot(){
     await Promise.all([ loadPros(), loadParticipants(), loadBoard() ]);
 
     renderBoard();
-    renderDraftStatus();
-
+renderDraftStatus();
+startLiveLoop();
+    
     $("participateBtn").disabled = false;
     $("participateBtn").onclick = toggleParticipate;
 
