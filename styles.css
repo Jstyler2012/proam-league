@@ -221,8 +221,11 @@ body::after{
   color: var(--muted);
   font-weight:700;
 }
-
-.btn{
+.badge.red{
+  background: rgba(255,90,122,.12);
+  border:1px solid rgba(255,90,122,.28);
+  color:#ffc9d4;
+}.btn{
   appearance:none; border:none; cursor:pointer;
   background: linear-gradient(135deg, var(--brand2), var(--brand));
   color:#04101e; font-weight:800;
@@ -544,4 +547,14 @@ tr:last-child td{ border-bottom:none; }
   font-weight: 800;
   color: rgba(233,241,255,.70);
   margin-left:6px;
+}
+/* Draft page warning flash (subtle red) */
+body.draft-warning .wrap {
+  animation: draftWarnPulse 1s ease-in-out infinite;
+}
+
+@keyframes draftWarnPulse {
+  0% { box-shadow: 0 0 0 rgba(255,0,0,0); }
+  50% { box-shadow: 0 0 0 9999px rgba(255,0,0,0.045); }
+  100% { box-shadow: 0 0 0 rgba(255,0,0,0); }
 }
