@@ -53,7 +53,7 @@ async function getUserFromBearer(SUPABASE_URL, SUPABASE_ANON_KEY, authHeader) {
 
   try {
     return { ok: true, user: JSON.parse(t) };
-  } catch {
+  } catch (e) {
     return { ok: false, status: 500, error: "Failed to parse auth user" };
   }
 }
@@ -80,7 +80,7 @@ exports.handler = async (event) => {
     if (!me.ok) return json(me.status, { error: me.error });
 
     let body = {};
-    try { body = JSON.parse(event.body || "{}"); } catch {}
+    try { body = JSON.parse(event.body || "{}"); } catch (e) {}
 
     const name = (body.name || "").trim();
     const handicap_index = body.handicap_index ?? null;
@@ -109,7 +109,7 @@ exports.handler = async (event) => {
     if (!r.ok) return text(r.status, t);
 
     let out = null;
-    try { out = JSON.parse(t); } catch { out = t; }
+    try { out = JSON.parse(t); } catch (e) { out = t; }
 
     const player = Array.isArray(out) ? out[0] : out;
     return json(200, { ok: true, player });
