@@ -56,8 +56,10 @@ async function sbService(SUPABASE_URL, SERVICE_KEY, method, restPath, bodyObj, p
 }
 function safeJson(body) {
   if (!body) return {};
- try { return JSON.parse(body); } catch (e) { return {}; }}
-
+function safeJson(body) {
+  if (!body) return {};
+  try { return JSON.parse(body); } catch (e) { return {}; }
+}
 async function getWeekUuidFromNumberService(SUPABASE_URL, SERVICE_KEY, weekNumber) {
   const wk = await sbService(
     SUPABASE_URL,
@@ -135,8 +137,7 @@ exports.handler = async (event) => {
     const path = routeFrom(event);
 
     let body = {};
-    try { body = JSON.parse(event.body || "{}"); } catch { body = {}; }
-
+try { body = JSON.parse(event.body || "{}"); } catch (e) { body = {}; }
     // -------------------------
     // participate (AUTH REQUIRED)
     // POST /api-mutate/participate { week_id, participate:true|false }
