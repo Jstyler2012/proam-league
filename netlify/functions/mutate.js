@@ -64,7 +64,41 @@ function safeJson(body) {
     "GET",
     `weeks?select=id&week_number=eq.${weekNumber}&limit=1`
   );
-  return wk?.[0]?.id || null;
+  function sortByHandicapDesc(rows){
+  return rows.slice().sort((a,b) => {
+    const ah = a?.player?.handicap_index;
+    const bh = b?.player?.handicap_index;
+    const aNull = ah === null || ah === undefined;
+    const bNull = bh === null || bh === undefined;
+    if(aNull && bNull) return String(a?.player?.name||"").localeCompare(String(b?.player?.name||""));
+    if(aNull) return 1;
+    if(bNull) return -1;
+    if(bh !== ah) return Number(bh) - Number(ah);
+    return String(a?.player?.name||"").localeCompare(String(b?.player?.name||""));
+  });
+}
+
+async function getDraftRow(SUPABASE_URL, SERVICE_KEY, weekIdText){
+  const rows = await sbService(
+    SUPABASE_URL,
+    SERVICE_KEY,
+    "GET",
+    `week_drafts?select=week_id,status,starts_at,turn_player_id,turn_started_at,turn_number&week_id=eq.${encodeURIComponent(weekIdText)}&limit=1`
+  );
+  return rows?.[0] || null;
+}
+
+async function upsertDraftRow(SUPABASE_URL, SERVICE_KEY, row){
+  const out = await sbService(
+    SUPABASE_URL,
+    SERVICE_KEY,
+    "POST",
+    `week_drafts?on_conflict=week_id`,
+    row,
+    "resolution=merge-duplicates,return=representation"
+  );
+  return out?.[0] || null;
+}  return wk?.[0]?.id || null;
 }
 
 function routeFrom(event) {
@@ -388,27 +422,289 @@ if (path === "submit-score") {
 
   const total = pro_score != null ? your_score + pro_score : null;
 
-  const row = {
-    week_id,
-    player_id,
-    pga_golfer: pro_id,
-    your_score,
-    pro_score,
-    total,
-  };
+       // Must be live + your turn
+      const weekNumber = Number(week_id);
+      if (!Number.isFinite(weekNumber)) return json(400, { error: "Invalid week_id" });
 
-  const inserted = await sbService(
-    SUPABASE_URL,
-    SERVICE_KEY,
-    "POST",
-    `week_entries?on_conflict=week_id,player_id`,
-    row,
-    "resolution=merge-duplicates,return=representation"
-  );
+      const weekIdText = String(weekNumber);
+      const draft = await getDraftRow(SUPABASE_URL, SERVICE_KEY, weekIdText);
+      if (!draft) return json(403, { error: "Draft not configured for this week." });
+      if (draft.status !== "LIVE") return json(403, { error: "Draft is not live." });
 
-  return json(200, { ok: true, entry: inserted?.[0] || null });
-}
+      if (String(draft.turn_player_id || "") !== String(playerId)) {
+        return json(403, { error: "Not your turn." });
+      }
+
+      // Ensure pro not already taken by someone else
+      const picks = await sbService(
+        SUPABASE_URL,
+        SERVICE_KEY,
+        "GET",
+        `week_entries?select=player_id,pga_golfer&week_id=eq.${weekNumber}`
+      );
+      const taken = new Set((picks || []).map(p => String(p.pga_golfer || "")).filter(Boolean));
+      if (taken.has(String(pro_id))) {
+        return json(409, { error: "That pro is already claimed." });
+      }
+
+      // Save pick
+      const row = { week_id: weekNumber, player_id: playerId, pga_golfer: String(pro_id), pick_source: "USER" };
+
+      const saved = await sbService(
+        SUPABASE_URL,
+        SERVICE_KEY,
+        "POST",
+        `week_entries?on_conflict=week_id,player_id`,
+        row,
+        "resolution=merge-duplicates,return=representation"
+      );
+
+      // Advance turn (reuse tick logic by invoking a local advance)
+      // Easiest: just call the same endpoint logic by doing nothing here and letting the next tick advance on stale state.
+      // But to keep it snappy, we advance immediately:
+      const parts = await sbService(
+        SUPABASE_URL,
+        SERVICE_KEY,
+        "GET",
+        `week_participants?select=player_id,player:players(id,name,handicap_index)&week_id=eq.${weekNumber}`
+      );
+      const ordered = sortByHandicapDesc(parts || []);
+
+      const picks2 = await sbService(
+        SUPABASE_URL,
+        SERVICE_KEY,
+        "GET",
+        `week_entries?select=player_id,pga_golfer&week_id=eq.${weekNumber}`
+      );
+      const picked2 = new Map();
+      for (const p of (picks2 || [])) picked2.set(String(p.player_id), p.pga_golfer ?? null);
+
+      const next2 = ordered.find(r => !picked2.get(String(r.player_id)));
+
+      if (!next2) {
+        await upsertDraftRow(SUPABASE_URL, SERVICE_KEY, {
+          week_id: weekIdText,
+          status: "COMPLETE",
+          turn_player_id: null,
+          turn_started_at: null,
+          updated_at: new Date().toISOString(),
+        });
+      } else {
+        await upsertDraftRow(SUPABASE_URL, SERVICE_KEY, {
+          week_id: weekIdText,
+          status: "LIVE",
+          turn_player_id: next2.player_id,
+          turn_started_at: new Date().toISOString(),
+          turn_number: Number(draft.turn_number || 0) + 1,
+          updated_at: new Date().toISOString(),
+        });
+      }
+
+      try{
+        await sbService(SUPABASE_URL, SERVICE_KEY, "POST", "draft_events", {
+          week_id: weekIdText,
+          turn_number: draft.turn_number || 0,
+          player_id: playerId,
+          action: "PICK",
+          pro_id: String(pro_id),
+        }, "return=minimal");
+      }catch(e){}
+
+      return json(200, { ok: true, entry: saved?.[0] || null });       // -------------------------
+    // draft-tick (NO AUTH)
+    // POST /api-mutate/draft-tick { week_id }
+    // - Auto-start draft if starts_at passed and still SCHEDULED
+    // - Auto-pick if elapsed >= 70s for current turn
     // -------------------------
+    if (path === "draft-tick") {
+      const { week_id } = body;
+      const weekNumber = Number(week_id);
+      if (!Number.isFinite(weekNumber)) return json(400, { error: "Missing/invalid week_id" });
+
+      const weekIdText = String(weekNumber);
+      const now = new Date();
+
+      const draft = await getDraftRow(SUPABASE_URL, SERVICE_KEY, weekIdText);
+      if (!draft) return json(200, { ok: true, status: "NO_DRAFT_ROW" });
+
+      const startsAt = draft.starts_at ? new Date(draft.starts_at) : null;
+      if (!startsAt) return json(200, { ok: true, status: "MISSING_STARTS_AT" });
+
+      // Load participants order + picks (recomputed each tick to keep it simple/safe)
+      const parts = await sbService(
+        SUPABASE_URL,
+        SERVICE_KEY,
+        "GET",
+        `week_participants?select=player_id,player:players(id,name,handicap_index)&week_id=eq.${weekNumber}`
+      );
+
+      const ordered = sortByHandicapDesc(parts || []);
+      const picks = await sbService(
+        SUPABASE_URL,
+        SERVICE_KEY,
+        "GET",
+        `week_entries?select=player_id,pga_golfer&week_id=eq.${weekNumber}`
+      );
+
+      const pickedBy = new Map();
+      const taken = new Set();
+      for (const p of (picks || [])) {
+        if (p.player_id) pickedBy.set(String(p.player_id), p.pga_golfer ?? null);
+        if (p.pga_golfer) taken.add(String(p.pga_golfer));
+      }
+
+      const nextUnpicked = ordered.find(r => !pickedBy.get(String(r.player_id)));
+
+      // Auto-start
+      if (draft.status === "SCHEDULED" && now >= startsAt) {
+        if (!nextUnpicked) {
+          await upsertDraftRow(SUPABASE_URL, SERVICE_KEY, {
+            week_id: weekIdText,
+            status: "COMPLETE",
+            turn_player_id: null,
+            turn_started_at: null,
+            turn_number: draft.turn_number || 0,
+            updated_at: new Date().toISOString(),
+          });
+          return json(200, { ok: true, status: "COMPLETE_NO_PARTICIPANTS_OR_ALL_PICKED" });
+        }
+
+        await upsertDraftRow(SUPABASE_URL, SERVICE_KEY, {
+          week_id: weekIdText,
+          status: "LIVE",
+          turn_player_id: nextUnpicked.player_id,
+          turn_started_at: new Date().toISOString(),
+          turn_number: 0,
+          updated_at: new Date().toISOString(),
+        });
+
+        // optional audit
+        try{
+          await sbService(SUPABASE_URL, SERVICE_KEY, "POST", "draft_events", {
+            week_id: weekIdText,
+            turn_number: 0,
+            player_id: nextUnpicked.player_id,
+            action: "START",
+            pro_id: null,
+          }, "return=minimal");
+        }catch(e){}
+
+        return json(200, { ok: true, status: "STARTED" });
+      }
+
+      // If not live, nothing else to do
+      if (draft.status !== "LIVE") return json(200, { ok: true, status: draft.status });
+
+      // If somehow all picked, complete
+      if (!nextUnpicked) {
+        await upsertDraftRow(SUPABASE_URL, SERVICE_KEY, {
+          week_id: weekIdText,
+          status: "COMPLETE",
+          turn_player_id: null,
+          turn_started_at: null,
+          updated_at: new Date().toISOString(),
+        });
+        try{
+          await sbService(SUPABASE_URL, SERVICE_KEY, "POST", "draft_events", {
+            week_id: weekIdText,
+            turn_number: draft.turn_number || 0,
+            player_id: draft.turn_player_id,
+            action: "COMPLETE",
+            pro_id: null,
+          }, "return=minimal");
+        }catch(e){}
+        return json(200, { ok: true, status: "COMPLETE" });
+      }
+
+      const turnStarted = draft.turn_started_at ? new Date(draft.turn_started_at) : now;
+      const elapsed = Math.floor((now - turnStarted) / 1000);
+
+      // Auto-pick at >= 70s
+      if (elapsed >= 70 && draft.turn_player_id) {
+        // Choose "top available" pro.
+        // For now: use /week_pros if you have it later; currently fallback to /pros placeholder list.
+        let candidates = [];
+        try{
+          candidates = await sbService(
+            SUPABASE_URL,
+            SERVICE_KEY,
+            "GET",
+            `week_pros?select=pro_id,pro_name,odds_rank,tier&week_id=eq.${weekNumber}&order=odds_rank.asc.nullsfirst,tier.asc,pro_name.asc`
+          );
+        }catch(e){
+          candidates = [];
+        }
+
+        if (!candidates.length) {
+          // fallback to placeholder pros to keep system working now
+          candidates = [
+            { pro_id: "Scottie Scheffler", pro_name: "Scottie Scheffler" },
+            { pro_id: "Rory McIlroy", pro_name: "Rory McIlroy" },
+            { pro_id: "Jon Rahm", pro_name: "Jon Rahm" },
+            { pro_id: "Viktor Hovland", pro_name: "Viktor Hovland" },
+          ];
+        }
+
+        const pick = candidates.find(c => !taken.has(String(c.pro_id || c.pro_name)));
+        if (pick) {
+          const proId = String(pick.pro_id || pick.pro_name);
+
+          await sbService(
+            SUPABASE_URL,
+            SERVICE_KEY,
+            "POST",
+            `week_entries?on_conflict=week_id,player_id`,
+            { week_id: weekNumber, player_id: draft.turn_player_id, pga_golfer: proId, pick_source: "AUTO" },
+            "resolution=merge-duplicates,return=minimal"
+          );
+
+          try{
+            await sbService(SUPABASE_URL, SERVICE_KEY, "POST", "draft_events", {
+              week_id: weekIdText,
+              turn_number: draft.turn_number || 0,
+              player_id: draft.turn_player_id,
+              action: "AUTOPICK",
+              pro_id: proId,
+            }, "return=minimal");
+          }catch(e){}
+        }
+
+        // Advance to next unpicked after auto-pick
+        const picks2 = await sbService(
+          SUPABASE_URL,
+          SERVICE_KEY,
+          "GET",
+          `week_entries?select=player_id,pga_golfer&week_id=eq.${weekNumber}`
+        );
+        const picked2 = new Map();
+        for (const p of (picks2 || [])) picked2.set(String(p.player_id), p.pga_golfer ?? null);
+
+        const next2 = ordered.find(r => !picked2.get(String(r.player_id)));
+        if (!next2) {
+          await upsertDraftRow(SUPABASE_URL, SERVICE_KEY, {
+            week_id: weekIdText,
+            status: "COMPLETE",
+            turn_player_id: null,
+            turn_started_at: null,
+            updated_at: new Date().toISOString(),
+          });
+          return json(200, { ok: true, status: "COMPLETE" });
+        }
+
+        await upsertDraftRow(SUPABASE_URL, SERVICE_KEY, {
+          week_id: weekIdText,
+          status: "LIVE",
+          turn_player_id: next2.player_id,
+          turn_started_at: new Date().toISOString(),
+          turn_number: Number(draft.turn_number || 0) + 1,
+          updated_at: new Date().toISOString(),
+        });
+
+        return json(200, { ok: true, status: "AUTO_PICKED_AND_ADVANCED" });
+      }
+
+      return json(200, { ok: true, status: "NOOP" });
+    }  
     // draft-pick (AUTH REQUIRED)
     // POST /api-mutate/draft-pick { week_id, pro_id }
     // -------------------------
