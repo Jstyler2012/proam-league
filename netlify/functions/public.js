@@ -58,7 +58,7 @@ async function sbAnon(SUPABASE_URL, SUPABASE_ANON_KEY, method, restPath) {
 async function getWeekUuidFromNumber(SUPABASE_URL, SUPABASE_ANON_KEY, weekNumber) {
   const out = await sbAnon(
     SUPABASE_URL,
-    SUPABASE_ANON_KEY,
+        SUPABASE_ANON_KEY,
     "GET",
     `weeks?select=id&week_number=eq.${weekNumber}&limit=1`
   );
@@ -68,12 +68,32 @@ async function getWeekUuidFromNumber(SUPABASE_URL, SUPABASE_ANON_KEY, weekNumber
   return { ok: true, id };
 }
 
+function allowedTiersFromHandicap(handicapIndex) {
+  const h = Number(handicapIndex);
+  if (!Number.isFinite(h)) return [1, 2, 3, 4]; // default most permissive if unknown
+  if (h >= 16.0) return [1, 2, 3, 4];
+  if (h >= 11.0) return [2, 3, 4];
+  if (h >= 6.0) return [3, 4];
+  return [4];
+}
+
+async function getAuthedUserId(event, SUPABASE_URL, SUPABASE_ANON_KEY) {
+  const auth = (event.headers?.authorization || event.headers?.Authorization || "").trim();
+  if (!auth.startsWith("Bearer ")) return null;
+
+  const r = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+    headers: { apikey: SUPABASE_ANON_KEY, Authorization: auth },
+  });
+  if (!r.ok) return null;
+
+  const u = await r.json();
+  return u?.id || null;
+}
+
 exports.handler = async (event) => {
   if (event.httpMethod === "OPTIONS") {
     return { statusCode: 204, headers: corsHeaders, body: "" };
-  }
-
-  try {
+  }  try {
     const route = getRoute(event);
 
     if (route === "" || route === "health") {
@@ -326,7 +346,7 @@ exports.handler = async (event) => {
         pickByPlayer.set(p.player_id, p.pga_golfer ?? null);
       }
 
-      const rows = participants.map((pl) => ({
+            const rows = participants.map((pl) => ({
         player_id: pl.player_id,
         player_name: pl.player_name,
         handicap_index: pl.handicap_index,
@@ -334,16 +354,153 @@ exports.handler = async (event) => {
       }));
 
       return json(200, { week_id: weekNumber, rows });
-    }    // -------------------------
-    // leaderboard
-    // Ranking rule:
-    // - best_player = MIN(player_rounds.score_to_par)
-    // - combined = best_player + proScore (when pro scoring exists)
-    // - rank_score = COALESCE(combined, best_player)
-    //
-    // NOTE: for now proScore may be null until you integrate the API.
+    }
+
     // -------------------------
-    if (route === "leaderboard") {
+    // draft-pool (AUTH REQUIRED)
+    // Returns weekly PGA field + tiers + user's allowed tiers
+    // Query param: week_id (WEEK NUMBER)
+    // -------------------------
+    if (route === "draft-pool") {
+      const q = event.queryStringParameters || {};
+      const weekNumber = Number(q.week_id);
+      if (!Number.isFinite(weekNumber)) return json(400, { error: "Missing/invalid week_id" });
+
+      const userId = await getAuthedUserId(event, SUPABASE_URL, SUPABASE_ANON_KEY);
+      if (!userId) return json(401, { error: "Not logged in" });
+
+      const p = await sbAnon(
+        SUPABASE_URL,
+        SUPABASE_ANON_KEY,
+        "GET",
+        `players?select=id,handicap_index&user_id=eq.${userId}&limit=1`
+      );
+      if (!p.ok) return text(p.status, p.text);
+
+      const handicap = (p.json || [])[0]?.handicap_index;
+      const allowedTiers = allowedTiersFromHandicap(handicap);
+
+      const pool = await sbAnon(
+        SUPABASE_URL,
+        SUPABASE_ANON_KEY,
+        "GET",
+        `week_pros?week_number=eq.${weekNumber}&select=pro_id,pro_name,odds,tier&order=tier.asc,odds.asc.nullslast,pro_name.asc`
+      );
+      if (!pool.ok) return text(pool.status, pool.text);
+
+      const tiers = { 1: [], 2: [], 3: [], 4: [] };
+      for (const r of (pool.json || [])) {
+        const t = Number(r.tier);
+        if (!tiers[t]) continue;
+        tiers[t].push({
+          pro_id: r.pro_id,
+          pro_name: r.pro_name,
+          odds: r.odds,
+          tier: t,
+        });
+      }
+
+      return json(200, { week_id: weekNumber, allowed_tiers: allowedTiers, tiers });
+    }
+
+    // -------------------------
+    // draft-status (AUTH REQUIRED)
+    // Returns participation count, pick count, swap_open flag, and my current pick
+    // Query param: week_id (WEEK NUMBER)
+    // -------------------------
+    if (route === "draft-status") {
+      const q = event.queryStringParameters || {};
+      const weekNumber = Number(q.week_id);
+      if (!Number.isFinite(weekNumber)) return json(400, { error: "Missing/invalid week_id" });
+
+      const userId = await getAuthedUserId(event, SUPABASE_URL, SUPABASE_ANON_KEY);
+      if (!userId) return json(401, { error: "Not logged in" });
+
+      // Resolve player + handicap
+      const p = await sbAnon(
+        SUPABASE_URL,
+        SUPABASE_ANON_KEY,
+        "GET",
+        `players?select=id,handicap_index&user_id=eq.${userId}&limit=1`
+      );
+      if (!p.ok) return text(p.status, p.text);
+
+      const me = (p.json || [])[0] || null;
+      const playerId = me?.id || null;
+      const allowedTiers = allowedTiersFromHandicap(me?.handicap_index);
+
+      // Determine if week_participants uses int week_number or uuid
+      let weekKey = weekNumber;
+      let part = await sbAnon(
+        SUPABASE_URL,
+        SUPABASE_ANON_KEY,
+        "GET",
+        `week_participants?week_id=eq.${weekKey}&select=player_id`
+      );
+
+      if (!part.ok && String(part.text || "").includes("invalid input syntax for type uuid")) {
+        const wk = await getWeekUuidFromNumber(SUPABASE_URL, SUPABASE_ANON_KEY, weekNumber);
+        if (!wk.ok) return text(wk.status, wk.text);
+        weekKey = wk.id;
+
+        part = await sbAnon(
+          SUPABASE_URL,
+          SUPABASE_ANON_KEY,
+          "GET",
+          `week_participants?week_id=eq.${weekKey}&select=player_id`
+        );
+      }
+      if (!part.ok) return text(part.status, part.text);
+
+      const participantsCount = (part.json || []).length;
+
+      // Picks are stored in week_entries.pga_golfer
+      const picks = await sbAnon(
+        SUPABASE_URL,
+        SUPABASE_ANON_KEY,
+        "GET",
+        `week_entries?week_id=eq.${weekKey}&select=player_id,pga_golfer`
+      );
+      if (!picks.ok) return text(picks.status, picks.text);
+
+      let picksCount = 0;
+      let myPick = null;
+      for (const r of (picks.json || [])) {
+        if (r.pga_golfer) picksCount += 1;
+        if (playerId && r.player_id === playerId) myPick = r.pga_golfer || null;
+      }
+
+      // Swap phase: either explicitly opened in week_draft_state, or auto-open when all participants picked
+      let explicitSwapOpen = false;
+      const st = await sbAnon(
+        SUPABASE_URL,
+        SUPABASE_ANON_KEY,
+        "GET",
+        `week_draft_state?week_number=eq.${weekNumber}&select=swap_open&limit=1`
+      );
+      if (st.ok) {
+        explicitSwapOpen = Boolean((st.json || [])[0]?.swap_open);
+      }
+
+      const draftComplete = participantsCount > 0 && picksCount >= participantsCount;
+      const swapOpen = explicitSwapOpen || draftComplete;
+
+      return json(200, {
+        week_id: weekNumber,
+        participants_count: participantsCount,
+        picks_count: picksCount,
+        draft_complete: draftComplete,
+        swap_open: swapOpen,
+        my_pick: myPick,
+        allowed_tiers: allowedTiers,
+      });
+    }
+
+    // -------------------------
+    // leaderboard
+    // Query param: week_id (WEEK NUMBER)
+    // -------------------------
+    if (route === "leaderboard") {   
       const q = event.queryStringParameters || {};
       const weekNumber = Number(q.week_id);
       if (!Number.isFinite(weekNumber)) return json(400, { error: "Missing/invalid week_id" });
