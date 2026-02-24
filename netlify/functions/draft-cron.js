@@ -1,8 +1,8 @@
 // netlify/functions/draft-cron.js
 // Scheduled function (runs every minute) to auto-start drafts whose starts_at has passed.
 // NOTE: precise 70s autopicks still require /api-mutate/draft-tick heartbeat.
-
-const { schedule } = require("@netlify/functions");
+// netlify/functions/draft-cron.js
+// Runs on a schedule configured in netlify.toml (no @netlify/functions dependency)
 
 async function sbService(SUPABASE_URL, SERVICE_KEY, method, restPath, bodyObj, prefer) {
   const headers = { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}` };
@@ -34,7 +34,7 @@ function sortByHandicapDesc(rows){
   });
 }
 
-const handler = async () => {
+exports.handler = async () => {
   const SUPABASE_URL = process.env.SUPABASE_URL;
   const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!SUPABASE_URL || !SERVICE_KEY) return { statusCode: 200, body: "missing env" };
@@ -101,6 +101,3 @@ const handler = async () => {
 
   return { statusCode: 200, body: "ok" };
 };
-
-// Every minute
-exports.handler = schedule("* * * * *", handler);
