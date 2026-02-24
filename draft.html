@@ -365,7 +365,7 @@ async function submitPick(){
         "content-type":"application/json",
         "authorization":"Bearer " + token
       },
-      body: JSON.stringify({ week_id: currentWeek.id, pro_id: proId })
+      body: JSON.stringify({ week_id: currentWeek.week_number, pro_id: proId })  
     });
 
     showMsg($("pickMsg"), gate.mode === "draft" ? "Draft pick saved!" : "Pick updated!", "ok");
@@ -394,7 +394,7 @@ async function loadPros(){
 }
 
 async function loadParticipants(){
-  const data = await getJSON(`${API.participants}?week_id=${encodeURIComponent(currentWeek.id)}`);
+  const data = await getJSON(`${API.participants}?week_id=${encodeURIComponent(currentWeek.week_number)}`);
   participants = data.rows || [];
   const myId = me?.player?.id;
   isParticipating = !!participants.find(r => String(r.player_id) === String(myId));
@@ -402,7 +402,7 @@ async function loadParticipants(){
 }
 
 async function loadBoard(){
-  const data = await getJSON(`${API.draftBoard}?week_id=${encodeURIComponent(currentWeek.id)}`);
+  const data = await getJSON(`${API.draftBoard}?week_id=${encodeURIComponent(currentWeek.week_number)}`);
   boardRows = data.rows || [];
 }
 
@@ -416,7 +416,7 @@ async function toggleParticipate(){
         "content-type":"application/json",
         "authorization":"Bearer " + token
       },
-      body: JSON.stringify({ week_id: currentWeek.id, participate: want })
+      body: JSON.stringify({ week_id: currentWeek.week_number, participate: want })
     });
     await loadParticipants();
     await loadBoard();
