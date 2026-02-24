@@ -113,11 +113,21 @@ exports.handler = async (event) => {
       );
       if (!out.ok) return text(out.status, out.text);
 
-      const weeks = out.json || [];
+            const weeks = out.json || [];
       if (!weeks.length) return json(200, { week: null });
 
-      const today = new Date();
+      // TEST OVERRIDE: set Netlify env var TEST_WEEK_NUMBER to -1 or 0
+      // to force current-week for draft testing without touching season logic.
+      const testWeekEnv = process.env.TEST_WEEK_NUMBER;
+      if (testWeekEnv !== undefined && testWeekEnv !== null && String(testWeekEnv).trim() !== "") {
+        const forcedNum = Number(testWeekEnv);
+        if (Number.isFinite(forcedNum)) {
+          const forcedWeek = weeks.find((w) => Number(w.week_number) === forcedNum);
+          if (forcedWeek) return json(200, { week: forcedWeek });
+        }
+      }
 
+      const today = new Date();
       const inRange = weeks.find((w) => {
         if (!w.start_date || !w.end_date) return false;
         const s = new Date(w.start_date + "T00:00:00");
