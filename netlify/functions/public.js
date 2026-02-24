@@ -258,7 +258,124 @@ exports.handler = async (event) => {
 
       return json(200, { week_id: weekNumber, rows, is_participating });
     }
+        // -------------------------
+    // draft-board
+    // Returns participants sorted by handicap desc, with current pro pick (if any)
+    // Query param: week_id (WEEK NUMBER)
     // -------------------------
+    if (route === "draft-board") {
+      const q = event.queryStringParameters || {};
+      const weekNumber = Number(q.week_id);
+      if (!Number.isFinite(weekNumber)) return json(400, { error: "Missing/invalid week_id" });
+
+      let weekKey = weekNumber;
+
+      let part = await sbAnon(
+        SUPABASE_URL,
+        SUPABASE_ANON_KEY,
+        "GET",
+        `week_participants?week_id=eq.${weekKey}&select=player_id,player:players(id,name,handicap_index)`
+      );
+
+      if (!part.ok && String(part.text || "").includes("invalid input syntax for type uuid")) {
+        const wk = await getWeekUuidFromNumber(SUPABASE_URL, SUPABASE_ANON_KEY, weekNumber);
+        if (!wk.ok) return text(wk.status, wk.text);
+        weekKey = wk.id;
+
+        part = await sbAnon(
+          SUPABASE_URL,
+          SUPABASE_ANON_KEY,
+          "GET",
+          `week_participants?week_id=eq.${weekKey}&select=player_id,player:players(id,name,handicap_index)`
+        );
+      }
+      if (!part.ok) return text(part.status, part.text);
+
+      const participants = (part.json || []).map((r) => ({
+        player_id: r.player_id,
+        player_name: r?.player?.name || "—",
+        handicap_index: r?.player?.handicap_index ?? null,
+      }));
+
+      participants.sort((a, b) => {
+        const ah = a.handicap_index, bh = b.handicap_index;
+        const aNull = ah === null || ah === undefined;
+        const bNull = bh === null || bh === undefined;
+        if (aNull && bNull) return (a.player_name || "").localeCompare(b.player_name || "");
+        if (aNull) return 1;
+        if (bNull) return -1;
+        if (bh !== ah) return bh - ah;
+        return (a.player_name || "").localeCompare(b.player_name || "");
+      });
+
+      const picks = await sbAnon(
+        SUPABASE_URL,
+        SUPABASE_ANON_KEY,
+        "GET",
+        `week_entries?week_id=eq.${weekKey}&select=player_id,pga_golfer`
+      );
+      if (!picks.ok) return text(picks.status, picks.text);
+
+      const pickByPlayer = new Map();
+      for (const p of (picks.json || [])) pickByPlayer.set(p.player_id, p.pga_golfer ?? null);
+
+      const rows = participants.map((pl) => ({
+        player_id: pl.player_id,
+        player_name: pl.player_name,
+        handicap_index: pl.handicap_index,
+        pro_id: pickByPlayer.get(pl.player_id) ?? null,
+      }));
+
+      return json(200, { week_id: weekNumber, rows });
+    }
+
+    // -------------------------
+    // draft-state
+    // Query param: week_id (WEEK NUMBER)
+    // -------------------------
+    if (route === "draft-state") {
+      const q = event.queryStringParameters || {};
+      const weekNumber = Number(q.week_id);
+      if (!Number.isFinite(weekNumber)) return json(400, { error: "Missing/invalid week_id" });
+
+      // IMPORTANT:
+      // week_drafts.week_id is TEXT (we store the week_number string).
+      // This avoids int/uuid mismatch pain.
+      const weekIdText = String(weekNumber);
+
+      const nowIso = new Date().toISOString();
+
+      const ds = await sbAnon(
+        SUPABASE_URL,
+        SUPABASE_ANON_KEY,
+        "GET",
+        `week_drafts?week_id=eq.${encodeURIComponent(weekIdText)}&limit=1`
+      );
+      if (!ds.ok) return text(ds.status, ds.text);
+
+      const row = (ds.json || [])[0] || null;
+      if (!row) {
+        return json(200, {
+          server_now: nowIso,
+          week_id: weekNumber,
+          status: "SCHEDULED",
+          starts_at: null,
+          turn_player_id: null,
+          turn_started_at: null,
+          turn_number: 0,
+        });
+      }
+
+      return json(200, {
+        server_now: nowIso,
+        week_id: weekNumber,
+        status: row.status,
+        starts_at: row.starts_at,
+        turn_player_id: row.turn_player_id,
+        turn_started_at: row.turn_started_at,
+        turn_number: row.turn_number,
+      });
+    }    // -------------------------
     // draft-board
     // Returns participants sorted by handicap desc, with current pro pick (if any)
     // Query param: week_id (WEEK NUMBER)
