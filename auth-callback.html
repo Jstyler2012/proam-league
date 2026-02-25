@@ -21,9 +21,8 @@
 
   <script>
     const msg = document.getElementById("msg");
-    const pendingName = localStorage.getItem("pending_profile_name") || "";
-    const pendingHcp = localStorage.getItem("pending_profile_hcp");
-
+    const pendingNameLocal = localStorage.getItem("pending_profile_name") || "";
+const pendingHcpLocal = localStorage.getItem("pending_profile_hcp");
     (async () => {
       try {
         // This will process the URL (code/hash) and/or return the current session
@@ -40,27 +39,37 @@
         localStorage.setItem("sb_access_token", session.access_token);
         if (session.refresh_token) localStorage.setItem("sb_refresh_token", session.refresh_token);
 
-        // If we captured a pending profile at signup time, create/merge it now
-        if (pendingName) {
-          let handicap_index = null;
-          if (pendingHcp !== null && pendingHcp !== "" && pendingHcp !== "null") {
-            const n = Number(pendingHcp);
-            if (!Number.isNaN(n)) handicap_index = n;
-          }
+        // Determine profile info from localStorage or Supabase metadata
+const user = session.user;
 
-          const r = await fetch("/api-auth/join", {
-            method: "POST",
-            headers: {
-              "content-type": "application/json",
-              "authorization": "Bearer " + session.access_token
-            },
-            body: JSON.stringify({ name: pendingName, handicap_index })
-          });
+const nameToUse =
+  pendingNameLocal.trim() ||
+  (user?.user_metadata?.name || "").trim();
 
-          // Clear pending either way so it doesn't keep reapplying
-          localStorage.removeItem("pending_profile_name");
-          localStorage.removeItem("pending_profile_hcp");
+const hcpRaw =
+  pendingHcpLocal ??
+  (user?.user_metadata?.handicap_index ?? null);
 
+let handicap_index = null;
+if (hcpRaw !== null && hcpRaw !== "" && hcpRaw !== "null") {
+  const n = Number(hcpRaw);
+  if (!Number.isNaN(n)) handicap_index = n;
+}
+
+// Ensure players row exists
+if (nameToUse) {
+  const r = await fetch("/api-auth/join", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "authorization": "Bearer " + session.access_token
+    },
+    body: JSON.stringify({ name: nameToUse, handicap_index })
+  });
+
+  localStorage.removeItem("pending_profile_name");
+  localStorage.removeItem("pending_profile_hcp");
+}
           if (!r.ok) {
             const t = await r.text();
             msg.textContent = "Logged in, but profile creation failed: " + t;
