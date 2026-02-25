@@ -134,19 +134,11 @@ exports.handler = async (event) => {
       return json(200, { week });
     }
 
-    // -------------------------
-    // pros (placeholder list for now)
-    // -------------------------
-    if (route === "pros") {
-      const pros = [
-        { id: "Rory McIlroy", name: "Rory McIlroy" },
-        { id: "Scottie Scheffler", name: "Scottie Scheffler" },
-        { id: "Jon Rahm", name: "Jon Rahm" },
-        { id: "Xander Schauffele", name: "Xander Schauffele" },
-      ];
-      return json(200, pros);
-    }
-
+   // -------------------------
+// pros (deprecated: homepage no longer needs this; keep endpoint for backwards compatibility)
+if (route === "pros") {
+  return json(200, []);
+}
     // -------------------------
     // me (requires Authorization bearer token)
     // -------------------------
