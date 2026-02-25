@@ -805,15 +805,20 @@ const API = {
 // Admin allowlist (lowercase)
 const ADMIN_EMAILS = ["jstyler2012@yahoo.com".toLowerCase()];
     // Auth (exact key from your login.html)
-    function getAccessToken(){
+        function getAccessToken(){
       const t = localStorage.getItem("sb_access_token");
       return (t && String(t).trim()) ? String(t).trim() : null;
+    }
+    function clearAccessToken(){
+      localStorage.removeItem("sb_access_token");
     }
     function authedHeaders(extra={}){
       const token = getAccessToken();
       return token ? { ...extra, Authorization: `Bearer ${token}` } : { ...extra };
     }
 
+    let sessionExpiredNoticeShown = false;
+    
     // State
     let scheduleWeeks = [];
     let displayedWeek = null;
@@ -1071,18 +1076,41 @@ const ADMIN_EMAILS = ["jstyler2012@yahoo.com".toLowerCase()];
   }
 }       
     }
-    async function loadMe(){
+        async function loadMe(){
       const token = getAccessToken();
       if(!token){ me = null; return null; }
+
       try{
-        me = await getJSON(API.me, { headers: authedHeaders() });
+        const res = await fetch(API.me, { headers: authedHeaders({ "accept":"application/json" }) });
+
+        // Token expired / invalid → clear it so the UI behaves like logged-out
+        if(res.status === 401 || res.status === 403){
+          clearAccessToken();
+          me = null;
+
+          if(!sessionExpiredNoticeShown){
+            sessionExpiredNoticeShown = true;
+            showMsg($("participationMsg"), "Session expired — please log in again.", "bad");
+          }
+          return null;
+        }
+
+        const text = await res.text();
+        let data = null;
+        try { data = text ? JSON.parse(text) : null; } catch(e) { data = null; }
+
+        if(!res.ok){
+          me = null;
+          return null;
+        }
+
+        me = data;
         return me;
-      }catch{
+      }catch(e){
         me = null;
         return null;
       }
     }
-
     function isAdminUser(){
       const email = String(me?.user?.email || "").toLowerCase();
       return email && ADMIN_EMAILS.includes(email);
