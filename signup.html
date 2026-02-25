@@ -94,7 +94,16 @@
       setBusy(true);
       try {
         // 1) create auth user
-        const { data, error } = await window.sb.auth.signUp({ email, password });
+       const { data, error } = await window.sb.auth.signUp({
+  email,
+  password,
+  options: {
+    data: {
+      name,
+      handicap_index
+    }
+  }
+});
         if (error) return show(error.message || "Signup failed.", "bad");
 
         // Some setups return session immediately; others require email confirm.

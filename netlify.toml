@@ -2,9 +2,6 @@
   publish = "."
   functions = "netlify/functions"
 
-  [build.environment]
-  NODE_VERSION = "18"
-  
 # Public API routes
 [[redirects]]
   from = "/api/*"
@@ -34,6 +31,3 @@
   from = "/api-proscore"
   to = "/.netlify/functions/proscore"
   status = 200
-  
-  [functions."draft-cron"]
-  schedule = "* * * * *"

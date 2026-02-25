@@ -1208,8 +1208,21 @@ const ADMIN_EMAILS = ["jstyler2012@yahoo.com".toLowerCase()];
         return;
       }
 
-      await loadMe();
+     await loadMe();
 
+// If user exists but player row doesn't, try to auto-create from auth metadata once
+if (me?.user?.id && !me?.player?.id) {
+  try {
+    await fetch("/api-auth/ensure-profile", {
+      method: "POST",
+      headers: { ...authedHeaders(), "content-type": "application/json" },
+      body: "{}",
+    });
+    await loadMe(); // refresh player
+  } catch (e) {
+    // ignore; UI will still instruct user to complete profile if needed
+  }
+}
       try{
         await loadParticipantsForWeek(weekId);
       }catch(e){
@@ -1229,8 +1242,7 @@ const ADMIN_EMAILS = ["jstyler2012@yahoo.com".toLowerCase()];
       if(!token){
         showMsg($("participationMsg"), "Log in to join the field.", "");
       } else if(!me?.player?.id){
-        showMsg($("participationMsg"), "No player linked to this login yet. Go to Sign Up and create your profile.", "bad");
-      }else if(isMeParticipating){
+       showMsg($("participationMsg"), "No player linked to this login yet. Go to Profile to complete your profile.", "bad");      }else if(isMeParticipating){
   hideMsg($("participationMsg"));
 }else{
   showMsg($("participationMsg"), "Tap “Participate this week” to join the field.", "");
