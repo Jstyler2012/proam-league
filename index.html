@@ -674,33 +674,21 @@
   </div>
   <div id="adminRemoveMsg" class="msg" style="display:none;"></div>
 </div>
-          <div class="split">
-            <div class="field">
-              <label for="playerSel">Player</label>
-              <select id="playerSel"></select>
-            </div>
-            <div class="field" style="display:none;">
-              <label for="proSel">Pro</label>
-              <select id="proSel"></select>
-            </div>
-          </div>
-
-          <div class="split" style="margin-top:10px;">
-            <div class="field">
-              <label for="playerScore">Your score to par (example: +10)</label>
-              <input id="playerScore" placeholder="+10" />
-            </div>
-            <div class="field" style="display:none;">
-              <label for="proScore">Pro score to par (optional if auto-pulled)</label>
-              <input id="proScore" placeholder="-22" />
-            </div>
-          </div>
-
-          <div class="submitActions">
-            <button class="btn" id="submitBtn">Submit</button>
-            <button class="btn secondary" id="autoProBtn" style="display:none;">Auto-pull Pro Score</button>
-          </div>
-
+         <div class="split">
+  <div class="field">
+    <label for="playerSel">Player</label>
+    <select id="playerSel"></select>
+  </div>
+</div>
+         <div class="split" style="margin-top:10px;">
+  <div class="field">
+    <label for="playerScore">Your score to par (example: +10)</label>
+    <input id="playerScore" placeholder="+10" />
+  </div>
+</div>       
+         <div class="submitActions">
+  <button class="btn" id="submitBtn">Submit</button>
+</div>
           <div id="submitMsg" class="msg" style="display:none;"></div>
 
           <div class="row" style="margin-top:12px; justify-content:flex-end;">
@@ -749,7 +737,6 @@
 const API = {
   health: "/api/health",
   players: "/api/players",
-  pros: "/api/pros",
   currentWeek: "/api/current-week",
   schedule: "/api/schedule",
   leaderboard: "/api/leaderboard",
@@ -759,10 +746,7 @@ const API = {
   participate: "/api-mutate/participate",
   me: "/api/me",
   participants: "/api/participants",
-
-  proscore: "/api-proscore"
 };
-
     const $ = (id) => document.getElementById(id);
 
     function showMsg(el, text, type){
@@ -831,8 +815,6 @@ const ADMIN_EMAILS = ["jstyler2012@yahoo.com".toLowerCase()];
     }
 
     // State
-    let pros = [];
-    let prosById = new Map();
     let scheduleWeeks = [];
     let displayedWeek = null;
     let currentWeekId = null;
@@ -889,25 +871,15 @@ const ADMIN_EMAILS = ["jstyler2012@yahoo.com".toLowerCase()];
       };
     }
 
-    function indexPros(list){
-      prosById = new Map();
-      for (const p of (list || [])){
-        const id = p?.id ?? p?.pro_id ?? p?.proId;
-        if(id != null) prosById.set(String(id), p);
-      }
-    }
 
     function proNameFromRow(r){
-      const direct =
-        r?.pro_name ?? r?.proName ?? r?.pro ?? r?.drafted_pro_name ?? r?.draftedProName ?? null;
-      if(direct && String(direct).trim()) return String(direct);
-
-      const pid = r?.pro_id ?? r?.proId ?? r?.proID ?? r?.proid ?? r?.pga_golfer ?? null;
-      if(pid == null) return "—";
-      const p = prosById.get(String(pid));
-      return p?.name ?? p?.full_name ?? p?.player_name ?? String(pid);
-    }
-
+  // Leaderboard should already return the selected pro name (week_entries.pga_golfer).
+  // Keep broad compatibility with any older shapes.
+  const direct =
+    r?.pga_golfer ?? r?.pro_name ?? r?.proName ?? r?.pro ?? r?.drafted_pro_name ?? r?.draftedProName ?? null;
+  if(direct && String(direct).trim()) return String(direct);
+  return "—";
+}
     function renderWeekDetails(week){
       const hero = $("weekHero");
       const img = $("tournamentLogo");
@@ -1335,22 +1307,7 @@ async function adminRemoveParticipant(){
       }
     }
 
-    async function loadPros(){
-      const pr = await getJSON(API.pros);
-      pros = Array.isArray(pr) ? pr : (pr.pros || []);
-      indexPros(pros);
-      // Pro dropdown uses full list (unchanged behavior)
-      const sel = $("proSel");
-      if(sel){
-        sel.innerHTML = "";
-        for(const p of pros){
-          const opt = document.createElement("option");
-          opt.value = p.id;
-          opt.textContent = p.name;
-          sel.appendChild(opt);
-        }
-      }
-    }
+   
 
     async function loadSchedule(){
       const res = await getJSON(API.schedule);
@@ -1382,12 +1339,10 @@ async function adminRemoveParticipant(){
       return sorted[sorted.length - 1];
     }
 
-    function computeCombined(){
-      const you = parseToPar($("playerScore")?.value);
-      const pro = parseToPar($("proScore")?.value);
-      if(you === null || pro === null) return null;
-      return you + pro;
-    }
+   function computeCombined(){
+  const you = parseToPar($("playerScore")?.value);
+  return you === null ? null : you;
+}
     function renderCombined(){
       const c = computeCombined();
       if($("combinedBadge")) $("combinedBadge").textContent = "Combined: " + fmtToPar(c);
@@ -1426,12 +1381,7 @@ async function adminRemoveParticipant(){
       }
     }
 
-    async function autoPullProScore(){
-      hideMsg($("submitMsg"));
-      const proId = $("proSel")?.value;
-      if(!proId){
-        showMsg($("submitMsg"), "Pick a Pro first.", "bad"); return;
-      }
+   
       try{
         const data = await getJSON(API.proscore + "?pro_id=" + encodeURIComponent(proId));
         const val = data.pro_to_par ?? data.to_par ?? data.score_to_par ?? null;
@@ -1531,22 +1481,18 @@ function confirmParticipationLock() {
     }
 
     $("playerScore")?.addEventListener("input", renderCombined);
-    $("proScore")?.addEventListener("input", renderCombined);
-    $("submitBtn")?.addEventListener("click", submitScore);
-    $("autoProBtn")?.addEventListener("click", autoPullProScore);
-    $("participateBtn")?.addEventListener("click", toggleParticipate);
-    $("adminRemoveBtn")?.addEventListener("click", adminRemoveParticipant);
-    $("refreshBtn") && ($("refreshBtn").onclick = async () => {
-      await boot();
-    });
-
+$("submitBtn")?.addEventListener("click", submitScore);
+$("participateBtn")?.addEventListener("click", toggleParticipate);
+$("adminRemoveBtn")?.addEventListener("click", adminRemoveParticipant);
+$("refreshBtn") && ($("refreshBtn").onclick = async () => {
+  await boot();
+});
     async function boot(){
-      await checkHealth();
-      await loadPros();
+  await checkHealth();
 
-      try{
-        const weeks = await loadSchedule();
-        const wk = pickDisplayedWeekFromSchedule(weeks);
+  try{
+    const weeks = await loadSchedule();
+    const wk = pickDisplayedWeekFromSchedule(weeks);
         if(!wk) throw new Error("No week found in schedule");
         await setDisplayedWeek(wk);
       }catch(e){
