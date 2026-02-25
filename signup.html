@@ -98,38 +98,46 @@
 localStorage.setItem("pending_profile_name", name);
 localStorage.setItem("pending_profile_hcp", String(handicap_index ?? ""));
 
+// Store pending profile locally so callback can finish setup
+localStorage.setItem("pending_profile_name", name);
+localStorage.setItem("pending_profile_hcp", String(handicap_index ?? ""));
+
 const { data, error } = await window.sb.auth.signUp({
   email,
   password,
   options: {
-    emailRedirectTo: `${window.location.origin}/auth-callback.html`
+    emailRedirectTo: `${window.location.origin}/auth-callback.html`,
+    data: {
+      name,
+      handicap_index: handicap_index ?? null
+    }
   }
 });
-        if (error) return show(error.message || "Signup failed.", "bad");
 
-        // Some setups return session immediately; others require email confirm.
-        // If no session yet, tell user to confirm email.
-        const accessToken = data?.session?.access_token || "";
-        const refreshToken = data?.session?.refresh_token || "";
+if (error) throw error;
 
-        if (!accessToken) {
-         show("Account created. Check your email to confirm. After confirming, you’ll return here and be signed in automatically.", "good");          return;
-        }
+const session = data?.session || null;
+const accessToken = session?.access_token || null;
 
-        // 2) store token for rest of site
-        localStorage.setItem("sb_access_token", accessToken);
-        if (refreshToken) localStorage.setItem("sb_refresh_token", refreshToken);
+// If email confirmation is required, Supabase will not return a session yet.
+// Callback page will finish login and profile creation.
+if (!accessToken) {
+  show("Account created. Check your email to confirm. You’ll be signed in automatically after confirming.", "good");
+  return;
+}
 
-        // 3) create player profile via server
-        const r = await fetch("/api-auth/join", {
-          method: "POST",
-          headers: {
-            "content-type":"application/json",
-            "authorization":"Bearer " + accessToken,
-          },
-          body: JSON.stringify({ name, handicap_index }),
-        });
+// If confirmation not required (rare), finish immediately
+localStorage.setItem("sb_access_token", accessToken);
+if (session?.refresh_token) localStorage.setItem("sb_refresh_token", session.refresh_token);
 
+const r = await fetch("/api-auth/join", {
+  method: "POST",
+  headers: {
+    "content-type": "application/json",
+    "authorization": "Bearer " + accessToken
+  },
+  body: JSON.stringify({ name, handicap_index })
+});
         if (!r.ok) {
           const t = await r.text();
           return show("Signed up, but profile creation failed: " + t, "bad");
