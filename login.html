@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Log In • Wellman Golf Club PRO-AM 2026</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+
+<body>
+  <div class="wrap">
+    <div>
+      <div class="pageTitle">Log In</div>
+      <div class="pageSub">Access your account • view draft status • submit your score</div>
+    </div>
+
+    <div id="siteHeader" class="sectionRule"></div>
+    <script src="./partials/header.js"></script>
+
+    <div class="card">
+      <div class="hd">
+        <div class="hTitle">Log In</div>
+      </div>
+
+      <div class="bd">
+        <div class="fieldRow">
+          <label class="label" for="email">Email</label>
+          <input id="email" class="input" type="email" placeholder="you@email.com" autocomplete="email" />
+        </div>
+
+        <div class="fieldRow">
+          <label class="label" for="password">Password</label>
+          <input id="password" class="input" type="password" placeholder="••••••••" autocomplete="current-password" />
+        </div>
+
+        <button id="loginBtn" class="btnPrimary">Log in</button>
+
+        <div id="msg" class="msg" style="display:none;"></div>
+
+        <div class="muted" style="margin-top:10px;">
+          Need an account? <a href="./signup.html">Sign up here</a>.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Supabase JS + centralized config -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="/supabase-config.js"></script>
+
+  <script>
+    loadHeader("login");
+
+    const $ = (id) => document.getElementById(id);
+
+    function show(text, type) {
+      const el = $("msg");
+      el.style.display = "block";
+      el.className = "msg" + (type ? " " + type : "");
+      el.textContent = text;
+    }
+
+    function setBusy(isBusy) {
+      $("loginBtn").disabled = !!isBusy;
+      $("loginBtn").textContent = isBusy ? "Logging in..." : "Log in";
+    }
+
+    $("loginBtn").addEventListener("click", onLogin);
+
+    async function onLogin() {
+      const email = ($("email").value || "").trim();
+      const password = $("password").value || "";
+
+      if (!email || !password) {
+        show("Email and password required.", "bad");
+        return;
+      }
+
+      setBusy(true);
+      try {
+        const { data, error } = await window.sb.auth.signInWithPassword({ email, password });
+        if (error) {
+          show(error.message || "Login failed.", "bad");
+          return;
+        }
+
+        const accessToken = data?.session?.access_token || "";
+        const refreshToken = data?.session?.refresh_token || "";
+
+        if (!accessToken) {
+          show("Logged in, but no session token returned.", "bad");
+          return;
+        }
+
+        // IMPORTANT: Your site relies on these keys
+        localStorage.setItem("sb_access_token", accessToken);
+        if (refreshToken) localStorage.setItem("sb_refresh_token", refreshToken);
+
+        show("Login successful.", "good");
+        setTimeout(() => (window.location.href = "./index.html"), 350);
+      } catch (e) {
+        show(e.message || "Unexpected error.", "bad");
+      } finally {
+        setBusy(false);
+      }
+    }
+  </script>
+</body>
+</html>
