@@ -95,7 +95,14 @@ exports.handler = async (event) => {
     return { statusCode: 204, headers: corsHeaders, body: "" };
   }  try {
     const route = getRoute(event);
-
+// DEBUG: show which Supabase project this function is using
+if (route === "debug-supabase") {
+  return {
+    statusCode: 200,
+    headers: corsHeaders,
+    body: JSON.stringify({ supabase_url: SUPABASE_URL }),
+  };
+}  
     if (route === "" || route === "health") {
       return json(200, { ok: true, route, rawPath: event.path });
     }
