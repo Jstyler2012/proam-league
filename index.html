@@ -1348,7 +1348,7 @@ async function adminRemoveParticipant(){
       if($("combinedBadge")) $("combinedBadge").textContent = "Combined: " + fmtToPar(c);
     }
 
-    async function submitScore(){
+       async function submitScore(){
       hideMsg($("submitMsg"));
 
       if (!currentWeekId) {
@@ -1356,7 +1356,7 @@ async function adminRemoveParticipant(){
         return;
       }
 
-            const token = getAccessToken();
+      const token = getAccessToken();
       if(!token){
         showMsg($("submitMsg"), "You must be logged in to submit a score.", "bad");
         return;
@@ -1371,7 +1371,7 @@ async function adminRemoveParticipant(){
       try{
         await getJSON(API.submit, {
           method:"POST",
-         headers: authedHeaders({ "content-type":"application/json" }),     
+          headers: authedHeaders({ "content-type":"application/json" }),
           body: JSON.stringify(payload)
         });
         showMsg($("submitMsg"), "Saved!", "ok");
@@ -1381,20 +1381,6 @@ async function adminRemoveParticipant(){
       }
     }
 
-   
-      try{
-        const data = await getJSON(API.proscore + "?pro_id=" + encodeURIComponent(proId));
-        const val = data.pro_to_par ?? data.to_par ?? data.score_to_par ?? null;
-        if(val === null || val === undefined){
-          showMsg($("submitMsg"), "Auto-pull worked but didn’t return a score field.", "bad"); return;
-        }
-        $("proScore").value = fmtToPar(Number(val));
-        renderCombined();
-        showMsg($("submitMsg"), "Pulled pro score: " + fmtToPar(Number(val)), "ok");
-      }catch(e){
-        showMsg($("submitMsg"), "Auto-pull error: " + e.message, "bad");
-      }
-    }
 function confirmParticipationLock() {
   return new Promise((resolve) => {
     // If modal already exists, remove it
