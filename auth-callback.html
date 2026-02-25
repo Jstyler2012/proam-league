@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Signing you in…</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <div class="hd"><div class="hTitle">Signing you in…</div></div>
+      <div class="bd">
+        <div id="msg" class="muted">Finishing login…</div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="/supabase-config.js"></script>
+
+  <script>
+    const msg = document.getElementById("msg");
+    const pendingName = localStorage.getItem("pending_profile_name") || "";
+    const pendingHcp = localStorage.getItem("pending_profile_hcp");
+
+    (async () => {
+      try {
+        // This will process the URL (code/hash) and/or return the current session
+        const { data: sessionData, error: sessErr } = await window.sb.auth.getSession();
+        if (sessErr) throw sessErr;
+
+        const session = sessionData?.session || null;
+        if (!session?.access_token) {
+          msg.textContent = "No session found. Please log in.";
+          return setTimeout(() => (window.location.href = "./login.html"), 800);
+        }
+
+        // IMPORTANT: your whole site relies on these keys
+        localStorage.setItem("sb_access_token", session.access_token);
+        if (session.refresh_token) localStorage.setItem("sb_refresh_token", session.refresh_token);
+
+        // If we captured a pending profile at signup time, create/merge it now
+        if (pendingName) {
+          let handicap_index = null;
+          if (pendingHcp !== null && pendingHcp !== "" && pendingHcp !== "null") {
+            const n = Number(pendingHcp);
+            if (!Number.isNaN(n)) handicap_index = n;
+          }
+
+          const r = await fetch("/api-auth/join", {
+            method: "POST",
+            headers: {
+              "content-type": "application/json",
+              "authorization": "Bearer " + session.access_token
+            },
+            body: JSON.stringify({ name: pendingName, handicap_index })
+          });
+
+          // Clear pending either way so it doesn't keep reapplying
+          localStorage.removeItem("pending_profile_name");
+          localStorage.removeItem("pending_profile_hcp");
+
+          if (!r.ok) {
+            const t = await r.text();
+            msg.textContent = "Logged in, but profile creation failed: " + t;
+            return setTimeout(() => (window.location.href = "./profile.html"), 1200);
+          }
+        }
+
+        msg.textContent = "Success. Redirecting…";
+        setTimeout(() => (window.location.href = "./index.html"), 600);
+      } catch (e) {
+        msg.textContent = "Error finishing login: " + (e?.message || String(e));
+        setTimeout(() => (window.location.href = "./login.html"), 1200);
+      }
+    })();
+  </script>
+</body>
+</html>
