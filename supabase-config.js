@@ -4,8 +4,7 @@
 (function () {
   // TODO: Replace these 2 values with your NEW Supabase project values
   const SUPABASE_URL = "https://pgeiloiymvhhnuwirudn.supabase.co";
-  const SUPABASE_ANON_KEY = "sb_publishable_RvrIaZWNPIzVCTw8HXoyZw_2uveaQZl";
-
+const SUPABASE_ANON_KEY = "sb_publishable_N3_mDqjkytg1Hu8vC724xw_nkFy6PeH";
   if (!window.supabase || !window.supabase.createClient) {
     console.error("Supabase JS library not loaded. Check script include order.");
     return;
