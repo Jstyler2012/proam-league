@@ -123,9 +123,9 @@ exports.handler = async (event) => {
       if (!week?.id) return json(400, { ok: false, error: "No scheduled weeks exist" });
 
       // deletes all week_entries for current week (scores + draft picks live in this table in your current schema)
-      await sb("DELETE", `week_entries?week_id=eq.${week.id}`);
+      await sb("DELETE", `week_entries?week_id=eq.${week.week_number}`);
 
-      return json(200, { ok: true, week_id: week.id, label: week.label || null });
+      return json(200, { ok: true, week_id: week.week_number, label: week.label || null });
     }
 
     // POST /.netlify/functions/admin/recalc
