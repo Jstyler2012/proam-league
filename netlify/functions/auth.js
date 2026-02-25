@@ -72,7 +72,63 @@ exports.handler = async (event) => {
   }
 
   const route = routeFrom(event);
+  // POST /api-auth/signup
+  if (route === "signup" && event.httpMethod === "POST") {
+    let body = {};
+    try { body = JSON.parse(event.body || "{}"); } catch {}
 
+    const email = (body.email || "").trim();
+    const password = body.password;
+    const name = (body.name || "").trim();
+    const handicap_index = body.handicap_index ?? null;
+
+    if (!email || !password || !name) {
+      return json(400, { error: "Missing email, password, or name" });
+    }
+
+    // Create auth user
+    const authRes = await fetch(`${SUPABASE_URL}/auth/v1/admin/users`, {
+      method: "POST",
+      headers: {
+        apikey: SERVICE,
+        Authorization: `Bearer ${SERVICE}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        email,
+        password,
+        email_confirm: false
+      }),
+    });
+
+    const authText = await authRes.text();
+    if (!authRes.ok) return text(authRes.status, authText);
+
+    const authUser = JSON.parse(authText);
+
+    // Create players row immediately
+    const playerPayload = {
+      user_id: authUser.id,
+      name,
+      handicap_index,
+    };
+
+    const playerRes = await fetch(`${SUPABASE_URL}/rest/v1/players`, {
+      method: "POST",
+      headers: {
+        apikey: SERVICE,
+        Authorization: `Bearer ${SERVICE}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify(playerPayload),
+    });
+
+    if (!playerRes.ok) {
+      return text(playerRes.status, await playerRes.text());
+    }
+
+    return json(200, { ok: true });
+  } 
   // POST /api-auth/join
   if (route === "join" && event.httpMethod === "POST") {
     const authHeader = (event.headers?.authorization || event.headers?.Authorization || "").trim();
