@@ -3,7 +3,7 @@
 // IMPORTANT: Use your NEW project's URL + PUBLISHABLE key (sb_publishable_*).
 (function () {
   // TODO: Replace these 2 values with your NEW Supabase project values
-  const SUPABASE_URL = "https://qntqnetiwaqtviwwyjfc.supabase.co";
+  const SUPABASE_URL = "https://pgeiloiymvhhnuwirudn.supabase.co";
   const SUPABASE_ANON_KEY = "sb_publishable_RvrIaZWNPIzVCTw8HXoyZw_2uveaQZl";
 
   if (!window.supabase || !window.supabase.createClient) {
