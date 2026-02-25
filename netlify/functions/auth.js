@@ -71,48 +71,113 @@ exports.handler = async (event) => {
     return text(500, "Missing SUPABASE_URL / SUPABASE_ANON_KEY / SUPABASE_SERVICE_ROLE_KEY");
   }
 
-  const route = routeFrom(event);
-  // POST /api-auth/signup
-  if (route === "signup" && event.httpMethod === "POST") {
-    let body = {};
-    try { body = JSON.parse(event.body || "{}"); } catch {}
+const route = routeFrom(event);
 
-    const email = (body.email || "").trim();
-    const password = body.password;
-    const name = (body.name || "").trim();
-    const handicap_index = body.handicap_index ?? null;
+// POST /api-auth/ensure-profile
+// Creates players row if missing using auth user_metadata (name/handicap_index)
+if (route === "ensure-profile" && event.httpMethod === "POST") {
+  const authHeader = (event.headers?.authorization || event.headers?.Authorization || "").trim();
+  const me = await getUserFromBearer(SUPABASE_URL, SUPABASE_ANON_KEY, authHeader);
+  if (!me.ok) return json(me.status, { error: me.error });
 
-    if (!email || !password || !name) {
-      return json(400, { error: "Missing email, password, or name" });
-    }
-
-    // Create auth user
-    const authRes = await fetch(`${SUPABASE_URL}/auth/v1/admin/users`, {
-      method: "POST",
+  // 1) Check if player already exists
+  const check = await fetch(
+    `${SUPABASE_URL}/rest/v1/players?select=id,name,handicap_index,user_id&user_id=eq.${encodeURIComponent(me.user.id)}&limit=1`,
+    {
       headers: {
         apikey: SERVICE,
         Authorization: `Bearer ${SERVICE}`,
-        "content-type": "application/json",
       },
-      body: JSON.stringify({
-        email,
-        password,
-        email_confirm: false
-      }),
-    });
+    }
+  );
 
-    const authText = await authRes.text();
-    if (!authRes.ok) return text(authRes.status, authText);
+  const checkText = await check.text();
+  if (!check.ok) return text(check.status, checkText);
 
-    const authUser = JSON.parse(authText);
+  let existing = null;
+  try { existing = (JSON.parse(checkText) || [])[0] || null; } catch { existing = null; }
 
-    // Create players row immediately
-    const playerPayload = {
-      user_id: authUser.id,
-      name,
-      handicap_index,
-    };
+  if (existing) {
+    return json(200, { ok: true, player: existing, created: false });
+  }
 
+  // 2) Pull from metadata
+  const meta = me.user?.user_metadata || {};
+  const name = String(meta.name || "").trim();
+  const handicap_index = meta.handicap_index ?? null;
+
+  if (!name) return json(400, { error: "Missing name in user metadata; complete profile manually." });
+
+  const payload = {
+    name,
+    handicap_index,
+    user_id: me.user.id,
+  };
+
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/players?on_conflict=user_id`, {
+    method: "POST",
+    headers: {
+      apikey: SERVICE,
+      Authorization: `Bearer ${SERVICE}`,
+      "content-type": "application/json",
+      Prefer: "resolution=merge-duplicates,return=representation",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const t = await r.text();
+  if (!r.ok) return text(r.status, t);
+
+  let out = null;
+  try { out = JSON.parse(t); } catch { out = t; }
+  const player = Array.isArray(out) ? out[0] : out;
+
+  return json(200, { ok: true, player, created: true });
+}
+
+// POST /api-auth/join
+if (route === "join" && event.httpMethod === "POST") {
+  const authHeader = (event.headers?.authorization || event.headers?.Authorization || "").trim();
+  const me = await getUserFromBearer(SUPABASE_URL, SUPABASE_ANON_KEY, authHeader);
+  if (!me.ok) return json(me.status, { error: me.error });
+
+  let body = {};
+  try { body = JSON.parse(event.body || "{}"); } catch {}
+
+  // Allow fallback to user_metadata so users don't have to re-enter after email confirm
+  const meta = me.user?.user_metadata || {};
+  const name = String((body.name ?? meta.name) || "").trim();
+  const handicap_index = (body.handicap_index ?? meta.handicap_index) ?? null;
+
+  if (!name) return json(400, { error: "Missing name" });
+
+  const payload = {
+    name,
+    handicap_index,
+    user_id: me.user.id,
+  };
+
+  // Upsert by user_id using service role (bypasses RLS)
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/players?on_conflict=user_id`, {
+    method: "POST",
+    headers: {
+      apikey: SERVICE,
+      Authorization: `Bearer ${SERVICE}`,
+      "content-type": "application/json",
+      Prefer: "resolution=merge-duplicates,return=representation",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const t = await r.text();
+  if (!r.ok) return text(r.status, t);
+
+  let out = null;
+  try { out = JSON.parse(t); } catch { out = t; }
+
+  const player = Array.isArray(out) ? out[0] : out;
+  return json(200, { ok: true, player });
+}
     const playerRes = await fetch(`${SUPABASE_URL}/rest/v1/players`, {
       method: "POST",
       headers: {
