@@ -94,7 +94,17 @@
       setBusy(true);
       try {
         // 1) create auth user
-        const { data, error } = await window.sb.auth.signUp({ email, password });
+        // Store pending profile so we can create it after email confirmation redirect
+localStorage.setItem("pending_profile_name", name);
+localStorage.setItem("pending_profile_hcp", String(handicap_index ?? ""));
+
+const { data, error } = await window.sb.auth.signUp({
+  email,
+  password,
+  options: {
+    emailRedirectTo: `${window.location.origin}/auth-callback.html`
+  }
+});
         if (error) return show(error.message || "Signup failed.", "bad");
 
         // Some setups return session immediately; others require email confirm.
@@ -103,8 +113,7 @@
         const refreshToken = data?.session?.refresh_token || "";
 
         if (!accessToken) {
-          show("Account created. Check your email to confirm, then log in.", "good");
-          return;
+         show("Account created. Check your email to confirm. After confirming, you’ll return here and be signed in automatically.", "good");          return;
         }
 
         // 2) store token for rest of site
