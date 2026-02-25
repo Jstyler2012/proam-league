@@ -96,13 +96,13 @@ exports.handler = async (event) => {
   }  try {
     const route = getRoute(event);
 // DEBUG: show which Supabase project this function is using
-if (route === "debug-supabase") {
+  if (route === "debug-supabase") {
   return {
     statusCode: 200,
     headers: corsHeaders,
-    body: JSON.stringify({ supabase_url: SUPABASE_URL }),
+    body: JSON.stringify({ supabase_url: process.env.SUPABASE_URL || null }),
   };
-}  
+}    
     if (route === "" || route === "health") {
       return json(200, { ok: true, route, rawPath: event.path });
     }
