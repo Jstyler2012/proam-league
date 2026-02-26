@@ -61,7 +61,14 @@ async function rapid(path) {
     json = null;
   }
 
-  if (!res.ok) throw new Error(`RapidAPI ${res.status}: ${text}`);
+  if (!res.ok) {
+  if (res.status === 429) {
+    throw new Error(
+      `RapidAPI 429 Too many requests. Reduce sync calls (the function now supports caching) or upgrade your RapidAPI plan. Raw: ${text}`
+    );
+  }
+  throw new Error(`RapidAPI ${res.status}: ${text}`);
+}
   return json;
 }
 
@@ -181,11 +188,35 @@ exports.handler = async (event) => {
         return { statusCode: 401, body: JSON.stringify({ error: "Unauthorized (bad pin)" }) };
       }
     }
+const weekNumber = Number(event.queryStringParameters?.week_id);
+if (!Number.isFinite(weekNumber)) {
+  return { statusCode: 400, body: JSON.stringify({ error: "Missing/invalid week_id" }) };
+}
 
-    const weekNumber = Number(event.queryStringParameters?.week_id);
-    if (!Number.isFinite(weekNumber)) {
-      return { statusCode: 400, body: JSON.stringify({ error: "Missing/invalid week_id" }) };
-    }
+const force = String(event.queryStringParameters?.force || "") === "1";
+
+// If already synced for this week, do NOT hit RapidAPI unless force=1
+if (!force) {
+  const existing = await sb(
+    `week_pro_field?select=player_ext_id&week_number=eq.${weekNumber}&limit=1`
+  );
+  if (Array.isArray(existing) && existing.length > 0) {
+    return {
+      statusCode: 200,
+      body: JSON.stringify({
+        ok: true,
+        week_number: weekNumber,
+        skipped: true,
+        reason: "week_pro_field already populated (use &force=1 to re-sync)",
+      }),
+    };
+  }
+}
+
+// Load week from DB ...
+const w = await sb(
+  `weeks?select=week_number,start_date,label,tournament_name&week_number=eq.${weekNumber}&limit=1`
+);
 
     // Load week from DB (your weeks.start_date is tournament Thursday)
     const w = await sb(
