@@ -222,10 +222,14 @@ const w = await sb(
     const w = await sb(
   `weeks?select=week_number,start_date,label,tournament_name&week_number=eq.${weekNumber}&limit=1`
 );
-    const week = (w || [])[0];
-    if (!week) {
-      return { statusCode: 404, body: JSON.stringify({ error: `Week ${weekNumber} not found` }) };
-    }
+
+const week = (w || [])[0];
+if (!week) {
+  return {
+    statusCode: 404,
+    body: JSON.stringify({ error: `Week ${weekNumber} not found` })
+  };
+}
 
     const startDate = String(week.start_date || "").slice(0, 10); // YYYY-MM-DD
     const year = Number(startDate.slice(0, 4)) || new Date().getUTCFullYear();
