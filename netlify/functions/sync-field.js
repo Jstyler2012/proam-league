@@ -189,8 +189,8 @@ exports.handler = async (event) => {
 
     // Load week from DB (your weeks.start_date is tournament Thursday)
     const w = await sb(
-      `weeks?select=week_number,start_date,week_name,event_name&week_number=eq.${weekNumber}&limit=1`
-    );
+  `weeks?select=week_number,start_date,label,tournament_name&week_number=eq.${weekNumber}&limit=1`
+);
     const week = (w || [])[0];
     if (!week) {
       return { statusCode: 404, body: JSON.stringify({ error: `Week ${weekNumber} not found` }) };
