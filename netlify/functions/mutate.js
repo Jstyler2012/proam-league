@@ -408,15 +408,30 @@ if (path === "submit-score") {
 
   return json(200, { ok: true, entry: inserted?.[0] || null });
 }
-    // -------------------------
-    // draft-pick (AUTH REQUIRED)
-    // POST /api-mutate/draft-pick { week_id, pro_id }
-    // -------------------------
-    if (path === "draft-pick") {
-      const { week_id, pro_id } = body;
+        if (path === "draft-tick") {
+      const { week_id } = body;
+      const weekNumber = Number(week_id);
+      if (!Number.isFinite(weekNumber)) {
+        return json(400, { error: "Missing/invalid week_id" });
+      }
 
-      if (!week_id || !pro_id) {
-        return json(400, { error: "Missing week_id or pro_id" });
+      // Server-side tick (autopick + advance enforced in DB)
+      const result = await sbService(
+        SUPABASE_URL,
+        SERVICE_KEY,
+        "POST",
+        `rpc/draft_tick`,
+        { p_week_number: weekNumber }
+      );
+
+      return json(200, result || { ok: true });
+    }
+
+    if (path === "draft-swap") {
+      const { week_id, pro_id } = body;
+      const weekNumber = Number(week_id);
+      if (!Number.isFinite(weekNumber) || !pro_id) {
+        return json(400, { error: "Missing/invalid week_id or pro_id" });
       }
 
       const userId = await getAuthedUserId(event, SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -433,20 +448,50 @@ if (path === "submit-score") {
         return json(403, { error: "No player linked to this login yet. Go to Sign Up and create your profile." });
       }
 
-      const row = { week_id, player_id: playerId, pga_golfer: pro_id };
-
-      const saved = await sbService(
+      const result = await sbService(
         SUPABASE_URL,
         SERVICE_KEY,
         "POST",
-        `week_entries?on_conflict=week_id,player_id`,
-        row,
-        "resolution=merge-duplicates,return=representation"
+        `rpc/draft_swap`,
+        { p_week_number: weekNumber, p_player_id: playerId, p_pro_ext_id: String(pro_id) }
       );
 
-      return json(200, { ok: true, entry: saved?.[0] || null });
+      return json(200, result || { ok: true });
     }
 
+    if (path === "draft-pick") {
+      const { week_id, pro_id } = body;
+      const weekNumber = Number(week_id);
+
+      if (!Number.isFinite(weekNumber) || !pro_id) {
+        return json(400, { error: "Missing/invalid week_id or pro_id" });
+      }
+
+      const userId = await getAuthedUserId(event, SUPABASE_URL, SUPABASE_ANON_KEY);
+      if (!userId) return json(401, { error: "Not logged in" });
+
+      const found = await sbService(
+        SUPABASE_URL,
+        SERVICE_KEY,
+        "GET",
+        `players?select=id&user_id=eq.${userId}&limit=1`
+      );
+      const playerId = found?.[0]?.id || null;
+      if (!playerId) {
+        return json(403, { error: "No player linked to this login yet. Go to Sign Up and create your profile." });
+      }
+
+      // Server-enforced pick (turn order + eligibility + uniqueness)
+      const result = await sbService(
+        SUPABASE_URL,
+        SERVICE_KEY,
+        "POST",
+        `rpc/draft_make_pick`,
+        { p_week_number: weekNumber, p_player_id: playerId, p_pro_ext_id: String(pro_id) }
+      );
+
+      return json(200, result || { ok: true });
+    }
     return json(404, { error: "Not found", path });
   } catch (err) {
     return json(500, { error: err?.message || String(err) });
