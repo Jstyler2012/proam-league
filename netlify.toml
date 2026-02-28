@@ -2,6 +2,12 @@
   publish = "."
   functions = "netlify/functions"
 
+# Run sync-field weekly (UTC time).
+# 0 16 * * 1 = Mondays 16:00 UTC (12:00 PM EDT)
+# NOTE: When ET is on standard time (EST), 12:00 PM ET is 17:00 UTC.
+[functions."sync-field"]
+  schedule = "0 16 * * 1"
+
 # Public API routes
 [[redirects]]
   from = "/api/*"
