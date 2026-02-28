@@ -331,12 +331,46 @@ exports.handler = async (event) => {
         .replace(/\s+/g, " ")
         .trim();
 
+        // Schedule items vary a LOT. Support both flat + nested shapes.
     const getTStart = (t) =>
-      toISODateOnly(t.startDate || t.start_date || t.start || t.tournamentStartDate);
+      toISODateOnly(
+        t.startDate ||
+          t.start_date ||
+          t.start ||
+          t.tournamentStartDate ||
+          t.tournament_start_date ||
+          t.start_date_utc ||
+          t?.tournament?.startDate ||
+          t?.tournament?.start_date ||
+          t?.event?.startDate ||
+          t?.event?.start_date
+      );
+
     const getTEnd = (t) =>
-      toISODateOnly(t.endDate || t.end_date || t.end || t.tournamentEndDate);
+      toISODateOnly(
+        t.endDate ||
+          t.end_date ||
+          t.end ||
+          t.tournamentEndDate ||
+          t.tournament_end_date ||
+          t.end_date_utc ||
+          t?.tournament?.endDate ||
+          t?.tournament?.end_date ||
+          t?.event?.endDate ||
+          t?.event?.end_date
+      );
+
     const getTName = (t) =>
-      t.name || t.tournamentName || t.tournament_name || t.eventName || t.title || "";
+      t.name ||
+      t.tournamentName ||
+      t.tournament_name ||
+      t.eventName ||
+      t.title ||
+      t?.tournament?.name ||
+      t?.tournament?.tournamentName ||
+      t?.event?.name ||
+      t?.event?.eventName ||
+      "";
 
     const getTId = (t) =>
       t.tournamentId ??
@@ -346,8 +380,11 @@ exports.handler = async (event) => {
       t.event_id ??
       t.tourId ??
       t.tour_id ??
+      t?.tournament?.id ??
+      t?.tournament?.tournamentId ??
+      t?.event?.id ??
+      t?.event?.eventId ??
       null;
-
     const scheduleCandidates = scheduleArr
       .map((t) => {
         const ts = getTStart(t);
@@ -376,12 +413,26 @@ exports.handler = async (event) => {
           year,
           parsed_count: scheduleArr.length,
           candidate_count: scheduleCandidates.length,
-          sample_candidates: scheduleCandidates.slice(0, 20).map((c) => ({
+                   sample_candidates: scheduleCandidates.slice(0, 20).map((c) => ({
             tournamentId: c.id,
             name: c.name,
             startDate: c.ts,
             endDate: c.te || null,
           })),
+
+          // NEW: show what keys exist on actual schedule items
+          schedule_item_keys_sample: scheduleArr.slice(0, 3).map((t) =>
+            t && typeof t === "object" ? Object.keys(t).slice(0, 60) : []
+          ),
+
+          // NEW: show a tiny sanitized preview of schedule items so we can map fields
+          schedule_item_preview: scheduleArr.slice(0, 3).map((t) => {
+            if (!t || typeof t !== "object") return t;
+            const preview = {};
+            for (const k of Object.keys(t).slice(0, 25)) preview[k] = t[k];
+            return preview;
+          }),
+
           // helpful when array parsing fails
           raw_top_level_keys:
             scheduleRaw && typeof scheduleRaw === "object" && !Array.isArray(scheduleRaw)
