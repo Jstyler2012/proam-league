@@ -11,11 +11,11 @@
 //   SUPABASE_SERVICE_ROLE_KEY
 //   RAPIDAPI_KEY
 //   RAPIDAPI_HOST   (e.g. live-golf-data.p.rapidapi.com)
-//   ADMIN_PIN       (or ADMIN_TOKEN fallback)
+//   ADMIN_PIN (or ADMIN_TOKEN)
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "Content-Type, x-admin-token",
+  "Access-Control-Allow-Headers": "Content-Type, x-admin-token, Authorization",
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
 };
 
@@ -40,55 +40,41 @@ function getHeader(event, name) {
   return (h[name] || h[name.toLowerCase()] || "").trim();
 }
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 function toISODateOnly(d) {
   if (!d) return null;
-  // weeks table uses YYYY-MM-DD; keep it that way
-  return String(d).slice(0, 10);
+  // Handles "YYYY-MM-DD" and ISO strings
+  const s = String(d);
+  const m = s.match(/^(\d{4}-\d{2}-\d{2})/);
+  return m ? m[1] : null;
 }
 
-// RapidAPI schedule uses Mongo-ish dates sometimes:
-//   { date: { start: { $date: { $numberLong: "1768435200000" }}}}
-function mongoDateToISODateOnly(maybe) {
-  if (!maybe) return null;
-  try {
-    // already a string
-    if (typeof maybe === "string") return toISODateOnly(maybe);
-
-    // number-like
-    if (typeof maybe === "number") return toISODateOnly(new Date(maybe).toISOString());
-
-    // { $date: { $numberLong: "..." } }
-    const n1 = maybe?.$date?.$numberLong;
-    if (n1) return toISODateOnly(new Date(Number(n1)).toISOString());
-
-    // { $numberLong: "..." }
-    const n2 = maybe?.$numberLong;
-    if (n2) return toISODateOnly(new Date(Number(n2)).toISOString());
-
-    // Date instance
-    if (maybe instanceof Date) return toISODateOnly(maybe.toISOString());
-  } catch {
-    // fall through
-  }
-  return null;
+function mongoDateToISODateOnly(v) {
+  if (!v) return null;
+  // Accept:
+  // - "2026-03-01T00:00:00Z"
+  // - { "$date": "..." }
+  // - date-ish strings
+  if (typeof v === "object" && v.$date) return toISODateOnly(v.$date);
+  return toISODateOnly(v);
 }
 
-function sleep(ms) {
-  return new Promise((r) => setTimeout(r, ms));
-}
+// RapidAPI helper
+async function rapidFetch({ host, key, path, qs }) {
+  const u = new URL(`https://${host}${path}`);
+  Object.entries(qs || {}).forEach(([k, v]) => {
+    if (v === undefined || v === null || v === "") return;
+    u.searchParams.set(k, String(v));
+  });
 
-// RapidAPI fetch with small retry/backoff for 429
-async function rapidFetch({ host, key, path, qs = {}, tries = 3 }) {
-  const url = new URL(`https://${host}${path}`);
-  for (const [k, v] of Object.entries(qs)) {
-    if (v === undefined || v === null || v === "") continue;
-    url.searchParams.set(k, String(v));
-  }
-
+  const tries = 4;
   let lastText = "";
+
   for (let i = 0; i < tries; i++) {
-    const r = await fetch(url.toString(), {
-      method: "GET",
+    const r = await fetch(u.toString(), {
       headers: {
         "x-rapidapi-host": host,
         "x-rapidapi-key": key,
@@ -311,7 +297,6 @@ exports.handler = async (event) => {
     const sb = makeSupabase(SUPABASE_URL, SERVICE_ROLE);
 
     // 1) Load the week row from your existing weeks table
-    // NOTE: your schema uses week_number, tournament_name, start_date, end_date (per public.js)
     const weeks = await sb(
       "GET",
       `weeks?select=id,week_number,label,tournament_name,start_date,end_date&week_number=eq.${weekNumber}&limit=1`
@@ -344,202 +329,224 @@ exports.handler = async (event) => {
       (Array.isArray(scheduleRaw.results) ? scheduleRaw.results : null) ||
       [];
 
-// Tournament matching:
-// 1) exact overlap (with +/-1 day tolerance for timezone)
-// 2) fuzzy name match vs week.tournament_name / week.label
-// 3) nearest-by-date fallback (for debug output)
-// Also supports override: &tournament_id=XXXX
-const tournamentIdOverride = String(q.tournament_id || "").trim();
+    // Tournament matching:
+    // 1) exact overlap (with +/-1 day tolerance for timezone)
+    // 2) fuzzy name match vs week.tournament_name / week.label
+    // 3) nearest-by-date fallback (for debug output)
+    // Also supports override: &tournament_id=XXXX
+    const tournamentIdOverride = String(q.tournament_id || "").trim();
 
-const normName = (s) =>
-  String(s || "")
-    .toLowerCase()
-    .replace(/[^a-z0-9\s]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
+    const normName = (s) =>
+      String(s || "")
+        .toLowerCase()
+        .replace(/[^a-z0-9\s]/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
 
-const getTStart = (t) =>
-  mongoDateToISODateOnly(
-    t.startDate ||
-      t.start_date ||
-      t.start ||
-      t.tournamentStartDate ||
-      t?.date?.start ||
-      t?.date?.Start
-  );
-const getTEnd = (t) =>
-  mongoDateToISODateOnly(
-    t.endDate ||
-      t.end_date ||
-      t.end ||
-      t.tournamentEndDate ||
-      t?.date?.end ||
-      t?.date?.End
-  );
-const getTName = (t) => t.name || t.tournamentName || t.tournament_name || t.eventName || t.title || "";
+    const getTStart = (t) =>
+      mongoDateToISODateOnly(
+        t.startDate ||
+          t.start_date ||
+          t.start ||
+          t.tournamentStartDate ||
+          t?.date?.start ||
+          t?.date?.Start
+      );
+    const getTEnd = (t) =>
+      mongoDateToISODateOnly(
+        t.endDate ||
+          t.end_date ||
+          t.end ||
+          t.tournamentEndDate ||
+          t?.date?.end ||
+          t?.date?.End
+      );
+    const getTName = (t) =>
+      t.name || t.tournamentName || t.tournament_name || t.eventName || t.title || "";
 
-const getTId = (t) =>
-  t.tournamentId ??
-  t.tournament_id ??
-  t.id ??
-  t.eventId ??
-  t.event_id ??
-  t.tourId ??
-  t.tour_id ??
-  null;
+    const getTId = (t) =>
+      t.tournamentId ??
+      t.tournament_id ??
+      t.id ??
+      t.eventId ??
+      t.event_id ??
+      t.tourId ??
+      t.tour_id ??
+      null;
 
-// build candidates with parsed dates
-const scheduleCandidates = scheduleArr
-  .map((t) => {
-    const ts = getTStart(t);
-    const te = getTEnd(t);
-    const id = getTId(t);
-    const name = getTName(t);
-    return { t, id, name, ts, te };
-  })
-  .filter((x) => x.id && x.ts); // must have at least id + start
+    // build candidates with parsed dates
+    const scheduleCandidates = scheduleArr
+      .map((t) => {
+        const ts = getTStart(t);
+        const te = getTEnd(t);
+        const id = getTId(t);
+        const name = getTName(t);
+        return { t, id, name, ts, te };
+      })
+      .filter((x) => x.id && x.ts); // must have at least id + start
 
-const weekNameNeedle = normName(week.tournament_name || week.label || week.name || "");
+    const weekNameNeedle = normName(week.tournament_name || week.label || week.name || "");
 
-const pickTournament = () => {
-  if (tournamentIdOverride) {
-    const forced = scheduleCandidates.find((c) => String(c.id) === tournamentIdOverride);
-    if (forced) return forced.t;
-    // if override provided but not found in schedule list, still allow it later
-    return null;
-  }
-
-  if (!startDate && scheduleCandidates.length) return scheduleCandidates[0].t;
-
-  const s0 = startDate ? new Date(startDate + "T00:00:00Z") : null;
-  const e0 = endDate ? new Date(endDate + "T23:59:59Z") : null;
-
-  // timezone tolerance (+/- 1 day)
-  const s = s0 ? new Date(s0.getTime() - 24 * 3600 * 1000) : null;
-  const e = e0 ? new Date(e0.getTime() + 24 * 3600 * 1000) : null;
-
-  // 1) overlap scoring
-  const overlapScored = [];
-  for (const c of scheduleCandidates) {
-    if (!c.ts || !c.te || !s || !e) continue;
-    const a = new Date(c.ts + "T00:00:00Z");
-    const b = new Date(c.te + "T23:59:59Z");
-    const overlaps = a <= e && b >= s;
-    if (!overlaps) continue;
-
-    let score = 0;
-    if (toISODateOnly(c.ts) === startDate) score += 100;
-    if (toISODateOnly(c.te) === endDate) score += 50;
-    // smaller date distance gets a bit more score
-    score += Math.max(0, 30 - Math.abs(a - s0) / (24 * 3600 * 1000));
-    overlapScored.push({ c, score });
-  }
-
-  if (overlapScored.length) {
-    overlapScored.sort((x, y) => y.score - x.score);
-    return overlapScored[0].c.t;
-  }
-
-  // 2) name match (only if we have a meaningful week name)
-  if (weekNameNeedle && weekNameNeedle.length >= 6) {
-    const nameScored = [];
-    for (const c of scheduleCandidates) {
-      const hay = normName(c.name);
-      if (!hay) continue;
-      // simple contains either direction
-      const hit = hay.includes(weekNameNeedle) || weekNameNeedle.includes(hay);
-      if (!hit) continue;
-      // prefer closer dates if provided
-      let score = 100;
-      if (s0 && c.ts) {
-        const a = new Date(c.ts + "T00:00:00Z");
-        score += Math.max(0, 30 - Math.abs(a - s0) / (24 * 3600 * 1000));
+    const pickTournament = () => {
+      if (tournamentIdOverride) {
+        const forced = scheduleCandidates.find((c) => String(c.id) === tournamentIdOverride);
+        if (forced) return forced.t;
+        // if override provided but not found in schedule list, still allow it later
+        return null;
       }
-      nameScored.push({ c, score });
+
+      if (!startDate && scheduleCandidates.length) return scheduleCandidates[0].t;
+
+      const s0 = startDate ? new Date(startDate + "T00:00:00Z") : null;
+      const e0 = endDate ? new Date(endDate + "T23:59:59Z") : null;
+
+      // timezone tolerance (+/- 1 day)
+      const s = s0 ? new Date(s0.getTime() - 24 * 3600 * 1000) : null;
+      const e = e0 ? new Date(e0.getTime() + 24 * 3600 * 1000) : null;
+
+      // 1) overlap scoring
+      const overlapScored = [];
+      for (const c of scheduleCandidates) {
+        if (!c.ts || !c.te || !s || !e) continue;
+        const a = new Date(c.ts + "T00:00:00Z");
+        const b = new Date(c.te + "T23:59:59Z");
+        const overlaps = a <= e && b >= s;
+        if (!overlaps) continue;
+
+        let score = 0;
+        if (toISODateOnly(c.ts) === startDate) score += 100;
+        if (toISODateOnly(c.te) === endDate) score += 50;
+        // smaller date distance gets a bit more score
+        score += Math.max(0, 30 - Math.abs(a - s0) / (24 * 3600 * 1000));
+        overlapScored.push({ c, score });
+      }
+
+      if (overlapScored.length) {
+        overlapScored.sort((x, y) => y.score - x.score);
+        return overlapScored[0].c.t;
+      }
+
+      // 2) name match (only if we have a meaningful week name)
+      if (weekNameNeedle && weekNameNeedle.length >= 6) {
+        const nameScored = [];
+        for (const c of scheduleCandidates) {
+          const hay = normName(c.name);
+          if (!hay) continue;
+          // simple contains either direction
+          const hit = hay.includes(weekNameNeedle) || weekNameNeedle.includes(hay);
+          if (!hit) continue;
+          // prefer closer dates if provided
+          let score = 100;
+          if (s0 && c.ts) {
+            const a = new Date(c.ts + "T00:00:00Z");
+            score += Math.max(0, 30 - Math.abs(a - s0) / (24 * 3600 * 1000));
+          }
+          nameScored.push({ c, score });
+        }
+        if (nameScored.length) {
+          nameScored.sort((x, y) => y.score - x.score);
+          return nameScored[0].c.t;
+        }
+      }
+
+      return null;
+    };
+
+    const tournament = pickTournament();
+
+    // If we still don't have a match, return helpful debug info:
+    if (!tournament && !tournamentIdOverride) {
+      // nearest-by-start-date for debug
+      const s0 = startDate ? new Date(startDate + "T00:00:00Z") : null;
+      const nearest = [...scheduleCandidates]
+        .map((c) => {
+          const a = c.ts ? new Date(c.ts + "T00:00:00Z") : null;
+          const distDays = s0 && a ? Math.round(Math.abs(a - s0) / (24 * 3600 * 1000)) : null;
+          return { ...c, distDays };
+        })
+        .sort((x, y) => (x.distDays ?? 99999) - (y.distDays ?? 99999))
+        .slice(0, 12)
+        .map((c) => ({
+          tournamentId: c.id,
+          name: c.name,
+          startDate: c.ts,
+          endDate: c.te || null,
+          distDays: c.distDays,
+        }));
+
+      return json(500, {
+        ok: false,
+        step: "schedule-match",
+        error:
+          "Could not match tournament by overlap or name. Use ?tournament_id=XXXX from the candidates list below, or verify the schedule endpoint/year/orgId.",
+        week: {
+          weekNumber,
+          startDate,
+          endDate,
+          year,
+          weekName: week.tournament_name || week.label || null,
+        },
+        nearest_schedule_candidates: nearest,
+      });
     }
-    if (nameScored.length) {
-      nameScored.sort((x, y) => y.score - x.score);
-      return nameScored[0].c.t;
+
+    // If override was provided but not found in schedule list, we still allow it:
+    const resolvedTournamentId =
+      tournamentIdOverride ||
+      (tournament
+        ? (tournament.tournamentId ??
+            tournament.tournament_id ??
+            tournament.id ??
+            tournament.eventId ??
+            tournament.event_id ??
+            null)
+        : null);
+
+    const tournamentName =
+      (tournament
+        ? (tournament.name ?? tournament.tournamentName ?? tournament.tournament_name ?? null)
+        : null) ||
+      week.tournament_name ||
+      week.label ||
+      null;
+
+    if (!resolvedTournamentId) {
+      return json(500, {
+        ok: false,
+        step: "tournament-id",
+        error:
+          "No tournamentId resolved. Provide &tournament_id=XXXX (from RapidAPI schedule list).",
+      });
     }
-  }
 
-  return null;
-};
-
-const tournament = pickTournament();
-
-// If we still don't have a match, return helpful debug info:
-if (!tournament && !tournamentIdOverride) {
-  // nearest-by-start-date for debug
-  const s0 = startDate ? new Date(startDate + "T00:00:00Z") : null;
-  const nearest = [...scheduleCandidates]
-    .map((c) => {
-      const a = c.ts ? new Date(c.ts + "T00:00:00Z") : null;
-      const distDays = s0 && a ? Math.round(Math.abs(a - s0) / (24 * 3600 * 1000)) : null;
-      return { ...c, distDays };
-    })
-    .sort((x, y) => (x.distDays ?? 99999) - (y.distDays ?? 99999))
-    .slice(0, 12)
-    .map((c) => ({
-      tournamentId: c.id,
-      name: c.name,
-      startDate: c.ts,
-      endDate: c.te || null,
-      distDays: c.distDays,
-    }));
-
-  return json(500, {
-    ok: false,
-    step: "schedule-match",
-    error:
-      "Could not match tournament by overlap or name. Use ?tournament_id=XXXX from the candidates list below, or verify the schedule endpoint/year/orgId.",
-    week: {
-      weekNumber,
-      startDate,
-      endDate,
-      year,
-      weekName: week.tournament_name || week.label || null,
-    },
-    nearest_schedule_candidates: nearest,
-    tip:
-      "Try hitting this function with &debug=1 after we add it (optional), or paste the RapidAPI schedule JSON for 2026 so we can align orgId/fields precisely.",
-  });
-}
-
-// If override was provided but not found in schedule list, we still allow it:
-const resolvedTournamentId =
-  tournamentIdOverride ||
-  (tournament
-    ? (tournament.tournamentId ?? tournament.tournament_id ?? tournament.id ?? tournament.eventId ?? tournament.event_id ?? null)
-    : null);
-
-const tournamentName =
-  (tournament ? (tournament.name ?? tournament.tournamentName ?? tournament.tournament_name ?? null) : null) ||
-  week.tournament_name ||
-  week.label ||
-  null;
-
-if (!resolvedTournamentId) {
-  return json(500, {
-    ok: false,
-    step: "tournament-id",
-    error: "No tournamentId resolved. Provide &tournament_id=XXXX (from RapidAPI schedule list).",
-  });
-}
-    // Use the resolvedTournamentId (from schedule or override) computed above.
     const tournId = String(resolvedTournamentId);
 
-    // 3) Fetch tournament field (best effort: endpoint naming varies)
-    // Try a few common variants.
+    // 3) Fetch tournament field
+    // Your requirement: use the RapidAPI `/tournaments` endpoint because it includes a `players` array
+    // that exists BEFORE the tournament starts (unlike /leaderboards).
+    //
+    // SlashGolf/RapidAPI implementations vary, so we try several common shapes:
+    // - GET /tournaments?tournId=123
+    // - GET /tournaments?tournamentId=123
+    // - GET /tournaments/123
+    // - GET /tournaments/123/players
+    //
+    // NOTE: We still keep /leaderboards as a last-resort fallback (mainly for during/after start),
+    // but tournaments is tried first.
     const fieldResp = await tryRapidPaths(rapidCtx, [
-      // Try both parameter names: schedule uses "tournId".
+      // Preferred: tournaments endpoint (pre-tournament field)
+      { path: "/tournaments", qs: { orgId: 1, tournId } },
+      { path: "/tournaments", qs: { orgId: 1, tournamentId: tournId } },
+      { path: `/tournaments/${encodeURIComponent(tournId)}`, qs: { orgId: 1 } },
+      { path: `/tournaments/${encodeURIComponent(tournId)}`, qs: { orgId: 1, year } },
+      { path: `/tournaments/${encodeURIComponent(tournId)}/players`, qs: { orgId: 1 } },
+      { path: `/tournaments/${encodeURIComponent(tournId)}/players`, qs: { orgId: 1, year } },
+
+      // Fallbacks (can work only once the event is live)
       { path: "/leaderboards", qs: { orgId: 1, tournId } },
       { path: "/leaderboards", qs: { orgId: 1, tournamentId: tournId } },
       { path: "/leaderboard", qs: { orgId: 1, tournId } },
       { path: "/leaderboard", qs: { orgId: 1, tournamentId: tournId } },
-      // Some providers expose tournament players via tournaments/players.
-      { path: "/tournaments", qs: { orgId: 1, tournId } },
-      { path: "/tournaments", qs: { orgId: 1, tournamentId: tournId } },
       { path: "/players", qs: { orgId: 1, tournId } },
       { path: "/players", qs: { orgId: 1, tournamentId: tournId } },
     ]);
@@ -549,19 +556,73 @@ if (!resolvedTournamentId) {
         ok: false,
         step: "field",
         error: fieldResp.error,
-        note: "This means the field/leaderboard endpoint (or parameter names) don't match what we're calling. In RapidAPI, click the endpoint that returns the tournament field/leaderboard, copy the generated cURL 'Code Snippet', and paste it to me. I'll align this function to it.",
+        note:
+          "Field fetch failed. Confirm the exact RapidAPI endpoint/params for SlashGolf tournaments. " +
+          "In RapidAPI, open the /tournaments endpoint for your plan, copy the generated cURL, " +
+          "and verify whether the tournament id is passed as 'tournId', 'tournamentId', or as a path segment.",
       });
     }
 
-    // If leaderboard shape, players might be nested
-    const fieldPlayers = normalizeFieldPayload(fieldResp.data);
+    // Extract players from a tournament response (handles multiple common response shapes)
+    const extractTournamentPlayers = (payload) => {
+      if (!payload) return [];
+
+      // 1) If the response IS the tournament object and contains players
+      if (payload && Array.isArray(payload.players)) return payload.players;
+
+      // 2) If response wraps the tournament in a property
+      for (const k of ["tournament", "data", "result", "results"]) {
+        const v = payload?.[k];
+        if (v && Array.isArray(v.players)) return v.players;
+      }
+
+      // 3) If response is a list of tournaments; find the one matching tournId
+      const list =
+        (Array.isArray(payload) ? payload : null) ||
+        (Array.isArray(payload.tournaments) ? payload.tournaments : null) ||
+        (Array.isArray(payload.data) ? payload.data : null) ||
+        (Array.isArray(payload.results) ? payload.results : null) ||
+        [];
+
+      if (list.length) {
+        const found = list.find((t) => {
+          const id =
+            t.tournamentId ??
+            t.tournament_id ??
+            t.id ??
+            t.eventId ??
+            t.event_id ??
+            null;
+          return id != null && String(id) === String(tournId);
+        });
+
+        if (found && Array.isArray(found.players)) return found.players;
+      }
+
+      // 4) Not a tournament payload; could already be a field list or leaderboard players
+      return [];
+    };
+
+    const tournamentPlayers = extractTournamentPlayers(fieldResp.data);
+
+    // If we got tournament players, normalize that; otherwise fall back to general normalization
+    // (to support endpoints that return { leaderboard: { players: [...] } } etc.)
+    const fieldPlayers = tournamentPlayers.length
+      ? normalizeFieldPayload({ players: tournamentPlayers })
+      : normalizeFieldPayload(fieldResp.data);
 
     if (!fieldPlayers.length) {
       return json(500, {
         ok: false,
         step: "field-empty",
-        error: "Tournament field came back empty after normalization.",
-        hint: "Open RapidAPI playground for players/leaderboard endpoint and confirm response shape.",
+        error:
+          "Tournament field came back empty after normalization. Most likely the chosen endpoint does not contain `players` (or the tournament id parameter differs).",
+        debug: {
+          tried_endpoint: fieldResp.path,
+          tried_qs: fieldResp.qs,
+          tournamentId: tournId,
+          tournamentName,
+        },
       });
     }
 
@@ -603,8 +664,25 @@ if (!resolvedTournamentId) {
 
     const tiered = assignTiers(merged);
 
+    // Optional: also upsert into a canonical `pros` table if it exists.
+    // This keeps a season-wide player directory separate from week-specific tiering.
+    // If your Supabase project does not have a `pros` table (or columns differ),
+    // we skip this step but still proceed with week_pros.
+    try {
+      const prosPayload = tiered.map((p) => ({
+        pro_id: p.pro_id,
+        pro_name: p.pro_name,
+        world_rank: p.world_rank,
+      }));
+      // Upsert on pro_id (requires a unique constraint on pros.pro_id)
+      await sb("POST", "pros?on_conflict=pro_id", prosPayload);
+    } catch (e) {
+      // Non-fatal; include in final response for visibility
+      // (Often means the `pros` table doesn't exist or columns/constraints differ.)
+      console.warn("pros upsert skipped:", e?.message || String(e));
+    }
+
     // 5) Write to week_pros table
-    // IMPORTANT: if your table name/columns differ, tell me and I'll adjust.
     //
     // Supports both:
     // - week_id = integer week_number
@@ -614,7 +692,6 @@ if (!resolvedTournamentId) {
     let weekKey = weekNumber;
     let usedUuid = false;
 
-    // delete existing rows unless force=0 and rows already exist
     const existingTry = async (keyVal) => {
       return await sb("GET", `week_pros?select=pro_id&week_id=eq.${keyVal}&limit=1`);
     };
@@ -656,7 +733,7 @@ if (!resolvedTournamentId) {
       pro_name: p.pro_name,
       world_rank: p.world_rank,
       tier: p.tier,
-      source: "slashgolf+world_ranking",
+      source: "slashgolf+tournaments+world_ranking",
     }));
 
     // Supabase REST has payload limits; chunk inserts
