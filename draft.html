@@ -108,7 +108,9 @@ const $ = (id) => document.getElementById(id);
 function escapeHTML(s){
   return String(s ?? "")
     .replaceAll("&","&amp;").replaceAll("<","&lt;")
-    .replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;");
+    .replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;")
+    .replaceAll("'","&#039;");
 }
 
 function fmtTS(iso){
@@ -154,6 +156,30 @@ async function postJSON(url, body){
   return j || { ok:true };
 }
 
+function setWeekInUrl(weekNumber){
+  try{
+    const u = new URL(window.location.href);
+    // normalize to week_id
+    u.searchParams.set("week_id", String(weekNumber));
+    // also remove legacy param if present
+    if (u.searchParams.has("week")) u.searchParams.delete("week");
+    window.history.replaceState({}, "", u.toString());
+  }catch{}
+}
+
+function getWeekFromUrl(){
+  try{
+    const u = new URL(window.location.href);
+    const a = u.searchParams.get("week_id");
+    const b = u.searchParams.get("week");
+    const raw = (a != null && a !== "") ? a : b;
+    const n = Number(raw);
+    return Number.isFinite(n) ? n : null;
+  }catch{
+    return null;
+  }
+}
+
 /* -------------------------
    state
 ------------------------- */
@@ -177,6 +203,7 @@ function populateSelect(sel, items, placeholder){
   ph.value = "";
   ph.textContent = placeholder;
   sel.appendChild(ph);
+
   for (const it of (items||[])){
     const opt = document.createElement("option");
     const v = (it?.id != null) ? it.id : it?.player_ext_id;
@@ -245,6 +272,11 @@ function renderDraftStatus(){
 }
 
 function canPickNow(){
+  // Field must exist (week_pro_field populated)
+  if(!(pros && pros.length)){
+    return { ok:false, reason:"Field not posted yet for this week. Check back once the tournament field is available." };
+  }
+
   if(!me?.player?.id) return { ok:false, reason:"Not logged in / missing player profile." };
   if(!isParticipating) return { ok:false, reason:"You are not participating this week. Click “Participate this week” first." };
   if(!draftState) return { ok:false, reason:"Draft state unavailable. Click Refresh." };
@@ -271,7 +303,6 @@ function canPickNow(){
 }
 
 function computeDraftContext(){
-  const now = Date.now();
   const myId = me?.player?.id ? String(me.player.id) : null;
 
   // Find my currently taken pro (if any) from week-pros payload
@@ -286,7 +317,7 @@ function computeDraftContext(){
   // Allow choosing: not taken OR taken by me
   const selectablePros = (pros||[]).filter(p => !p?.taken || String(p.taken_by_player_id||"")===String(myId));
 
-  return { now, myId, myCurrentProExt, selectablePros };
+  return { myId, myCurrentProExt, selectablePros };
 }
 
 function renderBoard(){
@@ -299,19 +330,25 @@ function renderBoard(){
   $("badgeDraft").textContent = `Draft: ${st}`;
   $("badgeDraft").className = "badge " + (st==="LIVE" || st==="SWAP_OPEN" ? "good" : "muted");
 
-  // pick/swap controls
   const gate = canPickNow();
   $("pickBtn").disabled = !gate.ok;
-  $("pickBtn").textContent = gate.ok ? (gate.mode==="swap" ? "Submit Swap" : "Submit Pick") : "Submit";
 
-  const ctx = computeDraftContext();
+  // If no field yet, make the dropdown obvious + prevent submission
+  if(!(pros && pros.length)){
+    $("pickBtn").textContent = "Submit";
+    populateSelect($("proSel"), [], "Field not posted yet — check back later");
+    $("proSel").disabled = true;
+  } else {
+    $("proSel").disabled = false;
+    $("pickBtn").textContent = gate.ok ? (gate.mode==="swap" ? "Submit Swap" : "Submit Pick") : "Submit";
 
-  // populate pro select with selectable pros (not taken or taken by me)
-  populateSelect($("proSel"), ctx.selectablePros, gate.mode==="swap" ? "Select a pro to swap to" : "Select a pro");
+    const ctx = computeDraftContext();
+    populateSelect($("proSel"), ctx.selectablePros, gate.mode==="swap" ? "Select a pro to swap to" : "Select a pro");
 
-  // preselect my current pro in swap mode if nothing selected yet
-  if(gate.mode==="swap" && !$("proSel").value && ctx.myCurrentProExt){
-    $("proSel").value = ctx.myCurrentProExt;
+    // preselect my current pro in swap mode if nothing selected yet
+    if(gate.mode==="swap" && !$("proSel").value && ctx.myCurrentProExt){
+      $("proSel").value = ctx.myCurrentProExt;
+    }
   }
 
   // participants list
@@ -330,27 +367,26 @@ function renderBoard(){
 async function loadWeeks(){
   const list = await getJSON(API.weeks);
   weeks = Array.isArray(list) ? list : (list?.weeks || []);
-  populateSelect($("weekSel"), weeks.map(w => ({ id: w.week_number, name: `${w.week_number}: ${w.tournament_name || w.label || "Week"}` })), "Select week");
+  populateSelect(
+    $("weekSel"),
+    weeks.map(w => ({ id: w.week_number, name: `${w.week_number}: ${w.tournament_name || w.label || "Week"}` })),
+    "Select week"
+  );
 }
 
 async function loadMe(){
-  try{
-    me = await getJSON(API.me);
-  }catch{
-    me = null;
-  }
+  try{ me = await getJSON(API.me); }
+  catch{ me = null; }
 }
 
 async function loadCurrentWeek(){
-  const sel = $("weekSel");
-  const wn = Number(sel.value || "");
+  const wn = Number($("weekSel").value || "");
   currentWeek = weeks.find(w => Number(w.week_number)===wn) || null;
 }
 
 async function loadParticipating(){
   if(!currentWeek?.week_number || !me?.player?.id){ isParticipating=false; return; }
-  // Your public endpoint may not exist; so rely on board containing me OR participation mutation response.
-  // For now: treat participation as true if you appear on the draft-board.
+  // treat participation as true if you appear on the draft-board
   isParticipating = boardRows.some(r => String(r.player_id)===String(me.player.id));
 }
 
@@ -449,12 +485,20 @@ async function boot(){
     await loadMe();
     await loadWeeks();
 
+    // Prefer URL week param if present
+    const urlWeek = getWeekFromUrl();
+    if (urlWeek != null && weeks.some(w => Number(w.week_number) === Number(urlWeek))){
+      $("weekSel").value = String(urlWeek);
+    }
+
     // default select first week if none
     if(!$("weekSel").value && weeks.length){
       $("weekSel").value = String(weeks[0].week_number);
     }
 
     await loadCurrentWeek();
+    if(currentWeek?.week_number) setWeekInUrl(currentWeek.week_number);
+
     await refreshAll();
 
   }catch(e){
@@ -464,6 +508,7 @@ async function boot(){
 
 $("weekSel").addEventListener("change", async () => {
   await loadCurrentWeek();
+  if(currentWeek?.week_number) setWeekInUrl(currentWeek.week_number);
   await refreshAll();
 });
 
