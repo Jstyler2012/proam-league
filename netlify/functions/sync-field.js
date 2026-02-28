@@ -480,31 +480,18 @@ if (!resolvedTournamentId) {
     error: "No tournamentId resolved. Provide &tournament_id=XXXX (from RapidAPI schedule list).",
   });
 }
-    const tournamentId =
-      tournament.tournamentId ?? tournament.tournament_id ?? tournament.id ?? tournament.eventId ?? tournament.event_id ?? null;
 
-    const tournamentName =
-      tournament.name ?? tournament.tournamentName ?? tournament.tournament_name ?? week.tournament_name ?? week.label ?? null;
+const tournamentId = resolvedTournamentId;
 
-    if (!tournamentId) {
-      return json(500, {
-        ok: false,
-        step: "tournament-id",
-        error: "Matched a tournament but could not find tournamentId in schedule payload.",
-        matched: tournament,
-      });
-    }
-
-    // 3) Fetch tournament field (best effort: endpoint naming varies)
-    // Try a few common variants.
-    const fieldResp = await tryRapidPaths(rapidCtx, [
-      { path: "/players", qs: { orgId: 1, tournamentId } },
-      { path: "/tournament/players", qs: { orgId: 1, tournamentId } },
-      { path: "/tournamentPlayers", qs: { orgId: 1, tournamentId } },
-      { path: "/leaderboard", qs: { orgId: 1, tournamentId } },
-      { path: "/leaderboards", qs: { orgId: 1, tournamentId } },
-    ]);
-
+// 3) Fetch tournament field (best effort: endpoint naming varies)
+// Try a few common variants.
+const fieldResp = await tryRapidPaths(rapidCtx, [
+  { path: "/players", qs: { orgId: 1, tournamentId } },
+  { path: "/tournament/players", qs: { orgId: 1, tournamentId } },
+  { path: "/tournamentPlayers", qs: { orgId: 1, tournamentId } },
+  { path: "/leaderboard", qs: { orgId: 1, tournamentId } },
+  { path: "/leaderboards", qs: { orgId: 1, tournamentId } },
+]);
     if (!fieldResp.ok) {
       return json(500, {
         ok: false,
