@@ -4,13 +4,7 @@
 // then store per-week tier assignments server-side.
 //
 // Call:
-//   /.netlify/functions/sync-field?week_id=1&pin=YOURPIN
-// Optional:
-//   &force=1            => overwrite existing week_pros rows
-//   &debug=1            => return schedule parsing diagnostics (no DB writes)
-//   &orgId=1            => override orgId (default 1)
-//   &year=2026          => override year (default derived from weeks.start_date)
-//   &tournament_id=XXXX => force tournament id once you know it
+//   /.netlify/functions/sync-field?week_id=1&pin=YOURPIN&force=1
 //
 // Env required:
 //   SUPABASE_URL
@@ -48,7 +42,35 @@ function getHeader(event, name) {
 
 function toISODateOnly(d) {
   if (!d) return null;
+  // weeks table uses YYYY-MM-DD; keep it that way
   return String(d).slice(0, 10);
+}
+
+// RapidAPI schedule uses Mongo-ish dates sometimes:
+//   { date: { start: { $date: { $numberLong: "1768435200000" }}}}
+function mongoDateToISODateOnly(maybe) {
+  if (!maybe) return null;
+  try {
+    // already a string
+    if (typeof maybe === "string") return toISODateOnly(maybe);
+
+    // number-like
+    if (typeof maybe === "number") return toISODateOnly(new Date(maybe).toISOString());
+
+    // { $date: { $numberLong: "..." } }
+    const n1 = maybe?.$date?.$numberLong;
+    if (n1) return toISODateOnly(new Date(Number(n1)).toISOString());
+
+    // { $numberLong: "..." }
+    const n2 = maybe?.$numberLong;
+    if (n2) return toISODateOnly(new Date(Number(n2)).toISOString());
+
+    // Date instance
+    if (maybe instanceof Date) return toISODateOnly(maybe.toISOString());
+  } catch {
+    // fall through
+  }
+  return null;
 }
 
 function sleep(ms) {
@@ -77,11 +99,14 @@ async function rapidFetch({ host, key, path, qs = {}, tries = 3 }) {
     lastText = t;
 
     if (r.status === 429 && i < tries - 1) {
-      await sleep(800 * (i + 1));
+      // exponential-ish backoff
+      await sleep(600 * (i + 1));
       continue;
     }
 
-    if (!r.ok) throw new Error(`RapidAPI ${r.status}: ${t}`);
+    if (!r.ok) {
+      throw new Error(`RapidAPI ${r.status}: ${t}`);
+    }
 
     if (!t) return null;
     try {
@@ -94,6 +119,7 @@ async function rapidFetch({ host, key, path, qs = {}, tries = 3 }) {
   throw new Error(`RapidAPI failed: ${lastText}`);
 }
 
+// Supabase REST helper (service role)
 function makeSupabase(SUPABASE_URL, SERVICE_ROLE) {
   return async function sb(method, restPath, bodyObj) {
     const url = `${SUPABASE_URL}/rest/v1/${restPath}`;
@@ -121,6 +147,7 @@ function makeSupabase(SUPABASE_URL, SERVICE_ROLE) {
   };
 }
 
+// attempt multiple candidate endpoint paths (SlashGolf naming can vary)
 async function tryRapidPaths(rapidCtx, candidates) {
   let lastErr = null;
   for (const c of candidates) {
@@ -134,7 +161,12 @@ async function tryRapidPaths(rapidCtx, candidates) {
   return { ok: false, error: lastErr ? String(lastErr.message || lastErr) : "Unknown error" };
 }
 
+// normalize “world ranking” payload to { pro_id, pro_name, world_rank }
 function normalizeWorldRankingPayload(payload) {
+  // Accept a bunch of common shapes:
+  // - { data: [...] }
+  // - { rankings: [...] }
+  // - [...]
   const arr =
     (payload && Array.isArray(payload) ? payload : null) ||
     (payload && Array.isArray(payload.data) ? payload.data : null) ||
@@ -144,9 +176,13 @@ function normalizeWorldRankingPayload(payload) {
 
   const out = [];
   for (const r of arr) {
-    const rank = r.rank ?? r.worldRank ?? r.world_rank ?? r.position ?? r.pos ?? null;
+    // try multiple keys
+    const rank =
+      r.rank ?? r.worldRank ?? r.world_rank ?? r.position ?? r.pos ?? null;
+
     const id =
       r.playerId ?? r.player_id ?? r.id ?? r.pgaId ?? r.pga_id ?? r.owgrId ?? null;
+
     const name =
       r.playerName ?? r.player_name ?? r.name ?? r.fullName ?? r.full_name ?? null;
 
@@ -158,23 +194,30 @@ function normalizeWorldRankingPayload(payload) {
     });
   }
 
+  // Filter nonsense
   return out.filter((x) => x.pro_id && x.pro_name);
 }
 
+// normalize “field” payload to list of { pro_id, pro_name }
 function normalizeFieldPayload(payload) {
   const arr =
     (payload && Array.isArray(payload) ? payload : null) ||
     (payload && Array.isArray(payload.players) ? payload.players : null) ||
     (payload && Array.isArray(payload.field) ? payload.field : null) ||
+    (payload && Array.isArray(payload.leaderboard) ? payload.leaderboard : null) ||
+    (payload && payload.leaderboard && Array.isArray(payload.leaderboard.players) ? payload.leaderboard.players : null) ||
+    (payload && payload.leaderboards && Array.isArray(payload.leaderboards) ? payload.leaderboards : null) ||
     (payload && Array.isArray(payload.data) ? payload.data : null) ||
     (payload && Array.isArray(payload.results) ? payload.results : null) ||
     [];
 
   const out = [];
   for (const p of arr) {
-    const id = p.playerId ?? p.player_id ?? p.id ?? p.pgaId ?? p.pga_id ?? null;
+    const id =
+      p.playerId ?? p.player_id ?? p.id ?? p.pgaId ?? p.pga_id ?? null;
     const name =
       p.playerName ?? p.player_name ?? p.name ?? p.fullName ?? p.full_name ?? null;
+
     if (!id && !name) continue;
 
     out.push({
@@ -183,6 +226,7 @@ function normalizeFieldPayload(payload) {
     });
   }
 
+  // Dedup by pro_id
   const seen = new Set();
   const dedup = [];
   for (const x of out) {
@@ -193,7 +237,9 @@ function normalizeFieldPayload(payload) {
   return dedup;
 }
 
+// tier assignment using world_rank ascending (best rank = 1)
 function assignTiers(fieldWithRank) {
+  // sort: world_rank asc, then name
   const sorted = [...fieldWithRank].sort((a, b) => {
     const ar = a.world_rank, br = b.world_rank;
     const aNull = ar === null || ar === undefined;
@@ -204,58 +250,34 @@ function assignTiers(fieldWithRank) {
     return String(a.pro_name || "").localeCompare(String(b.pro_name || ""));
   });
 
-  return sorted.map((p, idx) => {
+  const withTier = [];
+  for (let i = 0; i < sorted.length; i++) {
+    const idx = i + 1;
     let tier = 4;
-    if (idx < 10) tier = 1;
-    else if (idx < 25) tier = 2;
-    else if (idx < 45) tier = 3;
-    return { ...p, tier, tier_rank: idx + 1 };
-  });
-}
+    if (idx <= 10) tier = 1;
+    else if (idx <= 25) tier = 2;
+    else if (idx <= 45) tier = 3;
+    else tier = 4;
 
-function pickScheduleArray(scheduleRaw) {
-  // SlashGolf shapes vary a lot; try a wide set of common keys.
-  const candidates = [
-    scheduleRaw,
-    scheduleRaw?.data,
-    scheduleRaw?.schedules,
-    scheduleRaw?.results,
-    scheduleRaw?.schedule,
-    scheduleRaw?.events,
-    scheduleRaw?.tournaments,
-    scheduleRaw?.tours,
-    scheduleRaw?.items,
-  ];
-
-  for (const c of candidates) {
-    if (Array.isArray(c)) return c;
+    withTier.push({ ...sorted[i], tier });
   }
-
-  // sometimes nested: { data: { schedule: [...] } } etc
-  const nested = [
-    scheduleRaw?.data?.schedule,
-    scheduleRaw?.data?.events,
-    scheduleRaw?.data?.tournaments,
-    scheduleRaw?.results?.schedule,
-    scheduleRaw?.results?.events,
-  ];
-  for (const n of nested) {
-    if (Array.isArray(n)) return n;
-  }
-
-  return [];
+  return withTier;
 }
 
 exports.handler = async (event) => {
-  if (event.httpMethod === "OPTIONS") return json(200, { ok: true });
+  if (event.httpMethod === "OPTIONS") {
+    return { statusCode: 204, headers: corsHeaders, body: "" };
+  }
 
   try {
     const SUPABASE_URL = (process.env.SUPABASE_URL || "").trim();
     const SERVICE_ROLE = (process.env.SUPABASE_SERVICE_ROLE_KEY || "").trim();
-    const RAPID_KEY = (process.env.RAPIDAPI_KEY || "").trim();
+
     const RAPID_HOST = (process.env.RAPIDAPI_HOST || "").trim();
+    const RAPID_KEY = (process.env.RAPIDAPI_KEY || "").trim();
+
     const ADMIN_PIN = (process.env.ADMIN_PIN || "").trim();
-    const ADMIN_TOKEN = (process.env.ADMIN_TOKEN || "").trim();
+    const ADMIN_TOKEN = (process.env.ADMIN_TOKEN || "").trim(); // fallback if you use this instead
 
     if (!SUPABASE_URL || !SERVICE_ROLE) {
       return text(500, "Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY");
@@ -267,9 +289,11 @@ exports.handler = async (event) => {
       return text(500, "Missing ADMIN_PIN (or ADMIN_TOKEN) env var");
     }
 
+    // admin gate (pin can be querystring or header x-admin-token)
     const q = event.queryStringParameters || {};
     const pinFromQuery = String(q.pin || "").trim();
     const pinFromHeader = getHeader(event, "x-admin-token");
+
     const expected = ADMIN_PIN || ADMIN_TOKEN;
     const got = pinFromQuery || pinFromHeader;
 
@@ -282,14 +306,12 @@ exports.handler = async (event) => {
       return json(400, { ok: false, error: "Missing/invalid week_id" });
     }
 
-    const debug = String(q.debug || "").trim() === "1";
     const force = String(q.force || "").trim() === "1";
-
-    const orgId = Number.isFinite(Number(q.orgId)) ? Number(q.orgId) : 1;
 
     const sb = makeSupabase(SUPABASE_URL, SERVICE_ROLE);
 
-    // Load week row
+    // 1) Load the week row from your existing weeks table
+    // NOTE: your schema uses week_number, tournament_name, start_date, end_date (per public.js)
     const weeks = await sb(
       "GET",
       `weeks?select=id,week_number,label,tournament_name,start_date,end_date&week_number=eq.${weekNumber}&limit=1`
@@ -299,19 +321,15 @@ exports.handler = async (event) => {
 
     const startDate = toISODateOnly(week.start_date);
     const endDate = toISODateOnly(week.end_date);
+    const year = startDate ? Number(String(startDate).slice(0, 4)) : new Date().getUTCFullYear();
 
-    const derivedYear = startDate
-      ? Number(String(startDate).slice(0, 4))
-      : new Date().getUTCFullYear();
-
-    const year = Number.isFinite(Number(q.year)) ? Number(q.year) : derivedYear;
-
+    // 2) Find the tournament for this week via SlashGolf schedule
     const rapidCtx = { host: RAPID_HOST, key: RAPID_KEY };
 
-    // 1) schedule
+    // schedule endpoint per RapidAPI snippet uses: /schedule?orgId=1&year=YYYY
     const scheduleResp = await tryRapidPaths(rapidCtx, [
-      { path: "/schedule", qs: { orgId, year } },
-      { path: "/schedules", qs: { orgId, year } },
+      { path: "/schedule", qs: { orgId: 1, year } },
+      { path: "/schedules", qs: { orgId: 1, year } },
     ]);
 
     if (!scheduleResp.ok) {
@@ -319,266 +337,211 @@ exports.handler = async (event) => {
     }
 
     const scheduleRaw = scheduleResp.data;
-    const scheduleArr = pickScheduleArray(scheduleRaw);
+    const scheduleArr =
+      (Array.isArray(scheduleRaw) ? scheduleRaw : null) ||
+      (Array.isArray(scheduleRaw.data) ? scheduleRaw.data : null) ||
+      (Array.isArray(scheduleRaw.schedules) ? scheduleRaw.schedules : null) ||
+      (Array.isArray(scheduleRaw.results) ? scheduleRaw.results : null) ||
+      [];
 
-    // Extract schedule candidates
-    const tournamentIdOverride = String(q.tournament_id || "").trim();
+// Tournament matching:
+// 1) exact overlap (with +/-1 day tolerance for timezone)
+// 2) fuzzy name match vs week.tournament_name / week.label
+// 3) nearest-by-date fallback (for debug output)
+// Also supports override: &tournament_id=XXXX
+const tournamentIdOverride = String(q.tournament_id || "").trim();
 
-    const normName = (s) =>
-      String(s || "")
-        .toLowerCase()
-        .replace(/[^a-z0-9\s]/g, " ")
-        .replace(/\s+/g, " ")
-        .trim();
+const normName = (s) =>
+  String(s || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 
-        // Schedule items vary a LOT. Support both flat + nested shapes.
-    const getTStart = (t) =>
-      toISODateOnly(
-        t.startDate ||
-          t.start_date ||
-          t.start ||
-          t.tournamentStartDate ||
-          t.tournament_start_date ||
-          t.start_date_utc ||
-          t?.tournament?.startDate ||
-          t?.tournament?.start_date ||
-          t?.event?.startDate ||
-          t?.event?.start_date
-      );
+const getTStart = (t) =>
+  mongoDateToISODateOnly(
+    t.startDate ||
+      t.start_date ||
+      t.start ||
+      t.tournamentStartDate ||
+      t?.date?.start ||
+      t?.date?.Start
+  );
+const getTEnd = (t) =>
+  mongoDateToISODateOnly(
+    t.endDate ||
+      t.end_date ||
+      t.end ||
+      t.tournamentEndDate ||
+      t?.date?.end ||
+      t?.date?.End
+  );
+const getTName = (t) => t.name || t.tournamentName || t.tournament_name || t.eventName || t.title || "";
 
-    const getTEnd = (t) =>
-      toISODateOnly(
-        t.endDate ||
-          t.end_date ||
-          t.end ||
-          t.tournamentEndDate ||
-          t.tournament_end_date ||
-          t.end_date_utc ||
-          t?.tournament?.endDate ||
-          t?.tournament?.end_date ||
-          t?.event?.endDate ||
-          t?.event?.end_date
-      );
+const getTId = (t) =>
+  t.tournamentId ??
+  t.tournament_id ??
+  t.id ??
+  t.eventId ??
+  t.event_id ??
+  t.tourId ??
+  t.tour_id ??
+  null;
 
-    const getTName = (t) =>
-      t.name ||
-      t.tournamentName ||
-      t.tournament_name ||
-      t.eventName ||
-      t.title ||
-      t?.tournament?.name ||
-      t?.tournament?.tournamentName ||
-      t?.event?.name ||
-      t?.event?.eventName ||
-      "";
+// build candidates with parsed dates
+const scheduleCandidates = scheduleArr
+  .map((t) => {
+    const ts = getTStart(t);
+    const te = getTEnd(t);
+    const id = getTId(t);
+    const name = getTName(t);
+    return { t, id, name, ts, te };
+  })
+  .filter((x) => x.id && x.ts); // must have at least id + start
 
-    const getTId = (t) =>
-      t.tournamentId ??
-      t.tournament_id ??
-      t.id ??
-      t.eventId ??
-      t.event_id ??
-      t.tourId ??
-      t.tour_id ??
-      t?.tournament?.id ??
-      t?.tournament?.tournamentId ??
-      t?.event?.id ??
-      t?.event?.eventId ??
-      null;
-    const scheduleCandidates = scheduleArr
-      .map((t) => {
-        const ts = getTStart(t);
-        const te = getTEnd(t);
-        const id = getTId(t);
-        const name = getTName(t);
-        return { t, id, name, ts, te };
-      })
-      .filter((x) => x.id && x.ts);
+const weekNameNeedle = normName(week.tournament_name || week.label || week.name || "");
 
-    // DEBUG MODE: show exactly what we got back from schedule
-    if (debug) {
-      return json(200, {
-        ok: true,
-        step: "debug-schedule",
-        week: {
-          weekNumber,
-          startDate,
-          endDate,
-          weekName: week.tournament_name || week.label || null,
-        },
-        schedule: {
-          used_endpoint: scheduleResp.path,
-          used_qs: scheduleResp.qs,
-          orgId,
-          year,
-          parsed_count: scheduleArr.length,
-          candidate_count: scheduleCandidates.length,
-                   sample_candidates: scheduleCandidates.slice(0, 20).map((c) => ({
-            tournamentId: c.id,
-            name: c.name,
-            startDate: c.ts,
-            endDate: c.te || null,
-          })),
+const pickTournament = () => {
+  if (tournamentIdOverride) {
+    const forced = scheduleCandidates.find((c) => String(c.id) === tournamentIdOverride);
+    if (forced) return forced.t;
+    // if override provided but not found in schedule list, still allow it later
+    return null;
+  }
 
-          // NEW: show what keys exist on actual schedule items
-          schedule_item_keys_sample: scheduleArr.slice(0, 3).map((t) =>
-            t && typeof t === "object" ? Object.keys(t).slice(0, 60) : []
-          ),
+  if (!startDate && scheduleCandidates.length) return scheduleCandidates[0].t;
 
-          // NEW: show a tiny sanitized preview of schedule items so we can map fields
-          schedule_item_preview: scheduleArr.slice(0, 3).map((t) => {
-            if (!t || typeof t !== "object") return t;
-            const preview = {};
-            for (const k of Object.keys(t).slice(0, 25)) preview[k] = t[k];
-            return preview;
-          }),
+  const s0 = startDate ? new Date(startDate + "T00:00:00Z") : null;
+  const e0 = endDate ? new Date(endDate + "T23:59:59Z") : null;
 
-          // helpful when array parsing fails
-          raw_top_level_keys:
-            scheduleRaw && typeof scheduleRaw === "object" && !Array.isArray(scheduleRaw)
-              ? Object.keys(scheduleRaw).slice(0, 50)
-              : null,
-        },
-        tip:
-          "If candidate_count is 0, the schedule response either doesn't contain tournaments for orgId/year, or uses different key names. Paste this debug output back to me and we'll align it exactly.",
-      });
-    }
+  // timezone tolerance (+/- 1 day)
+  const s = s0 ? new Date(s0.getTime() - 24 * 3600 * 1000) : null;
+  const e = e0 ? new Date(e0.getTime() + 24 * 3600 * 1000) : null;
 
-    // Tournament matching
-    const weekNameNeedle = normName(week.tournament_name || week.label || week.name || "");
+  // 1) overlap scoring
+  const overlapScored = [];
+  for (const c of scheduleCandidates) {
+    if (!c.ts || !c.te || !s || !e) continue;
+    const a = new Date(c.ts + "T00:00:00Z");
+    const b = new Date(c.te + "T23:59:59Z");
+    const overlaps = a <= e && b >= s;
+    if (!overlaps) continue;
 
-    const pickTournament = () => {
-      if (tournamentIdOverride) {
-        const forced = scheduleCandidates.find((c) => String(c.id) === tournamentIdOverride);
-        if (forced) return forced.t;
-        return null;
-      }
+    let score = 0;
+    if (toISODateOnly(c.ts) === startDate) score += 100;
+    if (toISODateOnly(c.te) === endDate) score += 50;
+    // smaller date distance gets a bit more score
+    score += Math.max(0, 30 - Math.abs(a - s0) / (24 * 3600 * 1000));
+    overlapScored.push({ c, score });
+  }
 
-      if (!startDate && scheduleCandidates.length) return scheduleCandidates[0].t;
+  if (overlapScored.length) {
+    overlapScored.sort((x, y) => y.score - x.score);
+    return overlapScored[0].c.t;
+  }
 
-      const s0 = startDate ? new Date(startDate + "T00:00:00Z") : null;
-      const e0 = endDate ? new Date(endDate + "T23:59:59Z") : null;
-      const s = s0 ? new Date(s0.getTime() - 24 * 3600 * 1000) : null;
-      const e = e0 ? new Date(e0.getTime() + 24 * 3600 * 1000) : null;
-
-      // 1) overlap
-      const overlapScored = [];
-      for (const c of scheduleCandidates) {
-        if (!c.ts || !c.te || !s || !e) continue;
+  // 2) name match (only if we have a meaningful week name)
+  if (weekNameNeedle && weekNameNeedle.length >= 6) {
+    const nameScored = [];
+    for (const c of scheduleCandidates) {
+      const hay = normName(c.name);
+      if (!hay) continue;
+      // simple contains either direction
+      const hit = hay.includes(weekNameNeedle) || weekNameNeedle.includes(hay);
+      if (!hit) continue;
+      // prefer closer dates if provided
+      let score = 100;
+      if (s0 && c.ts) {
         const a = new Date(c.ts + "T00:00:00Z");
-        const b = new Date(c.te + "T23:59:59Z");
-        const overlaps = a <= e && b >= s;
-        if (!overlaps) continue;
-
-        let score = 0;
-        if (toISODateOnly(c.ts) === startDate) score += 100;
-        if (toISODateOnly(c.te) === endDate) score += 50;
         score += Math.max(0, 30 - Math.abs(a - s0) / (24 * 3600 * 1000));
-        overlapScored.push({ c, score });
       }
-      if (overlapScored.length) {
-        overlapScored.sort((x, y) => y.score - x.score);
-        return overlapScored[0].c.t;
-      }
-
-      // 2) name match
-      if (weekNameNeedle && weekNameNeedle.length >= 6) {
-        const nameScored = [];
-        for (const c of scheduleCandidates) {
-          const hay = normName(c.name);
-          if (!hay) continue;
-          const hit = hay.includes(weekNameNeedle) || weekNameNeedle.includes(hay);
-          if (!hit) continue;
-          let score = 100;
-          if (s0 && c.ts) {
-            const a = new Date(c.ts + "T00:00:00Z");
-            score += Math.max(0, 30 - Math.abs(a - s0) / (24 * 3600 * 1000));
-          }
-          nameScored.push({ c, score });
-        }
-        if (nameScored.length) {
-          nameScored.sort((x, y) => y.score - x.score);
-          return nameScored[0].c.t;
-        }
-      }
-
-      return null;
-    };
-
-    const tournament = pickTournament();
-
-    if (!tournament && !tournamentIdOverride) {
-      // nearest list for troubleshooting
-      const s0 = startDate ? new Date(startDate + "T00:00:00Z") : null;
-      const nearest = [...scheduleCandidates]
-        .map((c) => {
-          const a = c.ts ? new Date(c.ts + "T00:00:00Z") : null;
-          const distDays = s0 && a ? Math.round(Math.abs(a - s0) / (24 * 3600 * 1000)) : null;
-          return { ...c, distDays };
-        })
-        .sort((x, y) => (x.distDays ?? 99999) - (y.distDays ?? 99999))
-        .slice(0, 12)
-        .map((c) => ({
-          tournamentId: c.id,
-          name: c.name,
-          startDate: c.ts,
-          endDate: c.te || null,
-          distDays: c.distDays,
-        }));
-
-      return json(500, {
-        ok: false,
-        step: "schedule-match",
-        error:
-          "Could not match tournament by overlap or name. Use ?tournament_id=XXXX from the candidates list below, or run with &debug=1 to inspect schedule parsing.",
-        week: {
-          weekNumber,
-          startDate,
-          endDate,
-          year,
-          orgId,
-          weekName: week.tournament_name || week.label || null,
-        },
-        nearest_schedule_candidates: nearest,
-      });
+      nameScored.push({ c, score });
     }
-
-    const resolvedTournamentId =
-      tournamentIdOverride ||
-      (tournament
-        ? (tournament.tournamentId ??
-            tournament.tournament_id ??
-            tournament.id ??
-            tournament.eventId ??
-            tournament.event_id ??
-            null)
-        : null);
-
-    const resolvedTournamentName =
-      (tournament
-        ? (tournament.name ?? tournament.tournamentName ?? tournament.tournament_name ?? null)
-        : null) ||
-      week.tournament_name ||
-      week.label ||
-      null;
-
-    if (!resolvedTournamentId) {
-      return json(500, {
-        ok: false,
-        step: "tournament-id",
-        error: "No tournamentId resolved. Provide &tournament_id=XXXX (from schedule list).",
-      });
+    if (nameScored.length) {
+      nameScored.sort((x, y) => y.score - x.score);
+      return nameScored[0].c.t;
     }
+  }
 
-    // 2) fetch tournament field
-    const tournamentId = resolvedTournamentId;
+  return null;
+};
 
+const tournament = pickTournament();
+
+// If we still don't have a match, return helpful debug info:
+if (!tournament && !tournamentIdOverride) {
+  // nearest-by-start-date for debug
+  const s0 = startDate ? new Date(startDate + "T00:00:00Z") : null;
+  const nearest = [...scheduleCandidates]
+    .map((c) => {
+      const a = c.ts ? new Date(c.ts + "T00:00:00Z") : null;
+      const distDays = s0 && a ? Math.round(Math.abs(a - s0) / (24 * 3600 * 1000)) : null;
+      return { ...c, distDays };
+    })
+    .sort((x, y) => (x.distDays ?? 99999) - (y.distDays ?? 99999))
+    .slice(0, 12)
+    .map((c) => ({
+      tournamentId: c.id,
+      name: c.name,
+      startDate: c.ts,
+      endDate: c.te || null,
+      distDays: c.distDays,
+    }));
+
+  return json(500, {
+    ok: false,
+    step: "schedule-match",
+    error:
+      "Could not match tournament by overlap or name. Use ?tournament_id=XXXX from the candidates list below, or verify the schedule endpoint/year/orgId.",
+    week: {
+      weekNumber,
+      startDate,
+      endDate,
+      year,
+      weekName: week.tournament_name || week.label || null,
+    },
+    nearest_schedule_candidates: nearest,
+    tip:
+      "Try hitting this function with &debug=1 after we add it (optional), or paste the RapidAPI schedule JSON for 2026 so we can align orgId/fields precisely.",
+  });
+}
+
+// If override was provided but not found in schedule list, we still allow it:
+const resolvedTournamentId =
+  tournamentIdOverride ||
+  (tournament
+    ? (tournament.tournamentId ?? tournament.tournament_id ?? tournament.id ?? tournament.eventId ?? tournament.event_id ?? null)
+    : null);
+
+const tournamentName =
+  (tournament ? (tournament.name ?? tournament.tournamentName ?? tournament.tournament_name ?? null) : null) ||
+  week.tournament_name ||
+  week.label ||
+  null;
+
+if (!resolvedTournamentId) {
+  return json(500, {
+    ok: false,
+    step: "tournament-id",
+    error: "No tournamentId resolved. Provide &tournament_id=XXXX (from RapidAPI schedule list).",
+  });
+}
+    // Use the resolvedTournamentId (from schedule or override) computed above.
+    const tournId = String(resolvedTournamentId);
+
+    // 3) Fetch tournament field (best effort: endpoint naming varies)
+    // Try a few common variants.
     const fieldResp = await tryRapidPaths(rapidCtx, [
-      { path: "/players", qs: { orgId, tournamentId } },
-      { path: "/tournament/players", qs: { orgId, tournamentId } },
-      { path: "/tournamentPlayers", qs: { orgId, tournamentId } },
-      { path: "/leaderboard", qs: { orgId, tournamentId } },
-      { path: "/leaderboards", qs: { orgId, tournamentId } },
+      // Try both parameter names: schedule uses "tournId".
+      { path: "/leaderboards", qs: { orgId: 1, tournId } },
+      { path: "/leaderboards", qs: { orgId: 1, tournamentId: tournId } },
+      { path: "/leaderboard", qs: { orgId: 1, tournId } },
+      { path: "/leaderboard", qs: { orgId: 1, tournamentId: tournId } },
+      // Some providers expose tournament players via tournaments/players.
+      { path: "/tournaments", qs: { orgId: 1, tournId } },
+      { path: "/tournaments", qs: { orgId: 1, tournamentId: tournId } },
+      { path: "/players", qs: { orgId: 1, tournId } },
+      { path: "/players", qs: { orgId: 1, tournamentId: tournId } },
     ]);
 
     if (!fieldResp.ok) {
@@ -586,128 +549,148 @@ exports.handler = async (event) => {
         ok: false,
         step: "field",
         error: fieldResp.error,
-        note:
-          "If schedule works but field fails, the endpoint/params differ. Copy/paste the RapidAPI Code Snippet for the endpoint that returns the field players and I'll align it.",
-        schedule_endpoint: scheduleResp.path,
-        schedule_qs: scheduleResp.qs,
-        orgId,
-        tournamentId,
+        note: "This means the field/leaderboard endpoint (or parameter names) don't match what we're calling. In RapidAPI, click the endpoint that returns the tournament field/leaderboard, copy the generated cURL 'Code Snippet', and paste it to me. I'll align this function to it.",
       });
     }
 
+    // If leaderboard shape, players might be nested
     const fieldPlayers = normalizeFieldPayload(fieldResp.data);
 
     if (!fieldPlayers.length) {
       return json(500, {
         ok: false,
         step: "field-empty",
-        error: "Field returned 0 players after normalization.",
-        hint:
-          "This usually means the endpoint response shape differs. Paste the raw JSON (or keys) for the field endpoint.",
-        endpoint_used: fieldResp.path,
-        qs_used: fieldResp.qs,
+        error: "Tournament field came back empty after normalization.",
+        hint: "Open RapidAPI playground for players/leaderboard endpoint and confirm response shape.",
       });
     }
 
-    // 3) fetch world ranking
+    // 4) Fetch world ranking list
     const wrResp = await tryRapidPaths(rapidCtx, [
-      { path: "/worldRanking", qs: {} },
       { path: "/world-ranking", qs: {} },
-      { path: "/world_ranking", qs: {} },
-      { path: "/rankings/world", qs: {} },
+      { path: "/worldrankings", qs: {} },
+      { path: "/world-rankings", qs: {} },
+      { path: "/worldranking", qs: {} },
     ]);
 
     if (!wrResp.ok) {
-      return json(500, {
-        ok: false,
-        step: "world-ranking",
-        error: wrResp.error,
-        note:
-          "World ranking endpoint path may differ. Open RapidAPI playground and copy the Code Snippet for the World Ranking endpoint.",
-      });
+      return json(500, { ok: false, step: "world-ranking", error: wrResp.error });
     }
 
-    const wrList = normalizeWorldRankingPayload(wrResp.data);
-    const rankById = new Map(wrList.map((x) => [String(x.pro_id), x.world_rank]));
+    const worldRankings = normalizeWorldRankingPayload(wrResp.data);
 
-    const merged = fieldPlayers.map((p) => ({
-      ...p,
-      world_rank: rankById.has(String(p.pro_id)) ? rankById.get(String(p.pro_id)) : null,
-    }));
+    // index ranking by pro_id and also by lowercase name (fallback)
+    const rankById = new Map();
+    const rankByName = new Map();
+
+    for (const r of worldRankings) {
+      if (r.pro_id && r.world_rank != null && !rankById.has(r.pro_id)) {
+        rankById.set(r.pro_id, r.world_rank);
+      }
+      if (r.pro_name && r.world_rank != null) {
+        const key = String(r.pro_name).toLowerCase().trim();
+        if (key && !rankByName.has(key)) rankByName.set(key, r.world_rank);
+      }
+    }
+
+    // merge field + ranking
+    const merged = fieldPlayers.map((p) => {
+      const byId = rankById.get(p.pro_id);
+      const byName = rankByName.get(String(p.pro_name).toLowerCase().trim());
+      const world_rank = (byId != null ? byId : (byName != null ? byName : null));
+      return { ...p, world_rank };
+    });
 
     const tiered = assignTiers(merged);
 
-    // If not forcing, avoid overwriting existing week_pros
-    // You already created week_pros table in earlier SQL.
-    // We'll check if anything exists for this week.
-    const existing = await sb(
-      "GET",
-      `week_pros?select=id&week_id=eq.${week.id}&limit=1`
-    );
-    const hasExisting = Array.isArray(existing) && existing.length > 0;
+    // 5) Write to week_pros table
+    // IMPORTANT: if your table name/columns differ, tell me and I'll adjust.
+    //
+    // Supports both:
+    // - week_id = integer week_number
+    // - week_id = uuid weeks.id (if your schema uses uuid)
+    //
+    // Determine weekKey by trying integer first; if uuid error, use uuid.
+    let weekKey = weekNumber;
+    let usedUuid = false;
 
-    if (hasExisting && !force) {
+    // delete existing rows unless force=0 and rows already exist
+    const existingTry = async (keyVal) => {
+      return await sb("GET", `week_pros?select=pro_id&week_id=eq.${keyVal}&limit=1`);
+    };
+
+    let existing = null;
+    try {
+      existing = await existingTry(weekKey);
+    } catch (e) {
+      const msg = String(e.message || e);
+      if (msg.includes("invalid input syntax for type uuid")) {
+        weekKey = week.id; // uuid
+        usedUuid = true;
+        existing = await existingTry(weekKey);
+      } else {
+        throw e;
+      }
+    }
+
+    const alreadyHas = Array.isArray(existing) && existing.length > 0;
+    if (alreadyHas && !force) {
       return json(200, {
         ok: true,
-        step: "noop",
-        message:
-          "week_pros already populated for this week. Re-run with &force=1 to overwrite.",
-        week: { week_id: week.id, week_number: week.week_number, tournament: resolvedTournamentName },
-        counts: { field: fieldPlayers.length, tiered: tiered.length },
+        message: "week_pros already populated; use &force=1 to overwrite",
+        week_id: weekNumber,
+        week_key: weekKey,
+        week_key_type: usedUuid ? "uuid" : "int",
+        tournament: { tournamentId: tournId, tournamentName, startDate, endDate, year },
+        count_existing: existing.length,
       });
     }
 
-    if (hasExisting && force) {
-      // delete old rows
-      await sb("DELETE", `week_pros?week_id=eq.${week.id}`);
-    }
+    // delete then insert
+    const del = async (keyVal) => sb("DELETE", `week_pros?week_id=eq.${keyVal}`);
+    await del(weekKey);
 
-    // insert week_pros rows
-    const inserts = tiered.map((p) => ({
-      week_id: week.id,
-      pro_id: String(p.pro_id),
-      pro_name: String(p.pro_name),
+    const rowsToInsert = tiered.map((p) => ({
+      week_id: weekKey,
+      pro_id: p.pro_id,
+      pro_name: p.pro_name,
       world_rank: p.world_rank,
       tier: p.tier,
-      tier_rank: p.tier_rank,
-      data_source: "slashgolf_world_ranking",
+      source: "slashgolf+world_ranking",
     }));
 
-    // chunk inserts to avoid payload limits
-    const chunkSize = 500;
-    for (let i = 0; i < inserts.length; i += chunkSize) {
-      const chunk = inserts.slice(i, i + chunkSize);
-      await sb("POST", "week_pros", chunk);
+    // Supabase REST has payload limits; chunk inserts
+    const chunkSize = 250;
+    let inserted = 0;
+    for (let i = 0; i < rowsToInsert.length; i += chunkSize) {
+      const chunk = rowsToInsert.slice(i, i + chunkSize);
+      const ins = await sb("POST", "week_pros", chunk);
+      inserted += Array.isArray(ins) ? ins.length : chunk.length;
     }
 
     return json(200, {
       ok: true,
-      step: "synced",
-      week: {
-        week_id: week.id,
-        week_number: week.week_number,
-        tournament: resolvedTournamentName,
-        tournament_id: String(resolvedTournamentId),
+      message: "Field synced + tiers assigned",
+      week_id: weekNumber,
+      week_key: weekKey,
+      week_key_type: usedUuid ? "uuid" : "int",
+      tournament: {
+        tournamentId: tournId,
+        tournamentName,
         startDate,
         endDate,
-        orgId,
         year,
+        schedule_endpoint: scheduleResp.path,
+        field_endpoint: fieldResp.path,
+        world_ranking_endpoint: wrResp.path,
       },
       counts: {
-        schedule_items: scheduleArr.length,
-        candidates: scheduleCandidates.length,
-        field: fieldPlayers.length,
-        tiered: tiered.length,
-      },
-      used: {
-        schedule_endpoint: scheduleResp.path,
-        schedule_qs: scheduleResp.qs,
-        field_endpoint: fieldResp.path,
-        field_qs: fieldResp.qs,
-        world_ranking_endpoint: wrResp.path,
+        field_players: fieldPlayers.length,
+        world_rankings: worldRankings.length,
+        inserted_week_pros: inserted,
       },
     });
   } catch (e) {
-    return json(500, { ok: false, error: String(e.message || e) });
+    return json(500, { ok: false, error: e?.message || String(e) });
   }
 };
