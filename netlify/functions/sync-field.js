@@ -461,7 +461,7 @@ if (!tournament && !tournamentIdOverride) {
 }
 
 // If override was provided but not found in schedule list, we still allow it:
-const tournamentId =
+const resolvedTournamentId =
   tournamentIdOverride ||
   (tournament
     ? (tournament.tournamentId ?? tournament.tournament_id ?? tournament.id ?? tournament.eventId ?? tournament.event_id ?? null)
@@ -473,7 +473,7 @@ const tournamentName =
   week.label ||
   null;
 
-if (!tournamentId) {
+if (!resolvedTournamentId) {
   return json(500, {
     ok: false,
     step: "tournament-id",
