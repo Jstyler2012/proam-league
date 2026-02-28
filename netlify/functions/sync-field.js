@@ -314,45 +314,172 @@ exports.handler = async (event) => {
       (Array.isArray(scheduleRaw.results) ? scheduleRaw.results : null) ||
       [];
 
-    // best-effort tournament matching by date overlap
-    const pickTournament = () => {
-      if (!startDate && scheduleArr.length) return scheduleArr[0];
+// Tournament matching:
+// 1) exact overlap (with +/-1 day tolerance for timezone)
+// 2) fuzzy name match vs week.tournament_name / week.label
+// 3) nearest-by-date fallback (for debug output)
+// Also supports override: &tournament_id=XXXX
+const tournamentIdOverride = String(q.tournament_id || "").trim();
 
-      const s = startDate ? new Date(startDate + "T00:00:00Z") : null;
-      const e = endDate ? new Date(endDate + "T23:59:59Z") : null;
+const normName = (s) =>
+  String(s || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 
-      const scored = [];
-      for (const t of scheduleArr) {
-        const ts = toISODateOnly(t.startDate || t.start_date || t.start);
-        const te = toISODateOnly(t.endDate || t.end_date || t.end);
-        if (!ts || !te || !s || !e) continue;
+const getTStart = (t) => toISODateOnly(t.startDate || t.start_date || t.start || t.tournamentStartDate);
+const getTEnd = (t) => toISODateOnly(t.endDate || t.end_date || t.end || t.tournamentEndDate);
+const getTName = (t) => t.name || t.tournamentName || t.tournament_name || t.eventName || t.title || "";
 
-        const a = new Date(ts + "T00:00:00Z");
-        const b = new Date(te + "T23:59:59Z");
+const getTId = (t) =>
+  t.tournamentId ??
+  t.tournament_id ??
+  t.id ??
+  t.eventId ??
+  t.event_id ??
+  t.tourId ??
+  t.tour_id ??
+  null;
 
-        const overlaps = a <= e && b >= s;
-        if (!overlaps) continue;
+// build candidates with parsed dates
+const scheduleCandidates = scheduleArr
+  .map((t) => {
+    const ts = getTStart(t);
+    const te = getTEnd(t);
+    const id = getTId(t);
+    const name = getTName(t);
+    return { t, id, name, ts, te };
+  })
+  .filter((x) => x.id && x.ts); // must have at least id + start
 
-        // prefer exact start match
-        const score = (ts === startDate ? 100 : 0) + (te === endDate ? 50 : 0);
-        scored.push({ t, score });
+const weekNameNeedle = normName(week.tournament_name || week.label || week.name || "");
+
+const pickTournament = () => {
+  if (tournamentIdOverride) {
+    const forced = scheduleCandidates.find((c) => String(c.id) === tournamentIdOverride);
+    if (forced) return forced.t;
+    // if override provided but not found in schedule list, still allow it later
+    return null;
+  }
+
+  if (!startDate && scheduleCandidates.length) return scheduleCandidates[0].t;
+
+  const s0 = startDate ? new Date(startDate + "T00:00:00Z") : null;
+  const e0 = endDate ? new Date(endDate + "T23:59:59Z") : null;
+
+  // timezone tolerance (+/- 1 day)
+  const s = s0 ? new Date(s0.getTime() - 24 * 3600 * 1000) : null;
+  const e = e0 ? new Date(e0.getTime() + 24 * 3600 * 1000) : null;
+
+  // 1) overlap scoring
+  const overlapScored = [];
+  for (const c of scheduleCandidates) {
+    if (!c.ts || !c.te || !s || !e) continue;
+    const a = new Date(c.ts + "T00:00:00Z");
+    const b = new Date(c.te + "T23:59:59Z");
+    const overlaps = a <= e && b >= s;
+    if (!overlaps) continue;
+
+    let score = 0;
+    if (toISODateOnly(c.ts) === startDate) score += 100;
+    if (toISODateOnly(c.te) === endDate) score += 50;
+    // smaller date distance gets a bit more score
+    score += Math.max(0, 30 - Math.abs(a - s0) / (24 * 3600 * 1000));
+    overlapScored.push({ c, score });
+  }
+
+  if (overlapScored.length) {
+    overlapScored.sort((x, y) => y.score - x.score);
+    return overlapScored[0].c.t;
+  }
+
+  // 2) name match (only if we have a meaningful week name)
+  if (weekNameNeedle && weekNameNeedle.length >= 6) {
+    const nameScored = [];
+    for (const c of scheduleCandidates) {
+      const hay = normName(c.name);
+      if (!hay) continue;
+      // simple contains either direction
+      const hit = hay.includes(weekNameNeedle) || weekNameNeedle.includes(hay);
+      if (!hit) continue;
+      // prefer closer dates if provided
+      let score = 100;
+      if (s0 && c.ts) {
+        const a = new Date(c.ts + "T00:00:00Z");
+        score += Math.max(0, 30 - Math.abs(a - s0) / (24 * 3600 * 1000));
       }
-
-      if (!scored.length) return null;
-      scored.sort((x, y) => y.score - x.score);
-      return scored[0].t;
-    };
-
-    const tournament = pickTournament();
-    if (!tournament) {
-      return json(500, {
-        ok: false,
-        step: "schedule-match",
-        error: "Could not match tournament by week dates. Check weeks.start_date/end_date vs SlashGolf schedule.",
-        week: { weekNumber, startDate, endDate, year },
-      });
+      nameScored.push({ c, score });
     }
+    if (nameScored.length) {
+      nameScored.sort((x, y) => y.score - x.score);
+      return nameScored[0].c.t;
+    }
+  }
 
+  return null;
+};
+
+const tournament = pickTournament();
+
+// If we still don't have a match, return helpful debug info:
+if (!tournament && !tournamentIdOverride) {
+  // nearest-by-start-date for debug
+  const s0 = startDate ? new Date(startDate + "T00:00:00Z") : null;
+  const nearest = [...scheduleCandidates]
+    .map((c) => {
+      const a = c.ts ? new Date(c.ts + "T00:00:00Z") : null;
+      const distDays = s0 && a ? Math.round(Math.abs(a - s0) / (24 * 3600 * 1000)) : null;
+      return { ...c, distDays };
+    })
+    .sort((x, y) => (x.distDays ?? 99999) - (y.distDays ?? 99999))
+    .slice(0, 12)
+    .map((c) => ({
+      tournamentId: c.id,
+      name: c.name,
+      startDate: c.ts,
+      endDate: c.te || null,
+      distDays: c.distDays,
+    }));
+
+  return json(500, {
+    ok: false,
+    step: "schedule-match",
+    error:
+      "Could not match tournament by overlap or name. Use ?tournament_id=XXXX from the candidates list below, or verify the schedule endpoint/year/orgId.",
+    week: {
+      weekNumber,
+      startDate,
+      endDate,
+      year,
+      weekName: week.tournament_name || week.label || null,
+    },
+    nearest_schedule_candidates: nearest,
+    tip:
+      "Try hitting this function with &debug=1 after we add it (optional), or paste the RapidAPI schedule JSON for 2026 so we can align orgId/fields precisely.",
+  });
+}
+
+// If override was provided but not found in schedule list, we still allow it:
+const tournamentId =
+  tournamentIdOverride ||
+  (tournament
+    ? (tournament.tournamentId ?? tournament.tournament_id ?? tournament.id ?? tournament.eventId ?? tournament.event_id ?? null)
+    : null);
+
+const tournamentName =
+  (tournament ? (tournament.name ?? tournament.tournamentName ?? tournament.tournament_name ?? null) : null) ||
+  week.tournament_name ||
+  week.label ||
+  null;
+
+if (!tournamentId) {
+  return json(500, {
+    ok: false,
+    step: "tournament-id",
+    error: "No tournamentId resolved. Provide &tournament_id=XXXX (from RapidAPI schedule list).",
+  });
+}
     const tournamentId =
       tournament.tournamentId ?? tournament.tournament_id ?? tournament.id ?? tournament.eventId ?? tournament.event_id ?? null;
 
