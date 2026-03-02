@@ -757,8 +757,34 @@ const API = {
     }
     function hideMsg(el){ if(el) el.style.display="none"; }
 
-    async function getJSON(url, opts={}){
-      const res = await fetch(url, { ...opts, headers: { "accept":"application/json", ...(opts.headers||{}) }});
+    
+    function resolveApiUrl(url){
+      if (!url) return url;
+      if (url.startsWith("/api-mutate/")) return url.replace("/api-mutate/", "/.netlify/functions/mutate/");
+      if (url.startsWith("/api-auth/")) return url.replace("/api-auth/", "/.netlify/functions/auth/");
+      if (url.startsWith("/api-admin/")) return url.replace("/api-admin/", "/.netlify/functions/admin/");
+      if (url.startsWith("/api/")) return url.replace("/api/", "/.netlify/functions/public/");
+      return url;
+    }
+
+async function getJSON(url, opts={}){
+      const primary = url;
+      const fallback = resolveApiUrl(url);
+
+      let res;
+      try{
+        res = await fetch(primary, { ...opts, headers: { "accept":"application/json", ...(opts.headers||{}) }});
+        if(!res.ok && fallback !== primary){
+          res = await fetch(fallback, { ...opts, headers: { "accept":"application/json", ...(opts.headers||{}) }});
+        }
+      }catch(err){
+        if(fallback !== primary){
+          res = await fetch(fallback, { ...opts, headers: { "accept":"application/json", ...(opts.headers||{}) }});
+        }else{
+          throw err;
+        }
+      }
+
       const text = await res.text();
       let data = null;
       try { data = text ? JSON.parse(text) : null; } catch(e) {}
@@ -1521,6 +1547,8 @@ $("refreshBtn") && ($("refreshBtn").onclick = async () => {
           }
         }catch(_){
           renderWeekDetails(null);
+          // Surface an actionable message so the Participate button doesn’t fail silently.
+          showMsg($("participationMsg"), "Could not load schedule/current week. Check Netlify function routing (/api/* redirects) and SUPABASE_URL/SUPABASE_ANON_KEY env vars.", "bad");
         }
       }
 
