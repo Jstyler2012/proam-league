@@ -74,11 +74,11 @@ exports.handler = async (event) => {
 
   try {
     // --- auth gate ---
-    const ADMIN_TOKEN = (process.env.ADMIN_TOKEN || "").trim();
+    const PROAM_ADMIN_TOKEN = (process.env.PROAM_ADMIN_TOKEN || "").trim();
     const got = getHeader(event, "x-admin-token");
 
-    if (!ADMIN_TOKEN) return text(500, "Missing ADMIN_TOKEN env var");
-    if (!got || got !== ADMIN_TOKEN) return text(401, "Unauthorized");
+    if (!PROAM_ADMIN_TOKEN) return text(500, "Missing PROAM_ADMIN_TOKEN env var");
+    if (!got || got !== PROAM_ADMIN_TOKEN) return text(401, "Unauthorized");
 
     // --- supabase env ---
     const SUPABASE_URL = (process.env.SUPABASE_URL || "").trim();
