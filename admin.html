@@ -3,48 +3,17 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Admin Controls • Wellman Pro-Am League</title>
-  <link rel="stylesheet" href="./styles.css" />
-  <style>
-    /* Keep same site look; only minimal admin layout helpers */
-    .adminGrid{ display:grid; grid-template-columns: 1fr; gap: 12px; }
-    @media (min-width: 860px){ .adminGrid{ grid-template-columns: 1fr 1fr; } }
-    .adminCard{ border-radius: var(--radius); border:1px solid var(--border); background: rgba(0,0,0,.18); box-shadow: var(--shadow); padding: 14px; }
-    .row{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
-    .row > * { flex: 1 1 auto; }
-    label{ display:block; font-size:12px; opacity:.85; margin-bottom:6px; }
-    input[type="text"], input[type="number"], input[type="datetime-local"], select{
-      width:100%;
-      padding:10px 12px;
-      border-radius: 12px;
-      border: 1px solid var(--border);
-      background: rgba(0,0,0,.30);
-      color: var(--text);
-      outline: none;
-    }
-    .btn{ display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:10px 12px; border-radius: 12px; border:1px solid var(--border); background: rgba(255,255,255,.07); color: var(--text); cursor:pointer; }
-    .btn:hover{ background: rgba(255,255,255,.11); }
-    .btnDanger{ border-color: rgba(255,80,80,.55); }
-    .btnDanger:hover{ background: rgba(255,80,80,.12); }
-    .small{ font-size:12px; opacity:.85; }
-    .mono{ font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
-    .list{ margin-top:10px; }
-    .listItem{ display:flex; justify-content:space-between; gap:10px; padding:10px 12px; border:1px solid var(--border); border-radius: 12px; background: rgba(0,0,0,.22); margin-bottom:8px; }
-    .listItem strong{ font-weight:700; }
-    .muted{ opacity:.75; }
-    .ok{ color:#7CFFB2; }
-    .bad{ color:#FF8A8A; }
-    .msg{ margin-top:10px; font-size: 13px; }
-  </style>
+  <title>Commissioner Dashboard</title>
+  <link rel="stylesheet" href="./styles.css">
 </head>
 <body>
-  <div class="wrap">
+  <div class="appShell">
     <div class="masthead">
       <div class="mastBanner" aria-label="Wellman banner"></div>
 
       <div class="mastControls">
         <div class="mastControlsInner">
-          <div class="seasonPill">Season 1: March 9 - June 21, 2026</div>
+          <div class="seasonPill">Commissioner Dashboard</div>
 
           <div class="navRow">
             <a href="./index.html" class="navTab">Home</a>
@@ -57,377 +26,567 @@
       </div>
     </div>
 
-    <h2 style="margin:6px 0 10px;">Admin Controls</h2>
-    <div class="small muted" style="margin-bottom:12px;">
-      This page is protected server-side by <span class="mono">ADMIN_TOKEN</span>. Keep it private.
-    </div>
+    <main class="main">
+      <div class="pageWrap">
 
-    <div class="adminGrid">
-      <div class="adminCard">
-        <h3 style="margin:0 0 10px;">Access</h3>
-
-        <div class="row">
-          <div style="flex: 2 1 320px;">
-            <label>Admin Token (x-admin-token)</label>
-            <input id="adminToken" type="text" placeholder="Paste your ADMIN_TOKEN here" />
+        <div class="card">
+          <div class="cardTitle">Access</div>
+          <div class="row">
+            <div style="flex:1; min-width:240px">
+              <label class="label">Admin token (PROAM_ADMIN_TOKEN)</label>
+              <input class="input" id="adminToken" placeholder="Paste token here" />
+              <div class="hint">Stored in this browser only. Required for any admin action.</div>
+            </div>
+            <div style="display:flex; gap:10px; align-items:flex-end">
+              <button class="btn" id="btnSaveToken">Save Token</button>
+              <button class="btn btnGhost" id="btnClearToken">Clear</button>
+            </div>
           </div>
-          <div style="flex: 1 1 160px; align-self:flex-end;">
-            <button class="btn" id="saveTokenBtn">Save Token</button>
-          </div>
+          <div class="msg" id="accessMsg" style="margin-top:10px;"></div>
         </div>
 
-        <div class="row" style="margin-top:10px;">
-          <div style="flex: 2 1 320px;">
-            <label>Week</label>
-            <select id="weekSelect"></select>
+        <div class="card" style="margin-top:14px;">
+          <div class="cardTitle">Week</div>
+          <div class="row">
+            <div style="flex:1; min-width:240px">
+              <label class="label">Select week</label>
+              <select class="select" id="weekSelect"></select>
+            </div>
+            <div style="display:flex; gap:10px; align-items:flex-end">
+              <button class="btn btnGhost" id="btnRefreshWeek">Refresh</button>
+              <button class="btn btnDanger" id="btnWipeWeek">Wipe ALL Week Data</button>
+            </div>
           </div>
-          <div style="flex: 1 1 160px; align-self:flex-end;">
-            <button class="btn" id="refreshBtn">Refresh</button>
+
+          <div class="grid2" style="margin-top:12px;">
+            <div class="panel">
+              <div class="panelTitle">Summary</div>
+              <div id="weekSummary" class="monoSmall"></div>
+            </div>
+            <div class="panel">
+              <div class="panelTitle">Participants</div>
+              <div id="participantsBox"></div>
+              <div class="msg" id="participantsMsg" style="margin-top:10px;"></div>
+            </div>
           </div>
+
+          <div class="divider"></div>
+
+          <div class="tabs">
+            <button class="tabBtn tabBtnActive" data-tab="draft">Draft</button>
+            <button class="tabBtn" data-tab="tiers">Tiers</button>
+            <button class="tabBtn" data-tab="users">Users</button>
+          </div>
+
+          <div id="tab-draft" class="tabPane tabPaneActive">
+            <div class="panel">
+              <div class="panelTitle">Draft Controls</div>
+
+              <div class="row">
+                <button class="btn" id="btnDraftInit">Initialize Draft</button>
+                <button class="btn btnGhost" id="btnDraftLoad">Load Draft State</button>
+                <button class="btn btnGhost" id="btnDraftOrder">Generate Draft Order</button>
+                <button class="btn btnDanger" id="btnDraftWipe">Wipe Draft Only</button>
+              </div>
+
+              <div class="divider"></div>
+
+              <div class="grid2">
+                <div>
+                  <label class="label">Status</label>
+                  <select class="select" id="draftStatus">
+                    <option value="PREP">PREP</option>
+                    <option value="ORDER_PUBLISHED">ORDER_PUBLISHED</option>
+                    <option value="LIVE">LIVE</option>
+                    <option value="SWAP_OPEN">SWAP_OPEN</option>
+                    <option value="LOCKED">LOCKED</option>
+                    <option value="COMPLETE">COMPLETE</option>
+                  </select>
+
+                  <label class="label" style="margin-top:10px;">Draft starts at (ISO or empty)</label>
+                  <input class="input" id="draftStartsAt" placeholder="2026-03-02T12:00:00Z" />
+
+                  <label class="label" style="margin-top:10px;">Swap deadline at (ISO or empty)</label>
+                  <input class="input" id="swapDeadlineAt" placeholder="2026-03-05T23:59:00Z" />
+
+                  <div style="margin-top:10px;">
+                    <button class="btn" id="btnDraftUpdate">Save Draft Settings</button>
+                  </div>
+                </div>
+
+                <div>
+                  <div class="panelTitle" style="margin-bottom:6px;">Draft State</div>
+                  <div id="draftStateBox" class="monoSmall"></div>
+
+                  <div class="divider"></div>
+
+                  <div class="panelTitle" style="margin-bottom:6px;">Reset Pick</div>
+                  <label class="label">User ID (from participant row)</label>
+                  <input class="input" id="resetUserId" placeholder="uuid..." />
+                  <button class="btn btnGhost" id="btnResetPick" style="margin-top:10px;">Reset Pick</button>
+
+                  <div class="msg" id="draftMsg" style="margin-top:10px;"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div id="tab-tiers" class="tabPane">
+            <div class="panel">
+              <div class="panelTitle">Tier Assignment (week_pro_field)</div>
+              <div class="row">
+                <button class="btn" id="btnLoadField">Load Field</button>
+                <button class="btn btnGhost" id="btnAutoTier">Auto-tier by odds rank</button>
+              </div>
+              <div class="msg" id="tiersMsg" style="margin-top:10px;"></div>
+              <div class="divider"></div>
+              <div id="fieldTable"></div>
+            </div>
+          </div>
+
+          <div id="tab-users" class="tabPane">
+            <div class="panel">
+              <div class="panelTitle">Users</div>
+              <label class="label">Search by email</label>
+              <div class="row">
+                <input class="input" id="userSearch" placeholder="type email…" />
+                <button class="btn" id="btnUserSearch">Search</button>
+              </div>
+              <div class="msg" id="usersMsg" style="margin-top:10px;"></div>
+              <div class="divider"></div>
+              <div id="usersTable"></div>
+            </div>
+          </div>
+
         </div>
 
-        <div class="msg" id="adminMsg"></div>
       </div>
-
-      <div class="adminCard">
-        <h3 style="margin:0 0 10px;">Draft Controls</h3>
-
-        <div class="row">
-          <div>
-            <label>Status</label>
-            <select id="draftStatus">
-              <option value="PREP">PREP</option>
-              <option value="ORDER_PUBLISHED">ORDER_PUBLISHED</option>
-              <option value="LIVE">LIVE</option>
-              <option value="SWAP_OPEN">SWAP_OPEN</option>
-              <option value="LOCKED">LOCKED</option>
-              <option value="COMPLETE">COMPLETE</option>
-            </select>
-          </div>
-          <div>
-            <label>Draft Starts At</label>
-            <input id="draftStartsAt" type="datetime-local" />
-          </div>
-          <div>
-            <label>Swap Deadline At</label>
-            <input id="swapDeadlineAt" type="datetime-local" />
-          </div>
-        </div>
-
-        <div class="row" style="margin-top:10px;">
-          <button class="btn" id="initDraftBtn">Initialize Draft (create row)</button>
-          <button class="btn" id="saveDraftBtn">Save Draft Settings</button>
-        </div>
-
-        <div class="row" style="margin-top:10px;">
-          <button class="btn" id="genOrderBtn">Generate Draft Order</button>
-          <button class="btn btnDanger" id="wipeDraftBtn">Wipe Draft Data (Week)</button>
-        </div>
-
-        <div class="msg" id="draftMsg"></div>
-      </div>
-
-      <div class="adminCard">
-        <h3 style="margin:0 0 10px;">Participants</h3>
-        <div class="small muted">Remove a participant from the selected week (also clears their score/pick rows for that week).</div>
-        <div class="list" id="participantsList"></div>
-        <div class="msg" id="participantsMsg"></div>
-      </div>
-
-      <div class="adminCard">
-        <h3 style="margin:0 0 10px;">Week Maintenance</h3>
-        <div class="small muted">Use these for testing weeks like 0 / -1 without affecting real season data.</div>
-
-        <div class="row" style="margin-top:10px;">
-          <button class="btn btnDanger" id="wipeWeekBtn">Wipe ALL Week Data (Participants + Scores + Draft)</button>
-          <button class="btn btnDanger" id="resetWeekBtn">Reset Week Scores Only (week_entries)</button>
-        </div>
-
-        <div class="msg" id="weekMsg"></div>
-      </div>
-    </div>
+    </main>
   </div>
 
 <script>
-(function(){
-  const API = {
-    schedule: "/api/schedule",
-    participants: (weekId) => `/api/participants?week_id=${encodeURIComponent(weekId)}`,
-    admin: (route) => `/.netlify/functions/admin/${route}`,
-  };
-
-  const els = {
-    navAuthLink: document.getElementById("navAuthLink"),
-    token: document.getElementById("adminToken"),
-    saveTokenBtn: document.getElementById("saveTokenBtn"),
-    weekSelect: document.getElementById("weekSelect"),
-    refreshBtn: document.getElementById("refreshBtn"),
-    adminMsg: document.getElementById("adminMsg"),
-
-    draftStatus: document.getElementById("draftStatus"),
-    draftStartsAt: document.getElementById("draftStartsAt"),
-    swapDeadlineAt: document.getElementById("swapDeadlineAt"),
-    initDraftBtn: document.getElementById("initDraftBtn"),
-    saveDraftBtn: document.getElementById("saveDraftBtn"),
-    genOrderBtn: document.getElementById("genOrderBtn"),
-    wipeDraftBtn: document.getElementById("wipeDraftBtn"),
-    draftMsg: document.getElementById("draftMsg"),
-
-    participantsList: document.getElementById("participantsList"),
-    participantsMsg: document.getElementById("participantsMsg"),
-
-    wipeWeekBtn: document.getElementById("wipeWeekBtn"),
-    resetWeekBtn: document.getElementById("resetWeekBtn"),
-    weekMsg: document.getElementById("weekMsg"),
-  };
-
-  // auth nav label (same pattern as other pages)
-  const sbToken = localStorage.getItem("sb_access_token");
-  if (sbToken) {
-    els.navAuthLink.textContent = "Profile";
-    els.navAuthLink.href = "./profile.html";
-  } else {
-    els.navAuthLink.textContent = "Log in";
-    els.navAuthLink.href = "./login.html";
-  }
-
-  function show(el, msg, ok){
+  // ---------- helpers ----------
+  function $(id){ return document.getElementById(id); }
+  function showMsg(el, msg, kind){
     if (!el) return;
     el.textContent = msg || "";
-    el.className = "msg " + (ok === true ? "ok" : ok === false ? "bad" : "");
+    el.className = "msg " + (kind === "bad" ? "msgBad" : kind === "good" ? "msgGood" : "");
   }
+  function token(){ return localStorage.getItem("sb_access_token") || ""; }
+  function adminToken(){ return localStorage.getItem("admin_token") || ""; }
 
-  function toLocalInputValue(iso){
-    if (!iso) return "";
-    const d = new Date(iso);
-    if (isNaN(d)) return "";
-    const pad = (n) => String(n).padStart(2,"0");
-    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-  }
-
-  function fromLocalInputValue(v){
-    if (!v) return null;
-    // treat as local time
-    const d = new Date(v);
-    if (isNaN(d)) return null;
-    return d.toISOString();
-  }
-
-  async function getJSON(url){
-    const r = await fetch(url);
-    if (!r.ok) throw new Error(await r.text());
-    return r.json();
-  }
-
-  async function adminPOST(route, body){
-    const tok = (els.token.value || "").trim();
-    if (!tok) throw new Error("Missing admin token");
-    const r = await fetch(API.admin(route), {
+  async function postAdmin(route, body){
+    const t = adminToken();
+    const jwt = token();
+    const res = await fetch(`/.netlify/functions/admin/${route}`, {
       method: "POST",
       headers: {
         "content-type": "application/json",
-        "x-admin-token": tok,
+        "x-admin-token": t,
+        "Authorization": jwt ? `Bearer ${jwt}` : ""
       },
-      body: JSON.stringify(body || {}),
+      body: JSON.stringify(body || {})
     });
-    const t = await r.text();
-    if (!r.ok) throw new Error(t || r.statusText);
-    try { return JSON.parse(t); } catch { return t; }
-  }
-
-  async function loadWeeks(){
-    const sched = await getJSON(API.schedule);
-    const weeks = Array.isArray(sched) ? sched : (sched.weeks || []);
-    els.weekSelect.innerHTML = "";
-    (weeks || []).forEach((w) => {
-      const opt = document.createElement("option");
-      opt.value = w.week_number;
-      opt.textContent = `Week ${w.week_number} — ${w.label || ""}`.trim();
-      els.weekSelect.appendChild(opt);
-    });
-    if (!els.weekSelect.value && weeks && weeks.length) els.weekSelect.value = weeks[0].week_number;
-  }
-
-  async function loadParticipants(){
-    const weekId = Number(els.weekSelect.value);
-    els.participantsList.innerHTML = "";
-    show(els.participantsMsg, "", null);
-
-    const res = await getJSON(API.participants(weekId));
-    const rows = res?.rows || [];
-
-    if (!rows.length){
-      els.participantsList.innerHTML = `<div class="small muted">No participants for this week.</div>`;
-      return;
+    const txt = await res.text();
+    let js = null;
+    try { js = JSON.parse(txt); } catch { js = null; }
+    if (!res.ok) {
+      const msg = js?.error || txt || ("HTTP " + res.status);
+      throw new Error(msg);
     }
-
-    rows.forEach((r) => {
-      const div = document.createElement("div");
-      div.className = "listItem";
-      div.innerHTML = `
-        <div>
-          <strong>${r.player_name || "—"}</strong>
-          <div class="small muted">player_id: <span class="mono">${r.player_id}</span> • HI: ${r.handicap_index ?? "—"}</div>
-        </div>
-        <div style="flex:0 0 auto; display:flex; align-items:center;">
-          <button class="btn btnDanger" data-player="${r.player_id}">Remove</button>
-        </div>
-      `;
-      div.querySelector("button").addEventListener("click", async () => {
-        if (!confirm(`Remove ${r.player_name} from Week ${weekId}? This clears their participation + scores + draft rows for that week.`)) return;
-        try{
-          await adminPOST("remove-participant", { week_id: weekId, player_id: r.player_id });
-          show(els.participantsMsg, "Removed participant.", true);
-          await refreshAll();
-        }catch(e){
-          show(els.participantsMsg, "Remove error: " + (e?.message || String(e)), false);
-        }
-      });
-      els.participantsList.appendChild(div);
-    });
+    return js;
   }
 
-  async function loadDraft(){
-    const weekId = Number(els.weekSelect.value);
-    show(els.draftMsg, "", null);
+  function currentWeekNumber(){
+    const v = $("weekSelect").value;
+    const n = Number(v);
+    return Number.isFinite(n) ? n : null;
+  }
 
-    try{
-      const out = await adminPOST("get-draft", { week_id: weekId });
-      const draft = out?.draft || null;
-      if (!draft){
-        els.draftStatus.value = "PREP";
-        els.draftStartsAt.value = "";
-        els.swapDeadlineAt.value = "";
-        show(els.draftMsg, "Draft not initialized for this week yet. Use Initialize Draft.", null);
-        return;
+  // ---------- nav auth ----------
+  (function(){
+    const link = $("navAuthLink");
+    const t = token();
+    if (link){
+      if (t){
+        link.href = "./profile.html";
+        link.textContent = "Profile";
+      } else {
+        link.href = "./login.html";
+        link.textContent = "Log in";
       }
-      els.draftStatus.value = draft.status || "PREP";
-      els.draftStartsAt.value = toLocalInputValue(draft.draft_starts_at);
-      els.swapDeadlineAt.value = toLocalInputValue(draft.swap_deadline_at);
-      show(els.draftMsg, `Loaded draft: status=${draft.status}`, true);
-    }catch(e){
-      show(els.draftMsg, "Load draft error: " + (e?.message || String(e)), false);
-    }
-  }
-
-  async function refreshAll(){
-    await loadParticipants();
-    await loadDraft();
-  }
-
-  // event wiring
-  els.saveTokenBtn.addEventListener("click", () => {
-    localStorage.setItem("admin_token", (els.token.value || "").trim());
-    show(els.adminMsg, "Saved admin token in this browser.", true);
-  });
-
-  els.refreshBtn.addEventListener("click", async () => {
-    try{
-      await refreshAll();
-      show(els.adminMsg, "Refreshed.", true);
-    }catch(e){
-      show(els.adminMsg, "Refresh error: " + (e?.message || String(e)), false);
-    }
-  });
-
-  els.weekSelect.addEventListener("change", async () => {
-    await refreshAll();
-  });
-
-  els.initDraftBtn.addEventListener("click", async () => {
-    const weekId = Number(els.weekSelect.value);
-    try{
-      const body = {
-        week_id: weekId,
-        status: els.draftStatus.value,
-        draft_starts_at: fromLocalInputValue(els.draftStartsAt.value),
-        swap_deadline_at: fromLocalInputValue(els.swapDeadlineAt.value),
-      };
-      await adminPOST("init-draft", body);
-      show(els.draftMsg, "Draft initialized.", true);
-      await loadDraft();
-    }catch(e){
-      show(els.draftMsg, "Init error: " + (e?.message || String(e)), false);
-    }
-  });
-
-  els.saveDraftBtn.addEventListener("click", async () => {
-    const weekId = Number(els.weekSelect.value);
-    try{
-      const body = {
-        week_id: weekId,
-        status: els.draftStatus.value,
-        draft_starts_at: fromLocalInputValue(els.draftStartsAt.value),
-        swap_deadline_at: fromLocalInputValue(els.swapDeadlineAt.value),
-      };
-      await adminPOST("update-draft", body);
-      show(els.draftMsg, "Draft settings saved.", true);
-      await loadDraft();
-    }catch(e){
-      show(els.draftMsg, "Save error: " + (e?.message || String(e)), false);
-    }
-  });
-
-  els.genOrderBtn.addEventListener("click", async () => {
-    const weekId = Number(els.weekSelect.value);
-    if (!confirm(`Generate draft order for Week ${weekId}? This overwrites existing order rows.`)) return;
-    try{
-      const out = await adminPOST("generate-order", { week_id: weekId });
-      show(els.draftMsg, `Generated order (${out?.count || 0} rows).`, true);
-      await loadDraft();
-    }catch(e){
-      show(els.draftMsg, "Generate order error: " + (e?.message || String(e)), false);
-    }
-  });
-
-  els.wipeDraftBtn.addEventListener("click", async () => {
-    const weekId = Number(els.weekSelect.value);
-    if (!confirm(`WIPE draft data for Week ${weekId}? (week_draft + order + picks + log)`)) return;
-    try{
-      await adminPOST("wipe-draft", { week_id: weekId });
-      show(els.draftMsg, "Wiped draft data for week.", true);
-      await loadDraft();
-      await loadParticipants();
-    }catch(e){
-      show(els.draftMsg, "Wipe draft error: " + (e?.message || String(e)), false);
-    }
-  });
-
-  els.wipeWeekBtn.addEventListener("click", async () => {
-    const weekId = Number(els.weekSelect.value);
-    if (!confirm(`WIPE ALL week data for Week ${weekId}? This removes participants, scores, rounds, and ALL draft data.`)) return;
-    try{
-      await adminPOST("wipe-week", { week_id: weekId });
-      show(els.weekMsg, "Wiped all week data.", true);
-      await refreshAll();
-    }catch(e){
-      show(els.weekMsg, "Wipe week error: " + (e?.message || String(e)), false);
-    }
-  });
-
-  els.resetWeekBtn.addEventListener("click", async () => {
-    if (!confirm("Reset week scores only (week_entries) for the CURRENT week range? (Uses your existing reset-week endpoint)")) return;
-    try{
-      const out = await adminPOST("reset-week", {});
-      show(els.weekMsg, `Reset scores for week_id=${out?.week_id}`, true);
-    }catch(e){
-      show(els.weekMsg, "Reset error: " + (e?.message || String(e)), false);
-    }
-  });
-
-  // boot
-  els.token.value = (localStorage.getItem("admin_token") || "").trim();
-
-  (async () => {
-    try{
-      await loadWeeks();
-      await refreshAll();
-      show(els.adminMsg, "Loaded.", true);
-    }catch(e){
-      show(els.adminMsg, "Boot error: " + (e?.message || String(e)), false);
     }
   })();
-})();
+
+  // ---------- tabs ----------
+  function setTab(name){
+    document.querySelectorAll(".tabBtn").forEach(b => b.classList.toggle("tabBtnActive", b.dataset.tab === name));
+    document.querySelectorAll(".tabPane").forEach(p => p.classList.toggle("tabPaneActive", p.id === "tab-" + name));
+  }
+  document.querySelectorAll(".tabBtn").forEach(b => b.addEventListener("click", () => setTab(b.dataset.tab)));
+
+  // ---------- token UI ----------
+  $("adminToken").value = adminToken();
+  $("btnSaveToken").addEventListener("click", () => {
+    localStorage.setItem("admin_token", $("adminToken").value.trim());
+    showMsg($("accessMsg"), "Saved.", "good");
+    boot();
+  });
+  $("btnClearToken").addEventListener("click", () => {
+    localStorage.removeItem("admin_token");
+    $("adminToken").value = "";
+    showMsg($("accessMsg"), "Cleared.", "");
+  });
+
+  // ---------- week loading ----------
+  async function loadWeeks(){
+    const sel = $("weekSelect");
+    sel.innerHTML = "";
+    const data = await postAdmin("list-weeks", {});
+    const weeks = data.weeks || [];
+    for (const w of weeks){
+      const opt = document.createElement("option");
+      opt.value = String(w.week_number);
+      opt.textContent = `${w.label || ("Week " + w.week_number)} — ${w.tournament_name || ""}`;
+      sel.appendChild(opt);
+    }
+    // default to week 0 if present
+    const has0 = weeks.some(w => Number(w.week_number) === 0);
+    if (has0) sel.value = "0";
+  }
+
+  async function refreshWeek(){
+    const week = currentWeekNumber();
+    if (week == null) return;
+
+    showMsg($("participantsMsg"), "", "");
+    showMsg($("draftMsg"), "", "");
+    showMsg($("tiersMsg"), "", "");
+    showMsg($("usersMsg"), "", "");
+
+    const sum = await postAdmin("week-summary", { week_number: week });
+    $("weekSummary").textContent = JSON.stringify(sum, null, 2);
+
+    const parts = await postAdmin("participants-list", { week_number: week });
+    renderParticipants(parts.participants || []);
+    // also refresh draft state view
+    await loadDraftState();
+  }
+
+  function renderParticipants(rows){
+    const box = $("participantsBox");
+    if (!rows.length){
+      box.innerHTML = "<div class='hint'>No participants for this week.</div>";
+      return;
+    }
+    const tbl = document.createElement("table");
+    tbl.className = "table";
+    tbl.innerHTML = `
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Handicap</th>
+          <th>User ID</th>
+          <th>Pick</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    `;
+    const tb = tbl.querySelector("tbody");
+    rows.forEach(r => {
+      const tr = document.createElement("tr");
+      const name = r.player?.name || r.player_id;
+      const hcp = (r.player?.handicap_index ?? "");
+      const uid = r.player?.user_id || "";
+      const pick = r.pick ? `${r.pick.pro_id} (T${r.pick.tier})` : "";
+      tr.innerHTML = `
+        <td>${escapeHtml(name)}</td>
+        <td>${escapeHtml(String(hcp))}</td>
+        <td class="monoSmall">${escapeHtml(uid)}</td>
+        <td>${escapeHtml(pick)}</td>
+        <td><button class="btn btnGhost btnSm">Remove</button></td>
+      `;
+      tr.querySelector("button").addEventListener("click", async () => {
+        if (!confirm("Remove this participant from the week? This also deletes their score + draft pick for the week.")) return;
+        try {
+          await postAdmin("remove-participant", { week_number: currentWeekNumber(), player_id: r.player_id });
+          showMsg($("participantsMsg"), "Removed.", "good");
+          await refreshWeek();
+        } catch (e){
+          showMsg($("participantsMsg"), "Error: " + e.message, "bad");
+        }
+      });
+      tb.appendChild(tr);
+    });
+    box.innerHTML = "";
+    box.appendChild(tbl);
+  }
+
+  function escapeHtml(s){
+    return String(s || "")
+      .replaceAll("&","&amp;")
+      .replaceAll("<","&lt;")
+      .replaceAll(">","&gt;")
+      .replaceAll('"',"&quot;")
+      .replaceAll("'","&#039;");
+  }
+
+  $("btnRefreshWeek").addEventListener("click", () => refreshWeek());
+
+  $("weekSelect").addEventListener("change", () => refreshWeek());
+
+  $("btnWipeWeek").addEventListener("click", async () => {
+    const wk = currentWeekNumber();
+    if (wk == null) return;
+    if (!confirm("WIPE ALL DATA for this week?\nThis removes participants, scores, and ALL draft tables for the week.")) return;
+    try {
+      await postAdmin("week-wipe-all", { week_number: wk });
+      showMsg($("participantsMsg"), "Week wiped.", "good");
+      await refreshWeek();
+    } catch (e){
+      showMsg($("participantsMsg"), "Error: " + e.message, "bad");
+    }
+  });
+
+  // ---------- Draft tab ----------
+  async function loadDraftState(){
+    const wk = currentWeekNumber();
+    if (wk == null) return;
+    try {
+      const d = await postAdmin("draft-get", { week_number: wk });
+      $("draftStateBox").textContent = JSON.stringify(d, null, 2);
+
+      if (d.draft){
+        $("draftStatus").value = d.draft.status || "PREP";
+        $("draftStartsAt").value = d.draft.draft_starts_at || "";
+        $("swapDeadlineAt").value = d.draft.swap_deadline_at || "";
+      }
+    } catch (e){
+      $("draftStateBox").textContent = "";
+      showMsg($("draftMsg"), "Error: " + e.message, "bad");
+    }
+  }
+
+  $("btnDraftLoad").addEventListener("click", () => loadDraftState());
+
+  $("btnDraftInit").addEventListener("click", async () => {
+    try {
+      await postAdmin("draft-init", { week_number: currentWeekNumber() });
+      showMsg($("draftMsg"), "Draft initialized.", "good");
+      await loadDraftState();
+    } catch (e){
+      showMsg($("draftMsg"), "Error: " + e.message, "bad");
+    }
+  });
+
+  $("btnDraftUpdate").addEventListener("click", async () => {
+    try {
+      await postAdmin("draft-update", {
+        week_number: currentWeekNumber(),
+        status: $("draftStatus").value,
+        draft_starts_at: ($("draftStartsAt").value || null),
+        swap_deadline_at: ($("swapDeadlineAt").value || null),
+      });
+      showMsg($("draftMsg"), "Saved.", "good");
+      await loadDraftState();
+    } catch (e){
+      showMsg($("draftMsg"), "Error: " + e.message, "bad");
+    }
+  });
+
+  $("btnDraftOrder").addEventListener("click", async () => {
+    try {
+      const out = await postAdmin("draft-generate-order", { week_number: currentWeekNumber() });
+      showMsg($("draftMsg"), `Order generated (${out.count} players).`, "good");
+      await loadDraftState();
+    } catch (e){
+      showMsg($("draftMsg"), "Error: " + e.message, "bad");
+    }
+  });
+
+  $("btnResetPick").addEventListener("click", async () => {
+    try {
+      await postAdmin("draft-reset-pick", { week_number: currentWeekNumber(), user_id: $("resetUserId").value.trim() });
+      showMsg($("draftMsg"), "Pick reset.", "good");
+      await refreshWeek();
+    } catch (e){
+      showMsg($("draftMsg"), "Error: " + e.message, "bad");
+    }
+  });
+
+  $("btnDraftWipe").addEventListener("click", async () => {
+    if (!confirm("Wipe draft tables for this week only?")) return;
+    try {
+      await postAdmin("draft-wipe", { week_number: currentWeekNumber() });
+      showMsg($("draftMsg"), "Draft wiped.", "good");
+      await loadDraftState();
+    } catch (e){
+      showMsg($("draftMsg"), "Error: " + e.message, "bad");
+    }
+  });
+
+  // ---------- Tiers tab ----------
+  function renderField(field){
+    const root = $("fieldTable");
+    if (!field.length){
+      root.innerHTML = "<div class='hint'>No field found. Run your field sync for this week first.</div>";
+      return;
+    }
+    const tbl = document.createElement("table");
+    tbl.className = "table";
+    tbl.innerHTML = `
+      <thead>
+        <tr>
+          <th>Odds Rank</th>
+          <th>Player</th>
+          <th>Odds</th>
+          <th>Tier</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    `;
+    const tb = tbl.querySelector("tbody");
+    field.forEach(r => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${escapeHtml(String(r.odds_rank ?? ""))}</td>
+        <td>${escapeHtml(r.player_name || "")}</td>
+        <td>${escapeHtml(r.odds_display || "")}</td>
+        <td>
+          <select class="select selectSm">
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="4">4</option>
+          </select>
+        </td>
+        <td><button class="btn btnGhost btnSm">Save</button></td>
+      `;
+      const sel = tr.querySelector("select");
+      sel.value = String(r.tier ?? 4);
+      tr.querySelector("button").addEventListener("click", async () => {
+        try {
+          await postAdmin("tiers-set", {
+            week_number: currentWeekNumber(),
+            player_ext_id: r.player_ext_id,
+            tier: Number(sel.value)
+          });
+          showMsg($("tiersMsg"), "Saved.", "good");
+        } catch (e){
+          showMsg($("tiersMsg"), "Error: " + e.message, "bad");
+        }
+      });
+      tb.appendChild(tr);
+    });
+    root.innerHTML = "";
+    root.appendChild(tbl);
+  }
+
+  $("btnLoadField").addEventListener("click", async () => {
+    try {
+      const out = await postAdmin("tiers-list", { week_number: currentWeekNumber() });
+      renderField(out.field || []);
+      showMsg($("tiersMsg"), "", "");
+    } catch (e){
+      showMsg($("tiersMsg"), "Error: " + e.message, "bad");
+    }
+  });
+
+  $("btnAutoTier").addEventListener("click", async () => {
+    try {
+      const out = await postAdmin("tiers-auto", { week_number: currentWeekNumber() });
+      showMsg($("tiersMsg"), `Auto-tier complete (${out.updated} updated).`, "good");
+      const refreshed = await postAdmin("tiers-list", { week_number: currentWeekNumber() });
+      renderField(refreshed.field || []);
+    } catch (e){
+      showMsg($("tiersMsg"), "Error: " + e.message, "bad");
+    }
+  });
+
+  // ---------- Users tab ----------
+  function renderUsers(users){
+    const root = $("usersTable");
+    if (!users.length){
+      root.innerHTML = "<div class='hint'>No matches.</div>";
+      return;
+    }
+    const tbl = document.createElement("table");
+    tbl.className = "table";
+    tbl.innerHTML = `
+      <thead>
+        <tr>
+          <th>Email</th>
+          <th>Player</th>
+          <th>Handicap</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    `;
+    const tb = tbl.querySelector("tbody");
+    users.forEach(u => {
+      const tr = document.createElement("tr");
+      const p = u.player;
+      tr.innerHTML = `
+        <td>${escapeHtml(u.email || "")}<div class="monoSmall">${escapeHtml(u.user_id || "")}</div></td>
+        <td>${escapeHtml(p?.name || "(no player row)")}</td>
+        <td>
+          <input class="input inputSm" value="${escapeHtml(String(p?.handicap_index ?? ""))}" ${p ? "" : "disabled"} />
+          <div class="monoSmall">${p ? escapeHtml(p.id) : ""}</div>
+        </td>
+        <td><button class="btn btnGhost btnSm" ${p ? "" : "disabled"}>Save</button></td>
+      `;
+      const inp = tr.querySelector("input");
+      const btn = tr.querySelector("button");
+      if (p){
+        btn.addEventListener("click", async () => {
+          try {
+            await postAdmin("users-set-handicap", { player_id: p.id, handicap_index: Number(inp.value) });
+            showMsg($("usersMsg"), "Saved.", "good");
+          } catch (e){
+            showMsg($("usersMsg"), "Error: " + e.message, "bad");
+          }
+        });
+      }
+      tb.appendChild(tr);
+    });
+    root.innerHTML = "";
+    root.appendChild(tbl);
+  }
+
+  $("btnUserSearch").addEventListener("click", async () => {
+    const q = $("userSearch").value.trim();
+    if (!q) return;
+    try {
+      const out = await postAdmin("users-search", { query: q });
+      renderUsers(out.users || []);
+      showMsg($("usersMsg"), "", "");
+    } catch (e){
+      showMsg($("usersMsg"), "Error: " + e.message, "bad");
+    }
+  });
+
+  async function boot(){
+    try {
+      if (!token()) {
+        showMsg($("accessMsg"), "You must be logged in as the commissioner account to use this page.", "bad");
+        return;
+      }
+      if (!adminToken()){
+        showMsg($("accessMsg"), "Enter your admin token above to enable controls.", "");
+        return;
+      }
+      await loadWeeks();
+      await refreshWeek();
+      showMsg($("accessMsg"), "Admin access OK.", "good");
+    } catch (e){
+      showMsg($("accessMsg"), "Access error: " + e.message, "bad");
+    }
+  }
+
+  boot();
 </script>
 </body>
 </html>
