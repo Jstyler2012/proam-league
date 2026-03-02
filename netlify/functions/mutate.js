@@ -57,7 +57,12 @@ async function sbService(SUPABASE_URL, SERVICE_KEY, method, restPath, bodyObj, p
 function safeJson(body) {
   if (!body) return {};
   try { return JSON.parse(body); } catch { return {}; }
-}async function getWeekUuidFromNumberService(SUPABASE_URL, SERVICE_KEY, weekNumber) {
+}
+
+function isMissing(v) {
+  return v === undefined || v === null || v === "";
+}
+async function getWeekUuidFromNumberService(SUPABASE_URL, SERVICE_KEY, weekNumber) {
   const wk = await sbService(
     SUPABASE_URL,
     SERVICE_KEY,
@@ -107,7 +112,7 @@ exports.handler = async (event) => {
     // -------------------------
     if (path === "participate") {
       const { week_id, participate } = body;
-      if (!week_id) return json(400, { error: "Missing week_id" });
+      if (isMissing(week_id)) return json(400, { error: "Missing week_id" });
 
       const userId = await getAuthedUserId(event, SUPABASE_URL, SUPABASE_ANON_KEY);
       if (!userId) return json(401, { error: "Not logged in" });
@@ -273,7 +278,7 @@ if (path === "submit-round") {
 
   const { week_id, score_to_par, played_at } = body;
 
-  if (!week_id) {
+  if (isMissing(week_id)) {
     return json(400, { error: "Missing week_id" });
   }
 
@@ -341,7 +346,7 @@ if (path === "submit-round") {
 if (path === "submit-score") {
   const { week_id, player_id, pro_id, player_to_par, pro_to_par } = body;
 
-  if (!week_id || !player_id || !pro_id) {
+  if (isMissing(week_id) || !player_id || !pro_id) {
     return json(400, { error: "Missing required fields" });
   }
 
