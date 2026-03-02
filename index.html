@@ -1564,7 +1564,7 @@ $("refreshBtn") && ($("refreshBtn").onclick = async () => {
 
     const token = localStorage.getItem("sb_access_token") || "";
 
-    // Auth link (same behavior as before)
+    // Login / Profile toggle (existing behavior)
     if (authLink) {
       if (token) {
         authLink.href = "./profile.html";
@@ -1575,31 +1575,35 @@ $("refreshBtn") && ($("refreshBtn").onclick = async () => {
       }
     }
 
-    // Admin link: only show for your Supabase account email
+    // Hide Admin by default
     if (adminLink) adminLink.style.display = "none";
+
     if (!token || !adminLink) return;
 
-    async function fetchMe(url){
-      const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-      if (!res.ok) throw new Error(await res.text());
+    async function fetchMe(url) {
+      const res = await fetch(url, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (!res.ok) throw new Error();
       return res.json();
     }
 
     try {
-      let me = null;
+      let me;
       try {
         me = await fetchMe("/api/me");
       } catch (_) {
-        // fallback path (works even if /api redirects aren’t active)
+        // fallback path if Netlify redirect not active
         me = await fetchMe("/.netlify/functions/public/me");
       }
 
       const email = (me?.user?.email || "").toLowerCase();
+
       if (email === "jstyler2012@yahoo.com") {
         adminLink.style.display = "";
       }
     } catch (_) {
-      // keep hidden if anything fails
+      // remain hidden
     }
   })();
 </script>
