@@ -1,6 +1,18 @@
 // netlify/functions/admin.js
 // Admin-only endpoints (POST) protected by x-admin-token header.
 // Uses Supabase SERVICE ROLE key (server-side only).
+//
+// Routes:
+//   POST /.netlify/functions/admin/list-weeks
+//   POST /.netlify/functions/admin/list-participants { week_id }
+//   POST /.netlify/functions/admin/remove-participant { week_id, player_id }
+//   POST /.netlify/functions/admin/get-draft { week_id }
+//   POST /.netlify/functions/admin/init-draft { week_id, status?, draft_starts_at?, swap_deadline_at? }
+//   POST /.netlify/functions/admin/update-draft { week_id, status?, draft_starts_at?, swap_deadline_at? }
+//   POST /.netlify/functions/admin/generate-order { week_id }
+//   POST /.netlify/functions/admin/wipe-draft { week_id }
+//   POST /.netlify/functions/admin/wipe-week { week_id }
+//   POST /.netlify/functions/admin/reset-week   (existing behavior: resets current scheduled week)
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -31,7 +43,6 @@ function getHeader(event, name) {
 
 // supports:
 // /.netlify/functions/admin/<route>
-// /admin/<route> (if you later add a redirect)
 function getRoute(event) {
   const raw = (event.path || "").split("?")[0];
   const cleaned = raw.replace(/^\/+|\/+$/g, "");
@@ -41,6 +52,15 @@ function getRoute(event) {
   if (idx >= 0) return parts.slice(idx + 1).join("/");
 
   return cleaned;
+}
+
+function safeJson(body) {
+  if (!body) return {};
+  try { return JSON.parse(body); } catch { return {}; }
+}
+
+function isMissing(v) {
+  return v === undefined || v === null || v === "";
 }
 
 exports.handler = async (event) => {
@@ -68,12 +88,12 @@ exports.handler = async (event) => {
       return text(500, "Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY");
     }
 
-    const sb = async (method, restPath, bodyObj) => {
+    const sb = async (method, restPath, bodyObj, prefer) => {
       const url = `${SUPABASE_URL}/rest/v1/${restPath}`;
       const headers = {
         apikey: SERVICE_ROLE,
         Authorization: `Bearer ${SERVICE_ROLE}`,
-        Prefer: "return=representation",
+        Prefer: prefer || "return=representation",
       };
       if (method !== "GET") headers["content-type"] = "application/json";
 
@@ -89,6 +109,25 @@ exports.handler = async (event) => {
 
       try { return JSON.parse(t); }
       catch { return t; }
+    };
+
+    const getWeekUuidFromNumber = async (weekNumber) => {
+      const wk = await sb("GET", `weeks?select=id&week_number=eq.${weekNumber}&limit=1`);
+      return wk?.[0]?.id || null;
+    };
+
+    const getWeekKeyForParticipants = async (weekNumber) => {
+      // Try integer key first; if the column is UUID in this project, we need weeks.id
+      try {
+        await sb("GET", `week_participants?week_id=eq.${weekNumber}&select=week_id&limit=1`);
+        return { weekKey: weekNumber, mode: "number" };
+      } catch (e) {
+        const msg = String(e?.message || "");
+        if (!msg.includes("invalid input syntax for type uuid")) throw e;
+        const uuid = await getWeekUuidFromNumber(weekNumber);
+        if (!uuid) throw new Error("Could not resolve week UUID for that week_number.");
+        return { weekKey: uuid, mode: "uuid" };
+      }
     };
 
     const getCurrentWeek = async () => {
@@ -116,21 +155,222 @@ exports.handler = async (event) => {
     };
 
     const route = getRoute(event);
+    const body = safeJson(event.body);
 
-    // POST /.netlify/functions/admin/reset-week
+    // -------------------------
+    // list-weeks
+    // -------------------------
+    if (route === "list-weeks") {
+      const weeks = await sb(
+        "GET",
+        "weeks?select=id,label,week_number,start_date,end_date&week_number=not.is.null&order=week_number.asc"
+      );
+      return json(200, { ok: true, weeks: weeks || [] });
+    }
+
+    // -------------------------
+    // list-participants { week_id }
+    // -------------------------
+    if (route === "list-participants") {
+      const weekNumber = Number(body.week_id);
+      if (!Number.isFinite(weekNumber)) return json(400, { ok: false, error: "Missing/invalid week_id" });
+
+      const { weekKey } = await getWeekKeyForParticipants(weekNumber);
+      const rows = await sb(
+        "GET",
+        `week_participants?week_id=eq.${weekKey}&select=player_id,player:players(id,name,handicap_index)`
+      );
+
+      const out = (rows || []).map((r) => ({
+        player_id: r.player_id,
+        player_name: r?.player?.name || "—",
+        handicap_index: r?.player?.handicap_index ?? null,
+      }));
+
+      return json(200, { ok: true, week_id: weekNumber, rows: out });
+    }
+
+    // -------------------------
+    // remove-participant { week_id, player_id }
+    // Clears: week_participants, week_entries, player_rounds, week_draft_picks
+    // -------------------------
+    if (route === "remove-participant") {
+      const weekNumber = Number(body.week_id);
+      const playerId = String(body.player_id || "").trim();
+      if (!Number.isFinite(weekNumber)) return json(400, { ok: false, error: "Missing/invalid week_id" });
+      if (!playerId) return json(400, { ok: false, error: "Missing player_id" });
+
+      const { weekKey } = await getWeekKeyForParticipants(weekNumber);
+
+      // participation row
+      await sb("DELETE", `week_participants?week_id=eq.${weekKey}&player_id=eq.${playerId}`);
+
+      // score/entry rows (these tables use integer week_id in your current app)
+      await sb("DELETE", `week_entries?week_id=eq.${weekNumber}&player_id=eq.${playerId}`);
+      await sb("DELETE", `player_rounds?week_id=eq.${weekNumber}&player_id=eq.${playerId}`);
+
+      // draft pick rows (if present)
+      await sb("DELETE", `week_draft_picks?week_number=eq.${weekNumber}&player_id=eq.${playerId}`);
+
+      return json(200, { ok: true });
+    }
+
+    // -------------------------
+    // get-draft { week_id }
+    // -------------------------
+    if (route === "get-draft") {
+      const weekNumber = Number(body.week_id);
+      if (!Number.isFinite(weekNumber)) return json(400, { ok: false, error: "Missing/invalid week_id" });
+
+      const d = await sb("GET", `week_draft?week_number=eq.${weekNumber}&limit=1`);
+      const draft = (d || [])[0] || null;
+      return json(200, { ok: true, draft });
+    }
+
+    // -------------------------
+    // init-draft { week_id, status?, draft_starts_at?, swap_deadline_at? }
+    // upserts week_draft row
+    // -------------------------
+    if (route === "init-draft") {
+      const weekNumber = Number(body.week_id);
+      if (!Number.isFinite(weekNumber)) return json(400, { ok: false, error: "Missing/invalid week_id" });
+
+      const payload = {
+        week_number: weekNumber,
+        status: body.status || "PREP",
+        draft_starts_at: body.draft_starts_at || null,
+        swap_deadline_at: body.swap_deadline_at || null,
+      };
+
+      const out = await sb("POST", "week_draft", payload, "return=representation,resolution=merge-duplicates");
+      return json(200, { ok: true, draft: (out || [])[0] || null });
+    }
+
+    // -------------------------
+    // update-draft { week_id, ... }
+    // PATCHes week_draft
+    // -------------------------
+    if (route === "update-draft") {
+      const weekNumber = Number(body.week_id);
+      if (!Number.isFinite(weekNumber)) return json(400, { ok: false, error: "Missing/invalid week_id" });
+
+      const patch = {};
+      if (!isMissing(body.status)) patch.status = body.status;
+      if (body.draft_starts_at !== undefined) patch.draft_starts_at = body.draft_starts_at;
+      if (body.swap_deadline_at !== undefined) patch.swap_deadline_at = body.swap_deadline_at;
+
+      if (Object.keys(patch).length === 0) return json(400, { ok: false, error: "No fields to update" });
+
+      const out = await sb("PATCH", `week_draft?week_number=eq.${weekNumber}`, patch, "return=representation");
+      return json(200, { ok: true, draft: (out || [])[0] || null });
+    }
+
+    // -------------------------
+    // generate-order { week_id }
+    // Generates deterministic order: participants sorted by handicap_index DESC.
+    // Writes week_draft_order rows and sets week_draft.status=ORDER_PUBLISHED.
+    // -------------------------
+    if (route === "generate-order") {
+      const weekNumber = Number(body.week_id);
+      if (!Number.isFinite(weekNumber)) return json(400, { ok: false, error: "Missing/invalid week_id" });
+
+      const { weekKey } = await getWeekKeyForParticipants(weekNumber);
+
+      const part = await sb(
+        "GET",
+        `week_participants?week_id=eq.${weekKey}&select=player_id,player:players(id,handicap_index)`
+      );
+
+      const rows = (part || [])
+        .map((r) => ({
+          player_id: r.player_id,
+          handicap_index: Number(r?.player?.handicap_index),
+        }))
+        .filter((r) => r.player_id && Number.isFinite(r.handicap_index))
+        .sort((a, b) => b.handicap_index - a.handicap_index);
+
+      // wipe prior order
+      await sb("DELETE", `week_draft_order?week_number=eq.${weekNumber}`);
+
+      // insert new
+      const payload = rows.map((r, i) => ({
+        week_number: weekNumber,
+        player_id: r.player_id,
+        handicap_index: r.handicap_index,
+        handicap_group: null,
+        pick_position: i + 1,
+        group_position: i + 1,
+      }));
+
+      if (payload.length) {
+        await sb("POST", "week_draft_order", payload, "return=representation");
+      }
+
+      // ensure draft row exists and publish
+      await sb(
+        "POST",
+        "week_draft",
+        { week_number: weekNumber, status: "ORDER_PUBLISHED", order_generated_at: new Date().toISOString() },
+        "return=representation,resolution=merge-duplicates"
+      );
+
+      return json(200, { ok: true, count: payload.length });
+    }
+
+    // -------------------------
+    // wipe-draft { week_id }
+    // Clears week_draft + order + picks + log for week
+    // -------------------------
+    if (route === "wipe-draft") {
+      const weekNumber = Number(body.week_id);
+      if (!Number.isFinite(weekNumber)) return json(400, { ok: false, error: "Missing/invalid week_id" });
+
+      await sb("DELETE", `week_draft_picks?week_number=eq.${weekNumber}`);
+      await sb("DELETE", `week_draft_order?week_number=eq.${weekNumber}`);
+      await sb("DELETE", `week_draft_log?week_number=eq.${weekNumber}`);
+      await sb("DELETE", `week_draft_state?week_number=eq.${weekNumber}`);
+      await sb("DELETE", `week_draft?week_number=eq.${weekNumber}`);
+
+      return json(200, { ok: true });
+    }
+
+    // -------------------------
+    // wipe-week { week_id }
+    // Clears: participants + entries + rounds + all draft tables for that week_number.
+    // -------------------------
+    if (route === "wipe-week") {
+      const weekNumber = Number(body.week_id);
+      if (!Number.isFinite(weekNumber)) return json(400, { ok: false, error: "Missing/invalid week_id" });
+
+      // participants (uuid or number)
+      const { weekKey } = await getWeekKeyForParticipants(weekNumber);
+      await sb("DELETE", `week_participants?week_id=eq.${weekKey}`);
+
+      // scores
+      await sb("DELETE", `week_entries?week_id=eq.${weekNumber}`);
+      await sb("DELETE", `player_rounds?week_id=eq.${weekNumber}`);
+
+      // draft
+      await sb("DELETE", `week_draft_picks?week_number=eq.${weekNumber}`);
+      await sb("DELETE", `week_draft_order?week_number=eq.${weekNumber}`);
+      await sb("DELETE", `week_draft_log?week_number=eq.${weekNumber}`);
+      await sb("DELETE", `week_draft_state?week_number=eq.${weekNumber}`);
+      await sb("DELETE", `week_draft?week_number=eq.${weekNumber}`);
+
+      return json(200, { ok: true });
+    }
+
+    // -------------------------
+    // reset-week (existing behavior)
+    // Deletes all week_entries for the *current scheduled* week.
+    // -------------------------
     if (route === "reset-week") {
       const week = await getCurrentWeek();
       if (!week?.id) return json(400, { ok: false, error: "No scheduled weeks exist" });
 
-      // deletes all week_entries for current week (scores + draft picks live in this table in your current schema)
       await sb("DELETE", `week_entries?week_id=eq.${week.week_number}`);
 
       return json(200, { ok: true, week_id: week.week_number, label: week.label || null });
-    }
-
-    // POST /.netlify/functions/admin/recalc
-    if (route === "recalc") {
-      return json(200, { ok: true, message: "recalc placeholder" });
     }
 
     return text(404, "Not found");
