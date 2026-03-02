@@ -581,12 +581,12 @@
           <div class="seasonPill">Season 1: March 9 - June 21, 2026</div>
 
           <div class="navRow">
-            <a href="./index.html" class="navTab navTabActive">Home</a>
-            <a href="./draft.html" class="navTab">Draft</a>
-            <a href="./rules.html" class="navTab">Rules</a>
-           <a href="./login.html" class="navTab" id="navAuthLink">Log in</a>  
-          </div>
-
+  <a href="./index.html" class="navTab navTabActive">Home</a>
+  <a href="./draft.html" class="navTab">Draft</a>
+  <a href="./rules.html" class="navTab">Rules</a>
+  <a href="./admin.html" class="navTab" id="navAdminLink" style="display:none">Admin</a>
+  <a href="./login.html" class="navTab" id="navAuthLink">Log in</a>
+</div>
           <!-- Kept for JS updates, hidden via .mastheadControls -->
           <div class="pillrow mastheadControls" aria-label="Top controls">
             <div class="pill" title="Netlify Functions health">
@@ -1557,19 +1557,51 @@ $("refreshBtn") && ($("refreshBtn").onclick = async () => {
 
     boot();
   </script>
-  <script>
-  (function () {
-    const link = document.getElementById("navAuthLink");
-    if (!link) return;
+ <script>
+  (async function () {
+    const authLink = document.getElementById("navAuthLink");
+    const adminLink = document.getElementById("navAdminLink");
 
-    const token = localStorage.getItem("sb_access_token");
-    if (token) {
-      link.href = "./profile.html";
-      link.textContent = "Profile";
-    } else {
-      link.href = "./login.html";
-      link.textContent = "Log in";
+    const token = localStorage.getItem("sb_access_token") || "";
+
+    // Auth link (same behavior as before)
+    if (authLink) {
+      if (token) {
+        authLink.href = "./profile.html";
+        authLink.textContent = "Profile";
+      } else {
+        authLink.href = "./login.html";
+        authLink.textContent = "Log in";
+      }
+    }
+
+    // Admin link: only show for your Supabase account email
+    if (adminLink) adminLink.style.display = "none";
+    if (!token || !adminLink) return;
+
+    async function fetchMe(url){
+      const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+      if (!res.ok) throw new Error(await res.text());
+      return res.json();
+    }
+
+    try {
+      let me = null;
+      try {
+        me = await fetchMe("/api/me");
+      } catch (_) {
+        // fallback path (works even if /api redirects aren’t active)
+        me = await fetchMe("/.netlify/functions/public/me");
+      }
+
+      const email = (me?.user?.email || "").toLowerCase();
+      if (email === "jstyler2012@yahoo.com") {
+        adminLink.style.display = "";
+      }
+    } catch (_) {
+      // keep hidden if anything fails
     }
   })();
-</script></body>
+</script>
+</body>
 </html>
