@@ -28,7 +28,21 @@
 </head>
 <body>
   <div class="wrap">
-    <h1>Draft</h1>
+    <!-- Masthead (match homepage layout/look) -->
+    <div class="masthead">
+      <div class="mastBanner" aria-label="Wellman banner"></div>
+      <div class="mastControls">
+        <div class="mastControlsInner">
+          <div class="seasonPill">Season 1: March 9 - June 21, 2026</div>
+          <div class="navRow">
+            <a href="./index.html" class="navTab">Home</a>
+            <a href="./draft.html" class="navTab navTabActive">Draft</a>
+            <a href="./rules.html" class="navTab">Rules</a>
+            <a href="./login.html" class="navTab" id="navAuthLink">Log in</a>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <div class="row">
       <div class="card" style="flex:1;min-width:280px">
@@ -93,6 +107,7 @@ const API = {
   schedule: "/api/schedule",
   currentWeek: "/api/current-week",
   me: "/api/me",
+  participants: "/api/participants",
   participate: "/api-mutate/participate",
   draftState: "/api/draft-state",
   draftBoard: "/api/draft-board",
@@ -148,18 +163,22 @@ function resolveApiUrl(url){
 }
 
 async function getJSON(url){
+  const token = localStorage.getItem("sb_access_token") || "";
+  const headers = { "Accept":"application/json" };
+  if(token) headers["Authorization"] = "Bearer " + token;
+
   const primary = url;
   const fallback = resolveApiUrl(url);
 
   let r;
   try{
-    r = await fetch(primary, { headers: { "Accept":"application/json" } });
+    r = await fetch(primary, { headers });
     if(!r.ok && fallback !== primary){
-      r = await fetch(fallback, { headers: { "Accept":"application/json" } });
+      r = await fetch(fallback, { headers });
     }
   }catch(err){
     if(fallback !== primary){
-      r = await fetch(fallback, { headers: { "Accept":"application/json" } });
+      r = await fetch(fallback, { headers });
     }else{
       throw err;
     }
@@ -232,6 +251,9 @@ let weeks = [];
 let currentWeek = null;
 let me = null;
 
+let participants = [];
+let draftError = null;
+
 let isParticipating = false;
 let draftState = null;
 let serverNowIso = null;
@@ -272,12 +294,20 @@ function renderWeekMeta(){
 
 function renderDraftStatus(){
   const el = $("draftStatus");
+  if(draftError){
+    el.innerHTML = `<b>Status:</b> —<br>${escapeHTML(draftError)}`;
+    return;
+  }
   if(!draftState){
     el.textContent = "Draft status unavailable.";
     return;
   }
 
   const status = String(draftState.status || "");
+  if(status === "NOT_INITIALIZED"){
+    el.innerHTML = `<b>Status:</b> NOT INITIALIZED<br><span class="small">This week’s draft hasn’t been created/opened yet. Once admin/cron initializes it, picks will open here automatically.</span>`;
+    return;
+  }
   const startAt = draftState.draft_starts_at ? fmtTS(draftState.draft_starts_at) : "—";
   const swapDeadline = draftState.swap_deadline_at ? fmtTS(draftState.swap_deadline_at) : "—";
   const serverNow = serverNowIso ? Date.parse(serverNowIso) : Date.now();
@@ -430,27 +460,62 @@ async function loadCurrentWeek(){
 }
 
 async function loadParticipating(){
-  if (currentWeek?.week_number == null || !me?.player?.id){ isParticipating=false; return; }
-  // treat participation as true if you appear on the draft-board
+  if (currentWeek?.week_number == null){ isParticipating=false; participants=[]; return; }
+
+  // Prefer participants endpoint (works even when draft isn't initialized)
+  try{
+    const j = await getJSON(`${API.participants}?week_id=${encodeURIComponent(currentWeek.week_number)}`);
+    participants = Array.isArray(j?.rows) ? j.rows : [];
+    isParticipating = Boolean(j?.is_participating);
+    return;
+  }catch{
+    // ignore and fallback below
+  }
+
+  participants = [];
+  if (!me?.player?.id){ isParticipating=false; return; }
+  // Fallback: infer from draft-board if available
   isParticipating = boardRows.some(r => String(r.player_id)===String(me.player.id));
 }
 
 async function loadDraftState(){
   if (currentWeek?.week_number == null) return;
-  const res = await getJSON(`${API.draftState}?week_id=${encodeURIComponent(currentWeek.week_number)}`);
-  serverNowIso = res?.server_now || null;
-  draftState = res?.draft || null;
+  draftError = null;
+  try{
+    const res = await getJSON(`${API.draftState}?week_id=${encodeURIComponent(currentWeek.week_number)}`);
+    serverNowIso = res?.server_now || null;
+    draftState = res?.draft || null;
+  }catch(err){
+    const msg = String(err?.message || err || "");
+    if (msg.toLowerCase().includes("draft not initialized")){
+      draftState = { status: "NOT_INITIALIZED" };
+      draftError = null; // renderDraftStatus handles NOT_INITIALIZED
+      return;
+    }
+    draftState = null;
+    draftError = msg || "Draft state unavailable.";
+  }
 }
 
 async function loadBoard(){
   if (currentWeek?.week_number == null) return;
-  const j = await getJSON(`${API.draftBoard}?week_id=${encodeURIComponent(currentWeek.week_number)}`);
-  boardRows = Array.isArray(j?.rows) ? j.rows : [];
+  try{
+    const j = await getJSON(`${API.draftBoard}?week_id=${encodeURIComponent(currentWeek.week_number)}`);
+    boardRows = Array.isArray(j?.rows) ? j.rows : [];
+  }catch{
+    // draft-board depends on draft initialization; fall back to participants list.
+    boardRows = (participants || []).map(p => ({
+      player_id: p.player_id,
+      player_name: p.player_name,
+      handicap_index: p.handicap_index,
+      pro_id: null,
+    }));
+  }
 }
 
 async function loadPros(){
   const weekNumber = currentWeek?.week_number;
-  if(!weekNumber){ pros = []; return; }
+  if(weekNumber == null){ pros = []; return; }
   const data = await getJSON(API.weekPros(weekNumber));
   pros = Array.isArray(data?.pros) ? data.pros : [];
 }
@@ -460,9 +525,10 @@ async function refreshAll(){
   renderDraftStatus();
   renderBoard();
 
-  // Load board first so participation can be inferred, then draft/pros.
-  await loadBoard();
+  // Load participation first (works even if draft isn't initialized)
   await loadParticipating();
+  // Then board (draft picks if available, otherwise participant list)
+  await loadBoard();
   await loadDraftState();
   await loadPros();
 
@@ -530,6 +596,14 @@ async function boot(){
     await loadMe();
     await loadWeeks();
 
+    // Update nav auth link label to match homepage behavior
+    const nav = document.getElementById("navAuthLink");
+    const token = localStorage.getItem("sb_access_token") || "";
+    if (nav){
+      nav.textContent = token ? "Profile" : "Log in";
+      nav.href = token ? "./profile.html" : "./login.html";
+    }
+
     // 1) Prefer URL week param if present
     const urlWeek = getWeekFromUrl();
     if (urlWeek != null && weeks.some(w => Number(w.week_number) === Number(urlWeek))){
@@ -553,7 +627,7 @@ async function boot(){
     }
 
     await loadCurrentWeek();
-    if(currentWeek?.week_number) setWeekInUrl(currentWeek.week_number);
+    if(currentWeek?.week_number != null) setWeekInUrl(currentWeek.week_number);
 
     await refreshAll();
 
@@ -564,7 +638,7 @@ async function boot(){
 
 $("weekSel").addEventListener("change", async () => {
   await loadCurrentWeek();
-  if(currentWeek?.week_number) setWeekInUrl(currentWeek.week_number);
+  if(currentWeek?.week_number != null) setWeekInUrl(currentWeek.week_number);
   await refreshAll();
 });
 
