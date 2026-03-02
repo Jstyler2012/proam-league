@@ -430,20 +430,20 @@ async function loadCurrentWeek(){
 }
 
 async function loadParticipating(){
-  if(!currentWeek?.week_number || !me?.player?.id){ isParticipating=false; return; }
+  if (currentWeek?.week_number == null || !me?.player?.id){ isParticipating=false; return; }
   // treat participation as true if you appear on the draft-board
   isParticipating = boardRows.some(r => String(r.player_id)===String(me.player.id));
 }
 
 async function loadDraftState(){
-  if(!currentWeek?.week_number) return;
+  if (currentWeek?.week_number == null) return;
   const res = await getJSON(`${API.draftState}?week_id=${encodeURIComponent(currentWeek.week_number)}`);
   serverNowIso = res?.server_now || null;
   draftState = res?.draft || null;
 }
 
 async function loadBoard(){
-  if(!currentWeek?.week_number) return;
+  if (currentWeek?.week_number == null) return;
   const j = await getJSON(`${API.draftBoard}?week_id=${encodeURIComponent(currentWeek.week_number)}`);
   boardRows = Array.isArray(j?.rows) ? j.rows : [];
 }
@@ -476,7 +476,7 @@ async function refreshAll(){
 ------------------------- */
 async function doParticipate(){
   hideMsg($("pickMsg"));
-  if(!currentWeek?.week_number) return showMsg($("pickMsg"), "Select a week first.", "bad");
+  if (currentWeek?.week_number == null) return showMsg($("pickMsg"), "Select a week first.", "bad");
   if(!me?.player?.id) return showMsg($("pickMsg"), "Not logged in.", "bad");
 
   const resp = await postJSON(API.participate, { week_id: currentWeek.week_number });
