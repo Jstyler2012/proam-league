@@ -35,11 +35,12 @@
         <div class="mastControlsInner">
           <div class="seasonPill">Season 1: March 9 - June 21, 2026</div>
           <div class="navRow">
-            <a href="./index.html" class="navTab">Home</a>
-            <a href="./draft.html" class="navTab navTabActive">Draft</a>
-            <a href="./rules.html" class="navTab">Rules</a>
-            <a href="./login.html" class="navTab" id="navAuthLink">Log in</a>
-          </div>
+  <a href="./index.html" class="navTab">Home</a>
+  <a href="./draft.html" class="navTab navTabActive">Draft</a>
+  <a href="./rules.html" class="navTab">Rules</a>
+  <a href="./admin.html" class="navTab" id="navAdminLink" style="display:none">Admin</a>
+  <a href="./login.html" class="navTab" id="navAuthLink">Log in</a>
+</div>
         </div>
       </div>
     </div>
@@ -603,7 +604,24 @@ async function boot(){
       nav.textContent = token ? "Profile" : "Log in";
       nav.href = token ? "./profile.html" : "./login.html";
     }
+const adminLink = document.getElementById("navAdminLink");
+if (adminLink) adminLink.style.display = "none";
 
+if (token && adminLink) {
+  try {
+    let me = null;
+    try {
+      me = await getJSON("/api/me", token);
+    } catch (_) {
+      me = await getJSON("/.netlify/functions/public/me", token);
+    }
+
+    const email = (me?.user?.email || "").toLowerCase();
+    if (email === "jstyler2012@yahoo.com") {
+      adminLink.style.display = "";
+    }
+  } catch (_) {}
+}
     // 1) Prefer URL week param if present
     const urlWeek = getWeekFromUrl();
     if (urlWeek != null && weeks.some(w => Number(w.week_number) === Number(urlWeek))){
