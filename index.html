@@ -1269,7 +1269,7 @@ async function adminRemoveParticipant(){
     showMsg($("adminRemoveMsg"), "Admin only.", "bad");
     return;
   }
-  if (!currentWeekId){
+  if (currentWeekId == null){
     showMsg($("adminRemoveMsg"), "No week loaded.", "bad");
     return;
   }
@@ -1309,7 +1309,7 @@ async function adminRemoveParticipant(){
 }    async function toggleParticipate(){
   hideMsg($("participationMsg"));
 
-  if (!currentWeekId){
+  if (currentWeekId == null){
     showMsg($("participationMsg"), "No week loaded yet.", "bad");
     return;
   }
@@ -1405,7 +1405,7 @@ async function adminRemoveParticipant(){
        async function submitScore(){
       hideMsg($("submitMsg"));
 
-      if (!currentWeekId) {
+      if (currentWeekId == null) {
         showMsg($("submitMsg"), "No week loaded yet. Click refresh and try again.", "bad");
         return;
       }
