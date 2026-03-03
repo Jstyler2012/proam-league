@@ -403,14 +403,21 @@ exports.handler = async (event) => {
       }
 
 // insert new order
-      const rows = participants.map((p, i) => ({
-        week_number: weekNumber,
-        player_id: p.player_id,
-        handicap_index: p.handicap_index,
-        handicap_group: handicapGroupFromIndex(p.handicap_index),
-        pick_position: i + 1,
-        group_position: null,
-      }));
+      const groupCounts = {1:0,2:0,3:0,4:0};
+
+// insert new order
+      const rows = participants.map((p, i) => {
+        const grp = handicapGroupFromIndex(p.handicap_index);
+        groupCounts[grp] = (groupCounts[grp] || 0) + 1;
+        return {
+          week_number: weekNumber,
+          player_id: p.player_id,
+          handicap_index: p.handicap_index,
+          handicap_group: grp,
+          pick_position: i + 1,
+          group_position: groupCounts[grp],
+        };
+      });
 
       if (rows.length) {
         // chunk insert
