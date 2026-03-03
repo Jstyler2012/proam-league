@@ -435,9 +435,13 @@ if (path === "submit-score") {
   return json(200, { ok: true, entry: inserted?.[0] || null });
 }
         if (path === "draft-tick") {
-      const { week_id } = body;
-      const weekNumber = Number(week_id);
-      if (!Number.isFinite(weekNumber)) {
+      // Accept week_id from JSON body OR query string (?week_id=0). Week 0 is valid.
+      const qsWeek = event.queryStringParameters?.week_id ?? event.queryStringParameters?.week_number;
+      const bodyWeek = body?.week_id ?? body?.week_number;
+      const weekRaw = !isMissing(bodyWeek) ? bodyWeek : qsWeek;
+
+      const weekNumber = Number(weekRaw);
+      if (!Number.isFinite(weekNumber) || !Number.isInteger(weekNumber) || weekNumber < 0) {
         return json(400, { error: "Missing/invalid week_id" });
       }
 
