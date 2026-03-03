@@ -1244,10 +1244,11 @@ async function adminRemoveParticipant(){
     showMsg($("adminRemoveMsg"), "Admin only.", "bad");
     return;
   }
-  if (currentWeekId == null) {
-  showMsg(participationMsg, "No week loaded yet.", "bad");
-  return;
-}
+  if (currentWeekId == null){
+    showMsg($("adminRemoveMsg"), "No week loaded.", "bad");
+    return;
+  }
+
   const playerId = $("adminRemovePlayerSel")?.value;
   if (!playerId){
     showMsg($("adminRemoveMsg"), "Select a player to remove.", "bad");
@@ -1283,7 +1284,7 @@ async function adminRemoveParticipant(){
 }    async function toggleParticipate(){
   hideMsg($("participationMsg"));
 
-  if (!currentWeekId){
+  if (currentWeekId == null){
     showMsg($("participationMsg"), "No week loaded yet.", "bad");
     return;
   }
@@ -1379,7 +1380,7 @@ async function adminRemoveParticipant(){
        async function submitScore(){
       hideMsg($("submitMsg"));
 
-      if (!currentWeekId) {
+      if (currentWeekId == null) {
         showMsg($("submitMsg"), "No week loaded yet. Click refresh and try again.", "bad");
         return;
       }
@@ -1485,7 +1486,8 @@ function confirmParticipationLock() {
   });
 }    
     async function setDisplayedWeek(week){      displayedWeek = week;
-     currentWeekId = week.week_number;
+     currentWeekId = Number(week.week_number);
+      if (!Number.isFinite(currentWeekId)) currentWeekId = null;
       renderWeekDetails(week);
       renderSchedule(scheduleWeeks, week.week_number);
       // participation + participants-only player dropdown
