@@ -1,3 +1,4 @@
+console.log("SYNC-FIELD LOADED v2 TEST");
 // netlify/functions/sync-field.js
 // MINIMAL sanity check function: should ALWAYS return JSON.
 // If this still returns "Internal Error. ID ...", the issue is bundling/deploy config, not business logic.
