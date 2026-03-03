@@ -5,162 +5,88 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>Draft</title>
   <link rel="stylesheet" href="/styles.css"/>
-  <style>
-    /* keep existing look */
-    .wrap{max-width:900px;margin:0 auto;padding:16px}
-    .row{display:flex;gap:12px;flex-wrap:wrap}
-    .card{background:#0f172a;border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:14px}
-    .card h3{margin:0 0 10px 0}
-    .badge{display:inline-block;padding:6px 10px;border-radius:999px;font-size:12px;border:1px solid rgba(255,255,255,.12)}
-    .badge.good{background:rgba(34,197,94,.12);border-color:rgba(34,197,94,.35)}
-    .badge.bad{background:rgba(239,68,68,.12);border-color:rgba(239,68,68,.35)}
-    .badge.muted{background:rgba(148,163,184,.08);border-color:rgba(148,163,184,.22)}
-    .btn{background:#2563eb;color:#fff;border:0;border-radius:10px;padding:10px 12px;cursor:pointer}
-    .btn.secondary{background:rgba(148,163,184,.12);color:#e2e8f0;border:1px solid rgba(255,255,255,.12)}
-    .btn:disabled{opacity:.5;cursor:not-allowed}
-    select,input{background:#0b1224;color:#e2e8f0;border:1px solid rgba(255,255,255,.12);border-radius:10px;padding:10px 12px}
-    .msg{margin-top:10px;padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.12);display:none}
-    .msg.good{display:block;background:rgba(34,197,94,.12);border-color:rgba(34,197,94,.35)}
-    .msg.bad{display:block;background:rgba(239,68,68,.12);border-color:rgba(239,68,68,.35)}
-    ul{margin:8px 0 0 18px}
-    .small{font-size:12px;color:#94a3b8}
-  </style>
 </head>
 <body>
-  <div class="wrap">
-    <!-- Masthead (match homepage layout/look) -->
-    <div class="masthead">
-      <div class="mastBanner" aria-label="Wellman banner"></div>
-      <div class="mastControls">
-        <div class="mastControlsInner">
-          <div class="seasonPill">Season 1: March 9 - June 21, 2026</div>
-          <div class="navRow">
-  <a href="./index.html" class="navTab">Home</a>
-  <a href="./draft.html" class="navTab navTabActive">Draft</a>
-  <a href="./rules.html" class="navTab">Rules</a>
-  <a href="./admin.html" class="navTab" id="navAdminLink" style="display:none">Admin</a>
-  <a href="./login.html" class="navTab" id="navAuthLink">Log in</a>
-</div>
-        </div>
-      </div>
+
+<div class="wrap">
+
+  <div class="row">
+    <div class="card" style="flex:1">
+      <h3>Week</h3>
+      <select id="weekSel"></select>
+      <div id="weekMeta" style="margin-top:10px"></div>
+      <button class="btn secondary" id="refreshBtn" style="margin-top:10px">Refresh</button>
     </div>
 
-    <div class="row">
-      <div class="card" style="flex:1;min-width:280px">
-        <h3>Week</h3>
-        <div class="row" style="align-items:center">
-          <select id="weekSel"></select>
-          <button class="btn secondary" id="refreshBtn">Refresh</button>
-        </div>
-        <div class="small" id="weekMeta"></div>
+    <div class="card" style="flex:1">
+      <h3>Status</h3>
+      <div class="row" style="gap:8px">
+        <span class="badge muted" id="badgeParticipating">Participating: —</span>
+        <span class="badge muted" id="badgeDraft">Draft: —</span>
       </div>
-
-      <div class="card" style="flex:1;min-width:280px">
-        <h3>Status</h3>
-        <div class="row" style="gap:8px">
-          <span class="badge muted" id="badgeParticipating">Participating: —</span>
-          <span class="badge muted" id="badgeDraft">Draft: —</span>
-        </div>
-        <div style="margin-top:10px" id="draftStatus">—</div>
-      </div>
-    </div>
-
-    <div class="row" style="margin-top:12px">
-      <div class="card" style="flex:1;min-width:280px">
-        <h3>Controls</h3>
-
-        <div class="row" style="align-items:center">
-          <button class="btn secondary" id="joinBtn">Participate this week</button>
-        </div>
-
-        <div style="margin-top:12px">
-          <label class="small">Select Pro</label><br/>
-          <select id="proSel" style="width:100%"></select>
-        </div>
-
-        <div style="margin-top:12px">
-          <button class="btn" id="pickBtn">Submit</button>
-          <div class="msg" id="pickMsg"></div>
-        </div>
-
-        <div class="small" style="margin-top:10px">
-          Notes:
-          <ul>
-            <li><b>LIVE</b>: you can only pick when it’s your turn.</li>
-            <li><b>SWAP_OPEN</b>: you can swap freely until the swap deadline.</li>
-            <li>Pros list comes from <code>/api/week-pros</code> (RapidAPI-backed).</li>
-          </ul>
-        </div>
-      </div>
-
-      <div class="card" style="flex:1;min-width:280px">
-        <h3>Participants</h3>
-        <ul id="playerList"></ul>
-      </div>
+      <div style="margin-top:10px" id="draftStatus">—</div>
     </div>
   </div>
 
-<script>
-/* -------------------------
-   API endpoints
-------------------------- */
-const API = {
-  schedule: "/api/schedule",
-  currentWeek: "/api/current-week",
-  me: "/api/me",
-  participants: "/api/participants",
-  participate: "/api-mutate/participate",
-  draftState: "/api/draft-state",
-  draftBoard: "/api/draft-board",
-  weekPros: (weekNumber) => `/api/week-pros?week_id=${encodeURIComponent(weekNumber)}`,
-  draftPick: "/api-mutate/draft-pick",
-  draftSwap: "/api-mutate/draft-swap",
-};
+  <div class="row" style="margin-top:12px">
+    <div class="card" style="flex:1">
+      <h3>Controls</h3>
 
-/* -------------------------
-   helpers
-------------------------- */
-const $ = (id) => document.getElementById(id);
+      <button class="btn secondary" id="joinBtn">Participate this week</button>
+
+      <div style="margin-top:12px">
+        <label>Select Pro</label><br/>
+        <select id="proSel" style="width:100%"></select>
+      </div>
+
+      <div style="margin-top:12px">
+        <button class="btn" id="pickBtn">Submit</button>
+        <div id="pickMsg" class="msg"></div>
+      </div>
+    </div>
+
+    <div class="card" style="flex:1">
+      <h3>Participants</h3>
+      <ul id="playerList"></ul>
+    </div>
+  </div>
+
+</div>
+
+<script>
+/* =======================================================
+   CONFIG
+======================================================= */
+
+const POLL_MS = 2000;
+const PICK_SECONDS = 60;
+
+/* =======================================================
+   STATE
+======================================================= */
+
+let currentWeek = null;
+let weeks = [];
+let me = null;
+let draftState = null;
+let boardRows = [];
+let pros = [];
+
+let countdownInterval = null;
+let pollInterval = null;
+let lastTurnStartedAtMs = null;
+
+/* =======================================================
+   HELPERS
+======================================================= */
+
+const $ = id => document.getElementById(id);
 
 function escapeHTML(s){
   return String(s ?? "")
-    .replaceAll("&","&amp;").replaceAll("<","&lt;")
-    .replaceAll(">","&gt;")
-    .replaceAll('"',"&quot;")
-    .replaceAll("'","&#039;");
-}
-
-function fmtTS(iso){
-  try{
-    const d = new Date(iso);
-    if(isNaN(d.getTime())) return String(iso);
-    return d.toLocaleString();
-  }catch{
-    return String(iso);
-  }
-}
-
-function showMsg(el, msg, kind){
-  el.textContent = msg;
-  el.className = "msg " + (kind==="good" ? "good" : "bad");
-  el.style.display = "block";
-}
-function hideMsg(el){
-  el.style.display = "none";
-  el.textContent = "";
-  el.className = "msg";
-}
-
-
-function resolveApiUrl(url){
-  // When running outside Netlify redirects (e.g. file:// or a different host),
-  // the /api/* routes may not exist. Retry against Netlify functions directly.
-  if (!url) return url;
-  if (url.startsWith("/api-mutate/")) return url.replace("/api-mutate/", "/.netlify/functions/mutate/");
-  if (url.startsWith("/api-auth/")) return url.replace("/api-auth/", "/.netlify/functions/auth/");
-  if (url.startsWith("/api-admin/")) return url.replace("/api-admin/", "/.netlify/functions/admin/");
-  if (url.startsWith("/api/")) return url.replace("/api/", "/.netlify/functions/public/");
-  return url;
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;");
 }
 
 async function getJSON(url){
@@ -168,268 +94,125 @@ async function getJSON(url){
   const headers = { "Accept":"application/json" };
   if(token) headers["Authorization"] = "Bearer " + token;
 
-  const primary = url;
-  const fallback = resolveApiUrl(url);
-
-  let r;
-  try{
-    r = await fetch(primary, { headers });
-    if(!r.ok && fallback !== primary){
-      r = await fetch(fallback, { headers });
-    }
-  }catch(err){
-    if(fallback !== primary){
-      r = await fetch(fallback, { headers });
-    }else{
-      throw err;
-    }
-  }
-
+  const r = await fetch(url, { headers });
   const txt = await r.text();
-  let j=null;
-  try{ j = JSON.parse(txt); }catch{ j=null; }
-  if(!r.ok) throw new Error(j?.error || txt || `HTTP ${r.status}`);
+  const j = txt ? JSON.parse(txt) : null;
+  if(!r.ok) throw new Error(j?.error || txt);
   return j;
 }
 
 async function postJSON(url, body){
   const token = localStorage.getItem("sb_access_token") || "";
-  const headers = { "Content-Type":"application/json", "Accept":"application/json" };
+  const headers = { "Content-Type":"application/json" };
   if(token) headers["Authorization"] = "Bearer " + token;
 
-  const primary = url;
-  const fallback = resolveApiUrl(url);
-
-  let r;
-  try{
-    r = await fetch(primary, { method:"POST", headers, body: JSON.stringify(body||{}) });
-    if(!r.ok && fallback !== primary){
-      r = await fetch(fallback, { method:"POST", headers, body: JSON.stringify(body||{}) });
-    }
-  }catch(err){
-    if(fallback !== primary){
-      r = await fetch(fallback, { method:"POST", headers, body: JSON.stringify(body||{}) });
-    }else{
-      throw err;
-    }
-  }
-
+  const r = await fetch(url, { method:"POST", headers, body: JSON.stringify(body||{}) });
   const txt = await r.text();
-  let j=null;
-  try{ j = JSON.parse(txt); }catch{ j=null; }
-  if(!r.ok) return { ok:false, error: j?.error || txt || `HTTP ${r.status}` };
+  const j = txt ? JSON.parse(txt) : null;
+  if(!r.ok) return { ok:false, error:j?.error||txt };
   return j || { ok:true };
 }
 
-function setWeekInUrl(weekNumber){
-  try{
-    const u = new URL(window.location.href);
-    // normalize to week_id
-    u.searchParams.set("week_id", String(weekNumber));
-    // also remove legacy param if present
-    if (u.searchParams.has("week")) u.searchParams.delete("week");
-    window.history.replaceState({}, "", u.toString());
-  }catch{}
-}
+/* =======================================================
+   COUNTDOWN LOOP
+======================================================= */
 
-function getWeekFromUrl(){
-  try{
-    const u = new URL(window.location.href);
-    const a = u.searchParams.get("week_id");
-    const b = u.searchParams.get("week");
-    const raw = (a != null && a !== "") ? a : b;
-    const n = Number(raw);
-    return Number.isFinite(n) ? n : null;
-  }catch{
-    return null;
-  }
-}
+function startCountdownLoop(){
+  if(countdownInterval) clearInterval(countdownInterval);
 
-/* -------------------------
-   state
-------------------------- */
-let weeks = [];
-let currentWeek = null;
-let me = null;
+  countdownInterval = setInterval(() => {
 
-let participants = [];
-let draftError = null;
+    const el = $("draftStatus");
+    if(!draftState || draftState.status !== "LIVE"){
+      return;
+    }
 
-let isParticipating = false;
-let draftState = null;
-let serverNowIso = null;
+    if(!lastTurnStartedAtMs){
+      return;
+    }
 
-let boardRows = [];
-let pros = [];
+    const elapsed = Math.floor((Date.now() - lastTurnStartedAtMs)/1000);
+    const remaining = Math.max(0, PICK_SECONDS - elapsed);
 
-/* -------------------------
-   rendering
-------------------------- */
-function populateSelect(sel, items, placeholder){
-  sel.innerHTML = "";
-  const ph = document.createElement("option");
-  ph.value = "";
-  ph.textContent = placeholder;
-  sel.appendChild(ph);
-
-  for (const it of (items||[])){
-    const opt = document.createElement("option");
-    const v = (it?.id != null) ? it.id : it?.player_ext_id;
-    const n = (it?.name != null) ? it.name : it?.player_name;
-    const odds = it?.odds_display ? ` (${it.odds_display})` : "";
-    opt.value = v == null ? "" : String(v);
-    opt.textContent = (n == null ? "" : String(n)) + odds;
-    sel.appendChild(opt);
-  }
-}
-
-function renderWeekMeta(){
-  const el = $("weekMeta");
-  if(!currentWeek){ el.textContent = ""; return; }
-  el.innerHTML = `
-    <div><b>${escapeHTML(currentWeek.tournament_name || currentWeek.label || "Week")}</b></div>
-    <div class="small">${escapeHTML(currentWeek.start_date || "")} → ${escapeHTML(currentWeek.end_date || "")}</div>
-    <div class="small">Week number: ${escapeHTML(currentWeek.week_number)}</div>
-  `;
-}
-
-function renderDraftStatus(){
-  const el = $("draftStatus");
-  if(draftError){
-    el.innerHTML = `<b>Status:</b> —<br>${escapeHTML(draftError)}`;
-    return;
-  }
-  if(!draftState){
-    el.textContent = "Draft status unavailable.";
-    return;
-  }
-
-  const status = String(draftState.status || "");
-  if(status === "NOT_INITIALIZED"){
-    el.innerHTML = `<b>Status:</b> NOT INITIALIZED<br><span class="small">This week’s draft hasn’t been created/opened yet. Once admin/cron initializes it, picks will open here automatically.</span>`;
-    return;
-  }
-  const startAt = draftState.draft_starts_at ? fmtTS(draftState.draft_starts_at) : "—";
-  const swapDeadline = draftState.swap_deadline_at ? fmtTS(draftState.swap_deadline_at) : "—";
-  const serverNow = serverNowIso ? Date.parse(serverNowIso) : Date.now();
-
-  if(["PREP","ORDER_READY","ORDER_PUBLISHED"].includes(status)){
-    el.innerHTML = `<b>Status:</b> ${escapeHTML(status)}<br><b>Draft starts:</b> ${escapeHTML(startAt)}`;
-    return;
-  }
-
-  if(status==="LIVE"){
-    const on = boardRows.find(r => String(r.player_id)===String(draftState.turn_player_id));
+    const on = boardRows.find(r => String(r.player_id) === String(draftState.turn_player_id));
     const who = on?.player_name || "—";
-    const started = draftState.turn_started_at ? Date.parse(draftState.turn_started_at) : null;
-    const elapsed = (started!=null) ? Math.max(0, Math.floor((serverNow-started)/1000)) : null;
-    const remaining = (elapsed!=null) ? Math.max(0, 60-elapsed) : null;
-    const remTxt = remaining==null ? "—" : `${remaining}s`;
-    el.innerHTML = `<b>Status:</b> LIVE<br><b>On the clock:</b> ${escapeHTML(who)}<br><b>Time remaining:</b> ${escapeHTML(remTxt)}`;
-    return;
-  }
 
-  if(status==="SWAP_OPEN"){
-    el.innerHTML = `<b>Status:</b> SWAP OPEN<br><b>Swap deadline:</b> ${escapeHTML(swapDeadline)}`;
-    return;
-  }
+    el.innerHTML = `
+      <b>Status:</b> LIVE<br>
+      <b>On the clock:</b> ${escapeHTML(who)}<br>
+      <b>Time remaining:</b> ${remaining}s
+    `;
 
-  if(status==="LOCKED"){
-    el.innerHTML = `<b>Status:</b> LOCKED<br><b>Swap window closed.</b>`;
-    return;
-  }
-
-  if(status==="COMPLETE"){
-    el.innerHTML = `<b>Status:</b> COMPLETE`;
-    return;
-  }
-
-  el.innerHTML = `<b>Status:</b> ${escapeHTML(status)}`;
+  }, 1000);
 }
 
-function canPickNow(){
-  // Field must exist (week_pro_field populated)
-  if(!(pros && pros.length)){
-    return { ok:false, reason:"Field not posted yet for this week. Check back once the tournament field is available." };
-  }
+/* =======================================================
+   POLLING LOOP
+======================================================= */
 
-  if(!me?.player?.id) return { ok:false, reason:"Not logged in / missing player profile." };
-  if(!isParticipating) return { ok:false, reason:"You are not participating this week. Click “Participate this week” first." };
-  if(!draftState) return { ok:false, reason:"Draft state unavailable. Click Refresh." };
+async function pollDraft(){
+  if(!currentWeek) return;
 
-  const status = String(draftState.status || "");
-  const myId = String(me.player.id);
+  try{
+    await postJSON("/api-mutate/draft-tick", { week_id: currentWeek.week_number });
+  }catch(e){}
 
-  if(status==="LIVE"){
-    if(String(draftState.turn_player_id||"") !== myId){
-      const on = boardRows.find(r => String(r.player_id)===String(draftState.turn_player_id));
-      return { ok:false, reason:`Not your turn. On the clock: ${on?.player_name || "—"}.` };
+  try{
+    const state = await getJSON(`/api/draft-state?week_id=${currentWeek.week_number}`);
+    draftState = state?.draft || null;
+
+    if(draftState?.turn_started_at){
+      lastTurnStartedAtMs = Date.parse(draftState.turn_started_at);
+    }else{
+      lastTurnStartedAtMs = null;
     }
-    return { ok:true, mode:"draft" };
+
+    const board = await getJSON(`/api/draft-board?week_id=${currentWeek.week_number}`);
+    boardRows = board?.rows || [];
+
+    renderBoard();
+    renderStatus();
+
+  }catch(e){
+    console.error("poll error", e);
   }
-
-  if(status==="SWAP_OPEN"){
-    return { ok:true, mode:"swap" };
-  }
-
-  if(status==="LOCKED") return { ok:false, reason:"Week is locked (swap window closed)." };
-  if(status==="COMPLETE") return { ok:false, reason:"Week is complete." };
-
-  return { ok:false, reason:`Draft is not active (status=${status}).` };
 }
 
-function computeDraftContext(){
-  const myId = me?.player?.id ? String(me.player.id) : null;
+function startPolling(){
+  if(pollInterval) clearInterval(pollInterval);
 
-  // Find my currently taken pro (if any) from week-pros payload
-  let myCurrentProExt = null;
-  for(const p of (pros||[])){
-    if(p?.taken && String(p.taken_by_player_id||"") === String(myId)){
-      myCurrentProExt = String(p.player_ext_id);
-      break;
-    }
+  pollDraft();
+  pollInterval = setInterval(pollDraft, POLL_MS);
+}
+
+/* =======================================================
+   RENDER
+======================================================= */
+
+function renderStatus(){
+  const el = $("draftStatus");
+
+  if(!draftState){
+    el.textContent = "Draft unavailable";
+    return;
   }
 
-  // Allow choosing: not taken OR taken by me
-  const selectablePros = (pros||[]).filter(p => !p?.taken || String(p.taken_by_player_id||"")===String(myId));
+  const status = draftState.status;
 
-  return { myId, myCurrentProExt, selectablePros };
+  $("badgeDraft").textContent = "Draft: " + status;
+
+  if(status !== "LIVE"){
+    el.innerHTML = `<b>Status:</b> ${escapeHTML(status)}`;
+    return;
+  }
+
+  // LIVE handled by countdown loop
 }
 
 function renderBoard(){
-  // participating badge
-  $("badgeParticipating").textContent = isParticipating ? "Participating: Yes" : "Participating: No";
-  $("badgeParticipating").className = "badge " + (isParticipating ? "good" : "bad");
-
-  // draft status badge
-  const st = String(draftState?.status || "—");
-  $("badgeDraft").textContent = `Draft: ${st}`;
-  $("badgeDraft").className = "badge " + (st==="LIVE" || st==="SWAP_OPEN" ? "good" : "muted");
-
-  const gate = canPickNow();
-  $("pickBtn").disabled = !gate.ok;
-
-  // If no field yet, make the dropdown obvious + prevent submission
-  if(!(pros && pros.length)){
-    $("pickBtn").textContent = "Submit";
-    populateSelect($("proSel"), [], "Field not posted yet — check back later");
-    $("proSel").disabled = true;
-  } else {
-    $("proSel").disabled = false;
-    $("pickBtn").textContent = gate.ok ? (gate.mode==="swap" ? "Submit Swap" : "Submit Pick") : "Submit";
-
-    const ctx = computeDraftContext();
-    populateSelect($("proSel"), ctx.selectablePros, gate.mode==="swap" ? "Select a pro to swap to" : "Select a pro");
-
-    // preselect my current pro in swap mode if nothing selected yet
-    if(gate.mode==="swap" && !$("proSel").value && ctx.myCurrentProExt){
-      $("proSel").value = ctx.myCurrentProExt;
-    }
-  }
-
-  // participants list
   const list = $("playerList");
   list.innerHTML = "";
+
   for(const p of boardRows){
     const li = document.createElement("li");
     li.innerHTML = `<b>${escapeHTML(p.player_name)}</b> — ${escapeHTML(p.pro_id||"—")}`;
@@ -437,248 +220,43 @@ function renderBoard(){
   }
 }
 
-/* -------------------------
-   loading
-------------------------- */
-async function loadWeeks(){
-  const res = await getJSON(API.schedule);
-  weeks = Array.isArray(res) ? res : (res?.weeks || []);
-  populateSelect(
-    $("weekSel"),
-    weeks.map(w => ({ id: w.week_number, name: `${w.week_number}: ${w.tournament_name || w.label || "Week"}` })),
-    "Select week"
-  );
-}
+/* =======================================================
+   BOOT
+======================================================= */
 
-async function loadMe(){
-  try{ me = await getJSON(API.me); }
-  catch{ me = null; }
-}
-
-async function loadCurrentWeek(){
-  const wn = Number($("weekSel").value || "");
-  currentWeek = weeks.find(w => Number(w.week_number)===wn) || null;
-}
-
-async function loadParticipating(){
-  if (currentWeek?.week_number == null){ isParticipating=false; participants=[]; return; }
-
-  // Prefer participants endpoint (works even when draft isn't initialized)
-  try{
-    const j = await getJSON(`${API.participants}?week_id=${encodeURIComponent(currentWeek.week_number)}`);
-    participants = Array.isArray(j?.rows) ? j.rows : [];
-    isParticipating = Boolean(j?.is_participating);
-    return;
-  }catch{
-    // ignore and fallback below
-  }
-
-  participants = [];
-  if (!me?.player?.id){ isParticipating=false; return; }
-  // Fallback: infer from draft-board if available
-  isParticipating = boardRows.some(r => String(r.player_id)===String(me.player.id));
-}
-
-async function loadDraftState(){
-  if (currentWeek?.week_number == null) return;
-  draftError = null;
-  try{
-    const res = await getJSON(`${API.draftState}?week_id=${encodeURIComponent(currentWeek.week_number)}`);
-    serverNowIso = res?.server_now || null;
-    draftState = res?.draft || null;
-  }catch(err){
-    const msg = String(err?.message || err || "");
-    if (msg.toLowerCase().includes("draft not initialized")){
-      draftState = { status: "NOT_INITIALIZED" };
-      draftError = null; // renderDraftStatus handles NOT_INITIALIZED
-      return;
-    }
-    draftState = null;
-    draftError = msg || "Draft state unavailable.";
-  }
-}
-
-async function loadBoard(){
-  if (currentWeek?.week_number == null) return;
-  try{
-    const j = await getJSON(`${API.draftBoard}?week_id=${encodeURIComponent(currentWeek.week_number)}`);
-    boardRows = Array.isArray(j?.rows) ? j.rows : [];
-  }catch{
-    // draft-board depends on draft initialization; fall back to participants list.
-    boardRows = (participants || []).map(p => ({
-      player_id: p.player_id,
-      player_name: p.player_name,
-      handicap_index: p.handicap_index,
-      pro_id: null,
-    }));
-  }
-}
-
-async function loadPros(){
-  const weekNumber = currentWeek?.week_number;
-  if(weekNumber == null){ pros = []; return; }
-  const data = await getJSON(API.weekPros(weekNumber));
-  pros = Array.isArray(data?.pros) ? data.pros : [];
-}
-
-async function refreshAll(){
-  renderWeekMeta();
-  renderDraftStatus();
-  renderBoard();
-
-  // Load participation first (works even if draft isn't initialized)
-  await loadParticipating();
-  // Then board (draft picks if available, otherwise participant list)
-  await loadBoard();
-  await loadDraftState();
-
-  // Ensure LIVE drafts actually start advancing turns (sets "on the clock" + countdown)
-  if (draftState?.status === "LIVE") {
-    try {
-      await postJSON("/api-mutate/draft-tick", { week_id: currentWeek?.week_number });
-      // Re-pull state/board after tick (in case it advanced / autopicked)
-      await loadBoard();
-      await loadDraftState();
-    } catch(e){
-      // ignore tick errors; UI will still render current state
-      console.warn("draft-tick failed", e);
-    }
-  }
-
-  await loadPros();
-
-  renderWeekMeta();
-  renderDraftStatus();
-  renderBoard();
-}
-
-/* -------------------------
-   actions
-------------------------- */
-async function doParticipate(){
-  hideMsg($("pickMsg"));
-  if (currentWeek?.week_number == null) return showMsg($("pickMsg"), "Select a week first.", "bad");
-  if(!me?.player?.id) return showMsg($("pickMsg"), "Not logged in.", "bad");
-
-  const resp = await postJSON(API.participate, { week_id: currentWeek.week_number });
-  if(!resp?.ok) return showMsg($("pickMsg"), resp?.error || "Participate failed.", "bad");
-
-  await refreshAll();
-  showMsg($("pickMsg"), "You are marked as participating.", "good");
-}
-
-async function submitPick(){
-  hideMsg($("pickMsg"));
-
-  const gate = canPickNow();
-  if(!gate.ok) return showMsg($("pickMsg"), gate.reason, "bad");
-
-  const ctx = computeDraftContext();
-  const proExtId = String($("proSel").value || "").trim();
-  if(!proExtId) return showMsg($("pickMsg"), "Select a pro first.", "bad");
-
-  const myId = String(me.player.id);
-
-  // Block selecting someone else's taken pro
-  const p = (pros||[]).find(x => String(x.player_ext_id)===proExtId) || null;
-  if(p?.taken && String(p.taken_by_player_id||"") !== myId){
-    return showMsg($("pickMsg"), "That pro is already taken.", "bad");
-  }
-
-  const endpoint = (gate.mode==="swap") ? API.draftSwap : API.draftPick;
-
-  let resp;
-  try{
-    resp = await postJSON(endpoint, { week_id: currentWeek.week_number, pro_id: proExtId });
-  }catch(err){
-    return showMsg($("pickMsg"), String(err?.message || err || "Request failed"), "bad");
-  }
-
-  if(!resp?.ok){
-    const msg = resp?.error || resp?.message || "Request failed.";
-    return showMsg($("pickMsg"), msg, "bad");
-  }
-
-  await refreshAll();
-  showMsg($("pickMsg"), gate.mode==="swap" ? "Swap saved." : "Pick submitted.", "good");
-}
-
-/* -------------------------
-   boot
-------------------------- */
 async function boot(){
   try{
-    await loadMe();
-    await loadWeeks();
 
-    // Update nav auth link label to match homepage behavior
-    const nav = document.getElementById("navAuthLink");
-    const token = localStorage.getItem("sb_access_token") || "";
-    if (nav){
-      nav.textContent = token ? "Profile" : "Log in";
-      nav.href = token ? "./profile.html" : "./login.html";
-    }
-const adminLink = document.getElementById("navAdminLink");
-if (adminLink) adminLink.style.display = "none";
+    const schedule = await getJSON("/api/schedule");
+    weeks = schedule || [];
 
-if (token && adminLink) {
-  try {
-    let me = null;
-    try {
-      me = await getJSON("/api/me", token);
-    } catch (_) {
-      me = await getJSON("/.netlify/functions/public/me", token);
+    $("weekSel").innerHTML = "";
+    for(const w of weeks){
+      const opt = document.createElement("option");
+      opt.value = w.week_number;
+      opt.textContent = `${w.week_number}: ${w.tournament_name}`;
+      $("weekSel").appendChild(opt);
     }
 
-    const email = (me?.user?.email || "").toLowerCase();
-    if (email === "jstyler2012@yahoo.com") {
-      adminLink.style.display = "";
-    }
-  } catch (_) {}
-}
-    // 1) Prefer URL week param if present
-    const urlWeek = getWeekFromUrl();
-    if (urlWeek != null && weeks.some(w => Number(w.week_number) === Number(urlWeek))){
-      $("weekSel").value = String(urlWeek);
-    }
+    currentWeek = weeks[0];
 
-    // 2) Otherwise auto-select the active week from the API
-    if(!$("weekSel").value){
-      try{
-        const cw = await getJSON(API.currentWeek);
-        const wn = cw?.week?.week_number;
-        if (wn != null && weeks.some(w => Number(w.week_number) === Number(wn))){
-          $("weekSel").value = String(wn);
-        }
-      }catch(_){}
-    }
-
-    // 3) Fallback to first week
-    if(!$("weekSel").value && weeks.length){
-      $("weekSel").value = String(weeks[0].week_number);
-    }
-
-    await loadCurrentWeek();
-    if(currentWeek?.week_number != null) setWeekInUrl(currentWeek.week_number);
-
-    await refreshAll();
+    await pollDraft();
+    startPolling();
+    startCountdownLoop();
 
   }catch(e){
-    showMsg($("pickMsg"), "Error: " + e.message, "bad");
+    console.error(e);
   }
 }
 
-$("weekSel").addEventListener("change", async () => {
-  await loadCurrentWeek();
-  if(currentWeek?.week_number != null) setWeekInUrl(currentWeek.week_number);
-  await refreshAll();
+$("weekSel").addEventListener("change", async ()=>{
+  const wn = Number($("weekSel").value);
+  currentWeek = weeks.find(w => w.week_number === wn);
+  await pollDraft();
 });
 
-$("joinBtn").addEventListener("click", doParticipate);
-$("pickBtn").addEventListener("click", submitPick);
-$("refreshBtn").addEventListener("click", boot);
-
 boot();
+
 </script>
 </body>
 </html>
