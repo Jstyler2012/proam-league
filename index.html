@@ -581,12 +581,13 @@
           <div class="seasonPill">Season 1: March 9 - June 21, 2026</div>
 
           <div class="navRow">
-  <a href="./index.html" class="navTab navTabActive">Home</a>
-  <a href="./draft.html" class="navTab">Draft</a>
-  <a href="./rules.html" class="navTab">Rules</a>
-  <a href="./admin.html" class="navTab" id="navAdminLink" style="display:none">Admin</a>
-  <a href="./login.html" class="navTab" id="navAuthLink">Log in</a>
-</div>
+            <a href="./index.html" class="navTab navTabActive">Home</a>
+            <a href="./draft.html" class="navTab">Draft</a>
+            <a href="./rules.html" class="navTab">Rules</a>
+            <a href="./admin.html" class="navTab" id="navAdminLink" style="display:none">Admin</a>
+           <a href="./login.html" class="navTab" id="navAuthLink">Log in</a>  
+          </div>
+
           <!-- Kept for JS updates, hidden via .mastheadControls -->
           <div class="pillrow mastheadControls" aria-label="Top controls">
             <div class="pill" title="Netlify Functions health">
@@ -757,34 +758,8 @@ const API = {
     }
     function hideMsg(el){ if(el) el.style.display="none"; }
 
-    
-    function resolveApiUrl(url){
-      if (!url) return url;
-      if (url.startsWith("/api-mutate/")) return url.replace("/api-mutate/", "/.netlify/functions/mutate/");
-      if (url.startsWith("/api-auth/")) return url.replace("/api-auth/", "/.netlify/functions/auth/");
-      if (url.startsWith("/api-admin/")) return url.replace("/api-admin/", "/.netlify/functions/admin/");
-      if (url.startsWith("/api/")) return url.replace("/api/", "/.netlify/functions/public/");
-      return url;
-    }
-
-async function getJSON(url, opts={}){
-      const primary = url;
-      const fallback = resolveApiUrl(url);
-
-      let res;
-      try{
-        res = await fetch(primary, { ...opts, headers: { "accept":"application/json", ...(opts.headers||{}) }});
-        if(!res.ok && fallback !== primary){
-          res = await fetch(fallback, { ...opts, headers: { "accept":"application/json", ...(opts.headers||{}) }});
-        }
-      }catch(err){
-        if(fallback !== primary){
-          res = await fetch(fallback, { ...opts, headers: { "accept":"application/json", ...(opts.headers||{}) }});
-        }else{
-          throw err;
-        }
-      }
-
+    async function getJSON(url, opts={}){
+      const res = await fetch(url, { ...opts, headers: { "accept":"application/json", ...(opts.headers||{}) }});
       const text = await res.text();
       let data = null;
       try { data = text ? JSON.parse(text) : null; } catch(e) {}
@@ -1269,7 +1244,7 @@ async function adminRemoveParticipant(){
     showMsg($("adminRemoveMsg"), "Admin only.", "bad");
     return;
   }
-  if (currentWeekId == null){
+  if (!currentWeekId){
     showMsg($("adminRemoveMsg"), "No week loaded.", "bad");
     return;
   }
@@ -1309,7 +1284,7 @@ async function adminRemoveParticipant(){
 }    async function toggleParticipate(){
   hideMsg($("participationMsg"));
 
-  if (currentWeekId == null){
+  if (!currentWeekId){
     showMsg($("participationMsg"), "No week loaded yet.", "bad");
     return;
   }
@@ -1405,7 +1380,7 @@ async function adminRemoveParticipant(){
        async function submitScore(){
       hideMsg($("submitMsg"));
 
-      if (currentWeekId == null) {
+      if (!currentWeekId) {
         showMsg($("submitMsg"), "No week loaded yet. Click refresh and try again.", "bad");
         return;
       }
@@ -1547,8 +1522,6 @@ $("refreshBtn") && ($("refreshBtn").onclick = async () => {
           }
         }catch(_){
           renderWeekDetails(null);
-          // Surface an actionable message so the Participate button doesn’t fail silently.
-          showMsg($("participationMsg"), "Could not load schedule/current week. Check Netlify function routing (/api/* redirects) and SUPABASE_URL/SUPABASE_ANON_KEY env vars.", "bad");
         }
       }
 
@@ -1557,14 +1530,14 @@ $("refreshBtn") && ($("refreshBtn").onclick = async () => {
 
     boot();
   </script>
- <script>
+  <script>
   (async function () {
     const authLink = document.getElementById("navAuthLink");
     const adminLink = document.getElementById("navAdminLink");
 
     const token = localStorage.getItem("sb_access_token") || "";
 
-    // Login / Profile toggle (existing behavior)
+    // Login/Profile toggle
     if (authLink) {
       if (token) {
         authLink.href = "./profile.html";
@@ -1575,37 +1548,24 @@ $("refreshBtn") && ($("refreshBtn").onclick = async () => {
       }
     }
 
-    // Hide Admin by default
+    // Admin link: only show for commissioner email
     if (adminLink) adminLink.style.display = "none";
-
     if (!token || !adminLink) return;
 
     async function fetchMe(url) {
-      const res = await fetch(url, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (!res.ok) throw new Error();
+      const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+      if (!res.ok) throw new Error("me failed");
       return res.json();
     }
 
     try {
-      let me;
-      try {
-        me = await fetchMe("/api/me");
-      } catch (_) {
-        // fallback path if Netlify redirect not active
-        me = await fetchMe("/.netlify/functions/public/me");
-      }
+      let me = null;
+      try { me = await fetchMe("/api/me"); }
+      catch (_) { me = await fetchMe("/.netlify/functions/public/me"); }
 
       const email = (me?.user?.email || "").toLowerCase();
-
-      if (email === "jstyler2012@yahoo.com") {
-        adminLink.style.display = "";
-      }
-    } catch (_) {
-      // remain hidden
-    }
+      if (email === "jstyler2012@yahoo.com") adminLink.style.display = "";
+    } catch (_) {}
   })();
-</script>
-</body>
+</script></body>
 </html>
