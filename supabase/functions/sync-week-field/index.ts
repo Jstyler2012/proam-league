@@ -5,81 +5,10 @@ type Json = Record<string, unknown>;
 function corsHeaders(origin = "*") {
   return {
     "Access-Control-Allow-Origin": origin,
-    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-cron-secret",
+    "Access-Control-Allow-Headers":
+      "authorization, x-client-info, apikey, content-type, x-cron-secret",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
   };
-}
-
-function normalizeName(name: string) {
-  return (name || "")
-    .toLowerCase()
-    .replace(/[^a-z\s]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function decimalToAmerican(decimal: number): number | null {
-  if (!Number.isFinite(decimal) || decimal <= 1) return null;
-  // American odds:
-  //  - for decimal >= 2.0: +((decimal - 1) * 100)
-  //  - for decimal < 2.0: - (100 / (decimal - 1))
-  if (decimal >= 2) return Math.round((decimal - 1) * 100);
-  return -Math.round(100 / (decimal - 1));
-}
-
-function formatAmerican(american: number | null): string | null {
-  if (american === null || !Number.isFinite(american)) return null;
-  return american > 0 ? `+${american}` : String(american);
-}
-
-async function fetchDataGolfBestWinOddsDecimal(key: string): Promise<Map<string, number>> {
-  // DataGolf: Outright (finish position) odds
-  // Docs: https://datagolf.com/api-access (betting-tools/outrights)
-  const url =
-    `https://feeds.datagolf.com/betting-tools/outrights?tour=pga&market=win&odds_format=decimal&file_format=json&key=${encodeURIComponent(key)}`;
-
-  const r = await fetch(url);
-  if (!r.ok) throw new Error(`DataGolf outrights failed: ${r.status}`);
-  const j = await r.json();
-
-  // The API returns JSON; historically this is either:
-  // - { data: [...] }
-  // - [...]
-  const rows: any[] = Array.isArray(j) ? j : (Array.isArray(j?.data) ? j.data : []);
-  const map = new Map<string, number>();
-
-  for (const row of rows) {
-    const rawName = row?.player_name || row?.name || row?.golfer || row?.player || "";
-    const nm = normalizeName(String(rawName));
-    if (!nm) continue;
-
-    let best: number | null = null;
-
-    // Grab any numeric fields that look like odds (decimal > 1)
-    for (const [k, v] of Object.entries(row || {})) {
-      const keyLower = String(k).toLowerCase();
-      if (!keyLower.includes("odds")) continue;
-      const num = Number(v);
-      if (!Number.isFinite(num) || num <= 1) continue;
-      if (best === null || num < best) best = num;
-    }
-
-    // Sometimes books are separate fields without "odds" in the key; as a fallback,
-    // consider any numeric value in [1.01, 10000] that is NOT a probability (<= 1).
-    if (best === null) {
-      for (const [k, v] of Object.entries(row || {})) {
-        const keyLower = String(k).toLowerCase();
-        if (keyLower.includes("prob")) continue;
-        const num = Number(v);
-        if (!Number.isFinite(num) || num <= 1.01 || num > 10000) continue;
-        if (best === null || num < best) best = num;
-      }
-    }
-
-    if (best !== null) map.set(nm, best);
-  }
-
-  return map;
 }
 
 function json(status: number, body: Json) {
@@ -114,6 +43,22 @@ function fullName(firstName?: string, lastName?: string) {
   return `${f} ${l}`.trim();
 }
 
+function normName(s: string) {
+  return (s || "")
+    .toLowerCase()
+    .replace(/[^a-z\s]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function decimalToAmerican(decimal: number): number {
+  // decimal must be > 1
+  if (!Number.isFinite(decimal) || decimal <= 1) return 0;
+  if (decimal >= 2) return Math.round((decimal - 1) * 100);
+  // favorites
+  return -Math.round(100 / (decimal - 1));
+}
+
 async function rapidGetTournaments(params: {
   host: string;
   key: string;
@@ -125,9 +70,30 @@ async function rapidGetTournaments(params: {
 
   // A few likely query param variants; whichever works first is used.
   const candidates: Array<{ path: string; qs: Record<string, string> }> = [
-    { path: "/tournaments", qs: { orgId: String(org_id), year: String(season_year), tournId: String(tourn_id) } },
-    { path: "/tournaments", qs: { org_id: String(org_id), season_year: String(season_year), tourn_id: String(tourn_id) } },
-    { path: "/tournaments", qs: { orgId: String(org_id), seasonYear: String(season_year), tournId: String(tourn_id) } },
+    {
+      path: "/tournaments",
+      qs: {
+        orgId: String(org_id),
+        year: String(season_year),
+        tournId: String(tourn_id),
+      },
+    },
+    {
+      path: "/tournaments",
+      qs: {
+        org_id: String(org_id),
+        season_year: String(season_year),
+        tourn_id: String(tourn_id),
+      },
+    },
+    {
+      path: "/tournaments",
+      qs: {
+        orgId: String(org_id),
+        seasonYear: String(season_year),
+        tournId: String(tourn_id),
+      },
+    },
   ];
 
   let lastErr = "";
@@ -162,6 +128,77 @@ async function rapidGetTournaments(params: {
   throw new Error(lastErr || "RapidAPI call failed (no candidate query worked)");
 }
 
+async function datagolfOutrightsBestDecimal(params: {
+  apiKey: string;
+  tour?: string; // pga
+  market?: string; // win
+}) {
+  const tour = params.tour ?? "pga";
+  const market = params.market ?? "win";
+
+  // DataGolf docs: https://feeds.datagolf.com/betting-tools/outrights?tour=pga&market=win&odds_format=decimal&file_format=json&key=...
+  const u = new URL("https://feeds.datagolf.com/betting-tools/outrights");
+  u.searchParams.set("tour", tour);
+  u.searchParams.set("market", market);
+  u.searchParams.set("odds_format", "decimal");
+  u.searchParams.set("file_format", "json");
+  u.searchParams.set("key", params.apiKey);
+
+  const res = await fetch(u.toString());
+  const text = await res.text();
+  if (!res.ok) {
+    throw new Error(`DataGolf ${res.status} ${res.statusText}: ${text.slice(0, 200)}`);
+  }
+
+  let payload: any;
+  try {
+    payload = text ? JSON.parse(text) : null;
+  } catch {
+    throw new Error(`DataGolf returned non-JSON: ${text.slice(0, 200)}`);
+  }
+
+  // The API sometimes returns array directly, or {data:[...]} etc.
+  const rows: any[] =
+    (Array.isArray(payload) && payload) ||
+    (payload && Array.isArray(payload.data) && payload.data) ||
+    (payload && Array.isArray(payload.odds) && payload.odds) ||
+    (payload && Array.isArray(payload.players) && payload.players) ||
+    [];
+
+  const oddsByName = new Map<string, number>();
+  let rowsUsed = 0;
+
+  for (const r of rows) {
+    if (!r || typeof r !== "object") continue;
+    const name = String((r as any).player_name ?? (r as any).name ?? "").trim();
+    if (!name) continue;
+
+    const decimals: number[] = [];
+    for (const [k, v] of Object.entries(r)) {
+      if (v === null || v === undefined) continue;
+      if (typeof v !== "number") continue;
+      // We only consider numeric fields that look like book odds.
+      // Many DataGolf rows include model fields; odds columns usually include "odds" in key.
+      if (!k.toLowerCase().includes("odds")) continue;
+      if (v > 1.01 && Number.isFinite(v)) decimals.push(v);
+    }
+
+    if (decimals.length === 0) continue;
+
+    // "Best available" odds = highest decimal across books.
+    const best = Math.max(...decimals);
+    oddsByName.set(normName(name), best);
+    rowsUsed++;
+  }
+
+  return {
+    oddsByName,
+    raw_count: rows.length,
+    mapped_count: rowsUsed,
+    payload_keys: payload ? Object.keys(payload) : null,
+  };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("", { status: 204, headers: corsHeaders("*") });
   if (req.method !== "POST") return json(405, { error: "Use POST" });
@@ -171,6 +208,8 @@ Deno.serve(async (req) => {
 
   const RAPIDAPI_HOST = Deno.env.get("RAPIDAPI_HOST")?.trim();
   const RAPIDAPI_KEY = Deno.env.get("RAPIDAPI_KEY")?.trim();
+
+  const DATAGOLF_API_KEY = Deno.env.get("DATAGOLF_API_KEY")?.trim();
 
   const CRON_SECRET = Deno.env.get("CRON_SECRET")?.trim();
 
@@ -298,7 +337,10 @@ Deno.serve(async (req) => {
   // Extract players[]
   const players: any[] =
     (tournamentsPayload && Array.isArray(tournamentsPayload.players) && tournamentsPayload.players) ||
-    (tournamentsPayload && tournamentsPayload.tournament && Array.isArray(tournamentsPayload.tournament.players) && tournamentsPayload.tournament.players) ||
+    (tournamentsPayload &&
+      tournamentsPayload.tournament &&
+      Array.isArray(tournamentsPayload.tournament.players) &&
+      tournamentsPayload.tournament.players) ||
     [];
 
   if (!Array.isArray(players) || players.length === 0) {
@@ -329,7 +371,7 @@ Deno.serve(async (req) => {
         ext_id: String(playerId),
         first_name: firstName || null,
         last_name: lastName || null,
-        display_name: displayName, // NOTE: pro_players requires display_name NOT NULL
+        display_name: displayName, // pro_players requires display_name NOT NULL
         is_amateur: isAmateur,
       };
     })
@@ -352,7 +394,7 @@ Deno.serve(async (req) => {
     .upsert(
       dedup.map((p) => ({
         ...p,
-        updated_at: nowIso, // pro_players.updated_at is NOT NULL in your schema
+        updated_at: nowIso,
       })),
       { onConflict: "ext_id" },
     );
@@ -364,70 +406,85 @@ Deno.serve(async (req) => {
     });
   }
 
-  // Replace week_pro_field for this week_number
-  const { error: delErr } = await supabase
-    .from("week_pro_field")
-    .delete()
-    .eq("week_number", week_number);
-
-  if (delErr) return json(500, { error: "Failed deleting prior week_pro_field", details: delErr.message });
-
-  
-  // ---- Odds (DataGolf) ----
-  // We pull best available "win" odds (decimal) from DataGolf, then:
-  // - store numeric decimal in week_pro_field.odds_numeric
-  // - store American odds string in week_pro_field.odds_display
-  let oddsMap: Map<string, number> | null = null;
-  const dgKey = Deno.env.get("DATAGOLF_API_KEY") || "";
-  if (dgKey) {
+  // Pull DataGolf odds (best available) and map by player name
+  let dgMeta: any = { used: false };
+  let oddsByName = new Map<string, number>();
+  if (DATAGOLF_API_KEY) {
     try {
-      oddsMap = await fetchDataGolfBestWinOddsDecimal(dgKey);
+      const out = await datagolfOutrightsBestDecimal({ apiKey: DATAGOLF_API_KEY, tour: "pga", market: "win" });
+      oddsByName = out.oddsByName;
+      dgMeta = { used: true, ...out };
     } catch (e) {
-      console.error("DataGolf odds fetch failed:", e);
-      oddsMap = null; // still allow field sync to succeed
+      dgMeta = { used: false, error: String((e as any)?.message ?? e) };
     }
+  } else {
+    dgMeta = { used: false, error: "Missing DATAGOLF_API_KEY (Supabase Function secret)" };
   }
 
-  const enriched = dedup.map((p) => {
-    const nm = normalizeName(p.display_name);
-    const dec = oddsMap ? oddsMap.get(nm) ?? null : null;
-    const amer = dec !== null ? decimalToAmerican(dec) : null;
+  // Replace week_pro_field for this week_number
+  const { error: delErr } = await supabase.from("week_pro_field").delete().eq("week_number", week_number);
+  if (delErr) return json(500, { error: "Failed deleting prior week_pro_field", details: delErr.message });
+
+  // Build list with odds attached
+  const withOdds = dedup.map((p) => {
+    const nameKey = normName(p.display_name);
+    const bestDecimal = oddsByName.get(nameKey) ?? null;
+    return { ...p, bestDecimal };
+  });
+
+  // Rank: odds players first by bestDecimal asc (favorites first). Missing odds go to bottom.
+  const sorted = [...withOdds].sort((a, b) => {
+    const ao = a.bestDecimal;
+    const bo = b.bestDecimal;
+    if (ao === null && bo === null) return a.display_name.localeCompare(b.display_name);
+    if (ao === null) return 1;
+    if (bo === null) return -1;
+    return ao - bo;
+  });
+
+  const weekFieldRows = sorted.map((p, idx) => {
+    const odds_rank = idx + 1; // NOT NULL
+
+    let tier = 4;
+    if (odds_rank <= 10) tier = 1;
+    else if (odds_rank <= 25) tier = 2;
+    else if (odds_rank <= 45) tier = 3;
+
+    const bestDecimal = p.bestDecimal;
+    const odds_numeric = bestDecimal;
+    const odds_display = bestDecimal ? decimalToAmerican(bestDecimal) : null;
+
     return {
-      ...p,
-      odds_decimal: dec,
-      odds_american: amer,
-      odds_display: formatAmerican(amer),
+      week_number,
+      player_ext_id: p.ext_id,
+      player_name: p.display_name,
+      odds_rank,
+      tier,
+      odds_display, // american integer (e.g., 3500 or -120)
+      odds_numeric, // decimal
+
+      first_name: p.first_name,
+      last_name: p.last_name,
+      is_amateur: p.is_amateur,
+      source: bestDecimal ? "rapidapi_slashgolf_tournaments+datagolf_outrights" : "rapidapi_slashgolf_tournaments",
+      updated_at: nowIso,
     };
   });
 
-  // Sort by best odds (lowest decimal) first; null odds last.
-  enriched.sort((a, b) => {
-    const ad = a.odds_decimal;
-    const bd = b.odds_decimal;
-    const an = ad === null || ad === undefined;
-    const bn = bd === null || bd === undefined;
-    if (an && bn) return a.display_name.localeCompare(b.display_name);
-    if (an) return 1;
-    if (bn) return -1;
-    return (ad as number) - (bd as number);
-  });
+  // Insert in chunks
+  const chunkSize = 500;
+  for (let i = 0; i < weekFieldRows.length; i += chunkSize) {
+    const chunk = weekFieldRows.slice(i, i + chunkSize);
+    const { error: insErr } = await supabase.from("week_pro_field").insert(chunk);
+    if (insErr) {
+      return json(500, {
+        error: "Failed inserting week_pro_field",
+        details: insErr.message,
+        inserted_so_far: i,
+      });
+    }
+  }
 
-  const weekFieldRows = enriched.map((p, idx) => ({
-    week_number,
-    player_ext_id: p.ext_id,
-    player_name: p.display_name,
-
-    // Rank is based on best odds available; still required NOT NULL.
-    odds_rank: idx + 1,
-    tier: 1, // required NOT NULL (can be auto-tiered later)
-
-    odds_display: p.odds_display,
-    odds_numeric: p.odds_decimal,
-
-    // Optional extra cols (safe if they exist in your table)
-    dg_id: p.dg_id ?? null,
-    tour_id: p.tour_id ?? null,
-  }));
   // Stamp weeks.field_last_synced_at
   const { error: stampErr } = await supabase
     .from("weeks")
@@ -446,5 +503,6 @@ Deno.serve(async (req) => {
     players_received: players.length,
     pros_upserted: dedup.length,
     week_field_inserted: weekFieldRows.length,
+    datagolf: dgMeta,
   });
 });
