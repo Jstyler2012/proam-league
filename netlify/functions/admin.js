@@ -392,12 +392,22 @@ exports.handler = async (event) => {
       // wipe existing order
       try { await sbRest(SUPABASE_URL, SERVICE_ROLE, "DELETE", `week_draft_order?week_number=eq.${weekNumber}`); } catch(_) {}
 
-      // insert new order
+      
+      function handicapGroupFromIndex(h) {
+        const v = (h === null || h === undefined) ? null : Number(h);
+        if (v === null || !Number.isFinite(v)) return 4; // safest group (worst eligibility)
+        if (v >= 16.0) return 1;
+        if (v >= 11.0) return 2;
+        if (v >= 6.0) return 3;
+        return 4;
+      }
+
+// insert new order
       const rows = participants.map((p, i) => ({
         week_number: weekNumber,
         player_id: p.player_id,
         handicap_index: p.handicap_index,
-        handicap_group: null,
+        handicap_group: handicapGroupFromIndex(p.handicap_index),
         pick_position: i + 1,
         group_position: null,
       }));
