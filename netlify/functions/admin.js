@@ -291,7 +291,12 @@ exports.handler = async (event) => {
       const existing = (await sbRest(SUPABASE_URL, SERVICE_ROLE, "GET", `week_draft?week_number=eq.${weekNumber}&limit=1`)) || [];
       if (existing[0]) return json(200, { ok:true, draft: existing[0], created: false });
 
-      const now = new Date().toISOString();
+      const nowDate = new Date();
+      const nowIso = nowDate.toISOString();
+      // week_draft.draft_starts_at is NOT NULL in your schema; set safe defaults for testing
+      const draftStartsAt = new Date(nowDate.getTime() + 5 * 60 * 1000).toISOString();
+      const swapDeadlineAt = new Date(nowDate.getTime() + 3 * 24 * 60 * 60 * 1000).toISOString();
+
       const inserted = await sbRest(
         SUPABASE_URL,
         SERVICE_ROLE,
@@ -300,8 +305,10 @@ exports.handler = async (event) => {
         [{
           week_number: weekNumber,
           status: "PREP",
-          created_at: now,
-          updated_at: now,
+          draft_starts_at: draftStartsAt,
+          swap_deadline_at: swapDeadlineAt,
+          created_at: nowIso,
+          updated_at: nowIso,
         }]
       );
       return json(200, { ok:true, draft: (inserted && inserted[0]) || null, created: true });
