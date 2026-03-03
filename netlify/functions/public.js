@@ -55,6 +55,22 @@ async function sbAnon(SUPABASE_URL, SUPABASE_ANON_KEY, method, restPath) {
   try { return { ok: true, json: JSON.parse(t) }; } catch { return { ok: true, json: t }; }
 }
 
+
+async function sbService(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, method, restPath) {
+  const url = `${SUPABASE_URL}/rest/v1/${restPath}`;
+  const r = await fetch(url, {
+    method,
+    headers: {
+      apikey: SUPABASE_SERVICE_ROLE_KEY,
+      Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+    },
+  });
+  const t = await r.text();
+  if (!r.ok) return { ok: false, status: r.status, text: t };
+  if (!t) return { ok: true, json: null };
+  try { return { ok: true, json: JSON.parse(t) }; } catch { return { ok: true, json: t }; }
+}
+
 async function getWeekUuidFromNumber(SUPABASE_URL, SUPABASE_ANON_KEY, weekNumber) {
   const out = await sbAnon(
     SUPABASE_URL,
@@ -82,10 +98,12 @@ exports.handler = async (event) => {
 
     const SUPABASE_URL = process.env.SUPABASE_URL;
     const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
+    const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
     if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
       return text(500, "Missing SUPABASE_URL or SUPABASE_ANON_KEY");
     }
+    // SUPABASE_SERVICE_ROLE_KEY is optional; used for public reads that may be blocked by RLS.
 
     // -------------------------
     // schedule
@@ -338,12 +356,9 @@ if (route === "pros") {
       if (!Number.isFinite(weekNumber)) return json(400, { error: "Missing/invalid week_id" });
 
       // draft row (created by rpc draft_ensure_week / cron / admin)
-      const d = await sbAnon(
-        SUPABASE_URL,
-        SUPABASE_ANON_KEY,
-        "GET",
-        `week_draft?week_number=eq.${weekNumber}&limit=1`
-      );
+      const d = SUPABASE_SERVICE_ROLE_KEY
+        ? await sbService(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, "GET", `week_draft?week_number=eq.${weekNumber}&limit=1`)
+        : await sbAnon(SUPABASE_URL, SUPABASE_ANON_KEY, "GET", `week_draft?week_number=eq.${weekNumber}&limit=1`);
       if (!d.ok) return text(d.status, d.text);
 
       const draft = (d.json || [])[0] || null;
@@ -352,12 +367,9 @@ if (route === "pros") {
       // order is visible once generated (ORDER_PUBLISHED or later)
       let order = [];
       if (["ORDER_PUBLISHED", "LIVE", "SWAP_OPEN", "LOCKED", "COMPLETE"].includes(draft.status)) {
-        const o = await sbAnon(
-          SUPABASE_URL,
-          SUPABASE_ANON_KEY,
-          "GET",
-          `week_draft_order?week_number=eq.${weekNumber}&select=player_id,handicap_index,handicap_group,pick_position,group_position&order=pick_position.asc`
-        );
+        const o = SUPABASE_SERVICE_ROLE_KEY
+          ? await sbService(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, "GET", `week_draft_order?week_number=eq.${weekNumber}&select=player_id,handicap_index,handicap_group,pick_position,group_position&order=pick_position.asc`)
+          : await sbAnon(SUPABASE_URL, SUPABASE_ANON_KEY, "GET", `week_draft_order?week_number=eq.${weekNumber}&select=player_id,handicap_index,handicap_group,pick_position,group_position&order=pick_position.asc`);
         if (!o.ok) return text(o.status, o.text);
         order = o.json || [];
       }
