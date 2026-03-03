@@ -1198,7 +1198,7 @@ const ADMIN_EMAILS = ["jstyler2012@yahoo.com".toLowerCase()];
       (false);
 
       const weekId = currentWeekId;
-      if(!weekId){
+      if(weekId == null){
         participantRows = [];
         me = null;
         isMeParticipating = false;
