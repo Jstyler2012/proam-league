@@ -253,16 +253,22 @@ exports.handler = async (event) => {
         deleted.week_participants = used.used;
       } catch (_) {}
 
-      // week_entries (int key)
+      // week_entries (week_id can be int or uuid)
       try {
-        await sbRest(SUPABASE_URL, SERVICE_ROLE, "DELETE", `week_entries?week_id=eq.${weekNumber}`);
-        deleted.week_entries = "int";
+        const used = await deleteByWeekFlexible(SUPABASE_URL, SERVICE_ROLE, "week_entries", weekNumber, wkUuid);
+        deleted.week_entries = used.used;
       } catch (_) {}
 
       // rounds
       try {
         await sbRest(SUPABASE_URL, SERVICE_ROLE, "DELETE", `player_rounds?week_id=eq.${weekNumber}`);
         deleted.player_rounds = "int";
+      } catch (_) {}
+
+      // week_pro_field (safe to delete for week 0 / testing)
+      try {
+        await sbRest(SUPABASE_URL, SERVICE_ROLE, "DELETE", `week_pro_field?week_number=eq.${weekNumber}`);
+        deleted.week_pro_field = true;
       } catch (_) {}
 
       // draft
@@ -453,13 +459,33 @@ exports.handler = async (event) => {
       if (!Number.isFinite(weekNumber)) return json(400, { ok:false, error:"Missing/invalid week_number" });
       if (!playerId) return json(400, { ok:false, error:"Missing player_id" });
 
-      const updated = await sbRest(
-        SUPABASE_URL,
-        SERVICE_ROLE,
-        "PATCH",
-        `week_entries?week_id=eq.${weekNumber}&player_id=eq.${playerId}`,
-        { pga_golfer: null }
-      );
+      const patch = { pga_golfer: null, pga_golfer_ext_id: null, pro_score: null, your_score: null, total: null };
+
+      let updated = null;
+      try {
+        updated = await sbRest(
+          SUPABASE_URL,
+          SERVICE_ROLE,
+          "PATCH",
+          `week_entries?week_id=eq.${weekNumber}&player_id=eq.${playerId}`,
+          patch
+        );
+      } catch (e) {
+        const msg = String(e?.message || e);
+        if (msg.includes("invalid input syntax for type uuid")) {
+          const wkUuid = await getWeekUuidFromNumber(SUPABASE_URL, SERVICE_ROLE, weekNumber);
+          if (!wkUuid) return json(404, { ok:false, error:"Week not found" });
+          updated = await sbRest(
+            SUPABASE_URL,
+            SERVICE_ROLE,
+            "PATCH",
+            `week_entries?week_id=eq.${wkUuid}&player_id=eq.${playerId}`,
+            patch
+          );
+        } else {
+          throw e;
+        }
+      }
       return json(200, { ok:true, updated: Array.isArray(updated) ? updated.length : 0 });
     }
 
@@ -474,7 +500,18 @@ exports.handler = async (event) => {
 
       // clear picks
       try {
-        await sbRest(SUPABASE_URL, SERVICE_ROLE, "PATCH", `week_entries?week_id=eq.${weekNumber}`, { pga_golfer: null });
+        const patch = { pga_golfer: null, pga_golfer_ext_id: null, pro_score: null, your_score: null, total: null };
+        try {
+          await sbRest(SUPABASE_URL, SERVICE_ROLE, "PATCH", `week_entries?week_id=eq.${weekNumber}`, patch);
+        } catch (e) {
+          const msg = String(e?.message || e);
+          if (msg.includes("invalid input syntax for type uuid")) {
+            const wkUuid = await getWeekUuidFromNumber(SUPABASE_URL, SERVICE_ROLE, weekNumber);
+            if (wkUuid) await sbRest(SUPABASE_URL, SERVICE_ROLE, "PATCH", `week_entries?week_id=eq.${wkUuid}`, patch);
+          } else {
+            throw e;
+          }
+        }
         deleted.week_entries_picks_cleared = true;
       } catch(_) {}
 
