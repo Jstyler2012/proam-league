@@ -88,6 +88,27 @@ function routeFrom(event) {
   return raw.replace(/^\/+|\/+$/g, "");
 }
 
+// Lightweight fetch helper that DOES NOT throw, so we can detect UUID/int mismatches.
+async function sbFetchRaw(SUPABASE_URL, apiKey, method, restPath, bodyObj) {
+  const headers = {
+    apikey: apiKey,
+    Authorization: `Bearer ${apiKey}`,
+    "Content-Type": "application/json",
+    Accept: "application/json",
+  };
+
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/${restPath}`, {
+    method,
+    headers,
+    body: bodyObj ? JSON.stringify(bodyObj) : undefined,
+  });
+
+  const text = await r.text();
+  let json = null;
+  try { json = text ? JSON.parse(text) : null; } catch { json = null; }
+  return { ok: r.ok, status: r.status, text, json };
+}
+
 exports.handler = async (event) => {
   if (event.httpMethod === "OPTIONS") return { statusCode: 204, headers: corsHeaders, body: "" };
   if (event.httpMethod !== "POST") return json(405, { error: "Method not allowed" });
@@ -420,16 +441,101 @@ if (path === "submit-score") {
         return json(400, { error: "Missing/invalid week_id" });
       }
 
-      // Server-side tick (autopick + advance enforced in DB)
-      const result = await sbService(
+      // NOTE: Earlier versions relied on a Postgres RPC `draft_tick`.
+      // To make Week 0 work even if the RPC doesn't exist, we compute the
+      // next turn here and PATCH week_draft directly.
+
+      // Load week_draft row
+      const draftRows = await sbService(
         SUPABASE_URL,
         SERVICE_KEY,
-        "POST",
-        `rpc/draft_tick`,
-        { p_week_number: weekNumber }
+        "GET",
+        `week_draft?select=*&week_number=eq.${weekNumber}&limit=1`
+      );
+      const draft = draftRows?.[0];
+      if (!draft) return json(404, { error: `No week_draft row for week_number=${weekNumber}` });
+
+      // Load order
+      const order = await sbService(
+        SUPABASE_URL,
+        SERVICE_KEY,
+        "GET",
+        `week_draft_order?select=player_id,pick_position&week_number=eq.${weekNumber}&order=pick_position.asc`
+      );
+      if (!order?.length) return json(409, { error: "Draft order not generated yet" });
+
+      const now = new Date();
+      const nowIso = now.toISOString();
+      const draftStartsAt = draft.draft_starts_at ? new Date(draft.draft_starts_at) : null;
+      const swapDeadlineAt = draft.swap_deadline_at ? new Date(draft.swap_deadline_at) : null;
+
+      // Pull picks from week_entries (same source leaderboard uses)
+      const weekUuid = await getWeekUuidFromNumberService(SUPABASE_URL, SERVICE_KEY, weekNumber);
+      let entriesRes = await sbFetchRaw(
+        SUPABASE_URL,
+        SERVICE_KEY,
+        "GET",
+        `week_entries?select=player_id,pga_golfer&week_id=eq.${weekNumber}`
+      );
+      if (!entriesRes.ok && weekUuid) {
+        entriesRes = await sbFetchRaw(
+          SUPABASE_URL,
+          SERVICE_KEY,
+          "GET",
+          `week_entries?select=player_id,pga_golfer&week_id=eq.${weekUuid}`
+        );
+      }
+      const entries = Array.isArray(entriesRes.json) ? entriesRes.json : [];
+      const pickedByPlayerId = new Map();
+      for (const e of entries) {
+        if (e?.player_id) pickedByPlayerId.set(e.player_id, e?.pga_golfer || null);
+      }
+
+      const unpicked = order.filter((o) => !pickedByPlayerId.get(o.player_id));
+      const allPicked = unpicked.length === 0;
+
+      const nextPatch = { last_tick_at: nowIso };
+
+      // Auto-transition
+      if (swapDeadlineAt && now >= swapDeadlineAt) {
+        nextPatch.status = "LOCKED";
+      } else if (allPicked) {
+        nextPatch.status = "SWAP_OPEN";
+      }
+
+      // LIVE turn clock (draft.html assumes 60s)
+      const TURN_SECONDS = 60;
+      const turnStartedAt = draft.turn_started_at ? new Date(draft.turn_started_at) : null;
+      const effectiveStatus = nextPatch.status || draft.status;
+      const isLive = effectiveStatus === "LIVE";
+      const shouldRun = isLive && (!draftStartsAt || now >= draftStartsAt) && !allPicked;
+
+      if (shouldRun) {
+        const noTurn = !draft.turn_player_id || !draft.current_pick_index;
+        const expired =
+          !turnStartedAt || ((now.getTime() - turnStartedAt.getTime()) / 1000) >= TURN_SECONDS;
+
+        if (noTurn || expired) {
+          const next = unpicked[0];
+          nextPatch.turn_player_id = next.player_id;
+          nextPatch.current_pick_index = next.pick_position;
+          nextPatch.turn_started_at = nowIso;
+        }
+      } else if (!isLive) {
+        nextPatch.turn_player_id = null;
+        nextPatch.current_pick_index = null;
+        nextPatch.turn_started_at = null;
+      }
+
+      await sbService(
+        SUPABASE_URL,
+        SERVICE_KEY,
+        "PATCH",
+        `week_draft?week_number=eq.${weekNumber}`,
+        nextPatch
       );
 
-      return json(200, result || { ok: true });
+      return json(200, { ok: true, patched: nextPatch });
     }
 
     if (path === "draft-swap") {
