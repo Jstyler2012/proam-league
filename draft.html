@@ -533,13 +533,13 @@ async function refreshAll(){
   await loadDraftState();
 
   // Ensure LIVE drafts actually start advancing turns (sets "on the clock" + countdown)
-  if(draftState?.draft?.status === "LIVE"){
-    try{
+  if (draftState?.status === "LIVE") {
+    try {
       await postJSON("/api-mutate/draft-tick", { week_id: currentWeek?.week_number });
       // Re-pull state/board after tick (in case it advanced / autopicked)
       await loadBoard();
       await loadDraftState();
-    }catch(e){
+    } catch(e){
       // ignore tick errors; UI will still render current state
       console.warn("draft-tick failed", e);
     }
