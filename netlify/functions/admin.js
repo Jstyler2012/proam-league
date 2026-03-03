@@ -321,20 +321,24 @@ exports.handler = async (event) => {
 
       const patch = {};
       if (body.status) patch.status = String(body.status);
+
+      // IMPORTANT: week_draft.draft_starts_at is NOT NULL in your schema.
+      // Treat null/empty as "leave unchanged" to avoid violating the constraint.
       if ("draft_starts_at" in body) {
         const v = body.draft_starts_at;
-        // week_draft.draft_starts_at is NOT NULL; ignore empty/null values
-        if (v != null && String(v).trim() !== "") patch.draft_starts_at = v;
+        if (v !== null && v !== undefined && String(v).trim() !== "") {
+          patch.draft_starts_at = v;
+        }
       }
+
+      // swap_deadline_at may be nullable; for safety we also treat empty as "leave unchanged"
       if ("swap_deadline_at" in body) {
         const v = body.swap_deadline_at;
-        if (v == null || String(v).trim() === "") {
-          // allow clearing swap deadline (nullable in schema)
-          patch.swap_deadline_at = null;
-        } else {
+        if (v !== null && v !== undefined && String(v).trim() !== "") {
           patch.swap_deadline_at = v;
         }
       }
+
       patch.updated_at = new Date().toISOString();
 
       const updated = await sbRest(
