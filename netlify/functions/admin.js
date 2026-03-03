@@ -148,7 +148,7 @@ exports.handler = async function handler(event) {
     const body = await readJsonBody(event);
 // ---- simple health check
 if (route === "ping") {
-  return json(200, { ok: true, email });
+  return json(200, { ok: true });
 }
     // -------------------------
     // list-weeks
