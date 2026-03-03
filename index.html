@@ -1244,11 +1244,10 @@ async function adminRemoveParticipant(){
     showMsg($("adminRemoveMsg"), "Admin only.", "bad");
     return;
   }
-  if (!currentWeekId){
-    showMsg($("adminRemoveMsg"), "No week loaded.", "bad");
-    return;
-  }
-
+  if (currentWeekId == null) {
+  showMsg(participationMsg, "No week loaded yet.", "bad");
+  return;
+}
   const playerId = $("adminRemovePlayerSel")?.value;
   if (!playerId){
     showMsg($("adminRemoveMsg"), "Select a player to remove.", "bad");
