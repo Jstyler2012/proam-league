@@ -344,11 +344,20 @@ exports.handler = async (event) => {
       const existing = (await sbRest(SUPABASE_URL, SERVICE_ROLE, "GET", `week_draft?week_number=eq.${weekNumber}&limit=1`)) || [];
       if (!existing[0]) {
         // auto-init
-        const now = new Date().toISOString();
+        const now = new Date();
+        const nowIso = now.toISOString();
+        const draftStartsAt = new Date(now.getTime() + 5 * 60 * 1000).toISOString();
+        const swapDeadlineAt = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000).toISOString();
         await sbRest(SUPABASE_URL, SERVICE_ROLE, "POST", "week_draft", [{
-          week_number: weekNumber, status: "PREP", created_at: now, updated_at: now
+          week_number: weekNumber,
+          status: "PREP",
+          draft_starts_at: draftStartsAt,
+          swap_deadline_at: swapDeadlineAt,
+          created_at: nowIso,
+          updated_at: nowIso,
         }]);
-      }
+
+}
 
       // load participants w/ handicap
       let part = null;
