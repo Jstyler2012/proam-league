@@ -1197,16 +1197,15 @@ const ADMIN_EMAILS = ["jstyler2012@yahoo.com".toLowerCase()];
       hideMsg($("participationMsg"));
       (false);
 
-      const weekId = currentWeekId;
-      if(!weekId){
-        participantRows = [];
-        me = null;
-        isMeParticipating = false;
-        populatePlayersFromParticipants();
-        setParticipationUI(true);
-        return;
-      }
-
+     const weekId = currentWeekId;
+if(weekId == null){
+  participantRows = [];
+  me = null;
+  isMeParticipating = false;
+  populatePlayersFromParticipants();
+  setParticipationUI(true);
+  return;
+}
       await loadMe();
 
       try{
