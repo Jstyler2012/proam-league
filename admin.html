@@ -1819,13 +1819,26 @@ $("refreshBtn") && ($("refreshBtn").onclick = async () => {
     if(!await checkAccess()) return;
     const out = document.getElementById("draftOut");
     out.innerHTML = "Saving...";
-    const res = await adminPost("draft/update", {
-      week_number: weekNum(),
-      status: document.getElementById("draftStatus").value,
-      draft_starts_at: document.getElementById("draftStartsAt").value.trim() || null,
-      swap_deadline_at: document.getElementById("swapDeadlineAt").value.trim() || null
-    });
-    out.innerHTML = `<div class="muted">Saved draft settings.</div><pre style="white-space:pre-wrap">${esc(JSON.stringify(res, null, 2))}</pre>`;
+    try {
+      const payload = {
+        week_number: weekNum(),
+        status: document.getElementById("draftStatus").value
+      };
+
+      // IMPORTANT: week_draft.draft_starts_at is NOT NULL.
+      // If the input is blank, we OMIT the field (leave unchanged).
+      const ds = document.getElementById("draftStartsAt").value.trim();
+      if (ds) payload.draft_starts_at = ds;
+
+      // If blank, also omit (leave unchanged).
+      const sd = document.getElementById("swapDeadlineAt").value.trim();
+      if (sd) payload.swap_deadline_at = sd;
+
+      const res = await adminPost("draft/update", payload);
+      out.innerHTML = `<div class="muted">Saved draft settings.</div><pre style="white-space:pre-wrap">${esc(JSON.stringify(res, null, 2))}</pre>`;
+    } catch (e) {
+      out.innerHTML = `<div class="bad">Error saving draft settings: ${esc(String(e && e.message ? e.message : e))}</div>`;
+    }
   };
 
   document.getElementById("btnResetPick").onclick = async () => {
