@@ -443,61 +443,42 @@ exports.handler = async (event) => {
         }
       }
 
-      // Stamp order_generated_at so draft_tick can initialize turns
+      // Stamp order_generated_at on week_draft so draft_tick can start turns.
+      // draft_state depends on this to initialize turn_player_id/turn_started_at.
       try {
+        const nowIso = new Date().toISOString();
         await sbRest(
           SUPABASE_URL,
           SERVICE_ROLE,
           "PATCH",
           `week_draft?week_number=eq.${weekNumber}`,
-          { order_generated_at: new Date().toISOString(), updated_at: new Date().toISOString() }
+          { order_generated_at: nowIso, updated_at: nowIso }
         );
       } catch (_) {
-        // non-fatal; draft may still be usable if tick logic does not require this field
+        // Don't fail order generation if stamping fails.
       }
 
       return json(200, { ok:true, count: rows.length });
     }
 
-    // ---- draft/reset-pick (clears week_entries pick + scores; UUID-safe)
+    // ---- draft/reset-pick (clears week_entries.pga_golfer)
     if (route === "draft/reset-pick") {
       const weekNumber = Number(body.week_number);
       const playerId = String(body.player_id || "").trim();
       if (!Number.isFinite(weekNumber)) return json(400, { ok:false, error:"Missing/invalid week_number" });
       if (!playerId) return json(400, { ok:false, error:"Missing player_id" });
 
-      const patch = { pga_golfer: null, pga_golfer_ext_id: null, pro_score: null, your_score: null, total: null };
-
-      let updated = null;
-      try {
-        updated = await sbRest(
-          SUPABASE_URL,
-          SERVICE_ROLE,
-          "PATCH",
-          `week_entries?week_id=eq.${weekNumber}&player_id=eq.${playerId}`,
-          patch
-        );
-      } catch (e) {
-        const msg = String(e.message || e);
-        if (msg.includes("invalid input syntax for type uuid")) {
-          const wkUuid = await getWeekUuidFromNumber(SUPABASE_URL, SERVICE_ROLE, weekNumber);
-          if (!wkUuid) return json(404, { ok:false, error:"Week not found in weeks table" });
-          updated = await sbRest(
-            SUPABASE_URL,
-            SERVICE_ROLE,
-            "PATCH",
-            `week_entries?week_id=eq.${wkUuid}&player_id=eq.${playerId}`,
-            patch
-          );
-        } else {
-          throw e;
-        }
-      }
-
+      const updated = await sbRest(
+        SUPABASE_URL,
+        SERVICE_ROLE,
+        "PATCH",
+        `week_entries?week_id=eq.${weekNumber}&player_id=eq.${playerId}`,
+        { pga_golfer: null }
+      );
       return json(200, { ok:true, updated: Array.isArray(updated) ? updated.length : 0 });
     }
 
-    // ---- draft/wipe (draft tables + clear picks/scores for week; UUID-safe)
+    // ---- draft/wipe (draft tables + clear picks for week)
     if (route === "draft/wipe") {
       const weekNumber = Number(body.week_number);
       if (!Number.isFinite(weekNumber)) return json(400, { ok:false, error:"Missing/invalid week_number" });
@@ -506,22 +487,11 @@ exports.handler = async (event) => {
       try { await sbRest(SUPABASE_URL, SERVICE_ROLE, "DELETE", `week_draft_order?week_number=eq.${weekNumber}`); deleted.week_draft_order = true; } catch(_) {}
       try { await sbRest(SUPABASE_URL, SERVICE_ROLE, "DELETE", `week_draft?week_number=eq.${weekNumber}`); deleted.week_draft = true; } catch(_) {}
 
-      const patch = { pga_golfer: null, pga_golfer_ext_id: null, pro_score: null, your_score: null, total: null };
-
       // clear picks
       try {
-        await sbRest(SUPABASE_URL, SERVICE_ROLE, "PATCH", `week_entries?week_id=eq.${weekNumber}`, patch);
-        deleted.week_entries_cleared = true;
-      } catch (e) {
-        const msg = String(e.message || e);
-        if (msg.includes("invalid input syntax for type uuid")) {
-          const wkUuid = await getWeekUuidFromNumber(SUPABASE_URL, SERVICE_ROLE, weekNumber);
-          if (wkUuid) {
-            await sbRest(SUPABASE_URL, SERVICE_ROLE, "PATCH", `week_entries?week_id=eq.${wkUuid}`, patch);
-            deleted.week_entries_cleared = true;
-          }
-        }
-      }
+        await sbRest(SUPABASE_URL, SERVICE_ROLE, "PATCH", `week_entries?week_id=eq.${weekNumber}`, { pga_golfer: null });
+        deleted.week_entries_picks_cleared = true;
+      } catch(_) {}
 
       return json(200, { ok:true, deleted });
     }
