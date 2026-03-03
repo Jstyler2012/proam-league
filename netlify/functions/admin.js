@@ -146,7 +146,10 @@ exports.handler = async function handler(event) {
     if (!authz.ok) return json(authz.status, { error: authz.error });
 
     const body = await readJsonBody(event);
-
+// ---- simple health check
+if (route === "ping") {
+  return json(200, { ok: true, email });
+}
     // -------------------------
     // list-weeks
     // -------------------------
