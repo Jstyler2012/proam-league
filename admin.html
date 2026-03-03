@@ -1751,6 +1751,7 @@ $("refreshBtn") && ($("refreshBtn").onclick = async () => {
     if(!await checkAccess()) return;
     const out = document.getElementById("participantsOut");
     out.innerHTML = "Loading...";
+    try {
     const res = await adminPost("participants/list", { week_number: weekNum() });
     const rows = res.rows || [];
     if(!rows.length) { out.innerHTML = "<div class='muted'>No participants.</div>"; return; }
@@ -1775,7 +1776,10 @@ $("refreshBtn") && ($("refreshBtn").onclick = async () => {
         btn.disabled=true;
       });
     });
-  };
+      } catch (e) {
+      out.innerHTML = `<div class="msg bad">Error: ${esc(e?.message || e)}</div>`;
+    }
+};
 
   document.getElementById("btnWipeWeek").onclick = async () => {
     if(!await checkAccess()) return;
