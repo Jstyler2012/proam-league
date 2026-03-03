@@ -321,8 +321,20 @@ exports.handler = async (event) => {
 
       const patch = {};
       if (body.status) patch.status = String(body.status);
-      if ("draft_starts_at" in body) patch.draft_starts_at = body.draft_starts_at;
-      if ("swap_deadline_at" in body) patch.swap_deadline_at = body.swap_deadline_at;
+      if ("draft_starts_at" in body) {
+        const v = body.draft_starts_at;
+        // week_draft.draft_starts_at is NOT NULL; ignore empty/null values
+        if (v != null && String(v).trim() !== "") patch.draft_starts_at = v;
+      }
+      if ("swap_deadline_at" in body) {
+        const v = body.swap_deadline_at;
+        if (v == null || String(v).trim() === "") {
+          // allow clearing swap deadline (nullable in schema)
+          patch.swap_deadline_at = null;
+        } else {
+          patch.swap_deadline_at = v;
+        }
+      }
       patch.updated_at = new Date().toISOString();
 
       const updated = await sbRest(
