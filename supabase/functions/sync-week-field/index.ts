@@ -10,6 +10,78 @@ function corsHeaders(origin = "*") {
   };
 }
 
+function normalizeName(name: string) {
+  return (name || "")
+    .toLowerCase()
+    .replace(/[^a-z\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function decimalToAmerican(decimal: number): number | null {
+  if (!Number.isFinite(decimal) || decimal <= 1) return null;
+  // American odds:
+  //  - for decimal >= 2.0: +((decimal - 1) * 100)
+  //  - for decimal < 2.0: - (100 / (decimal - 1))
+  if (decimal >= 2) return Math.round((decimal - 1) * 100);
+  return -Math.round(100 / (decimal - 1));
+}
+
+function formatAmerican(american: number | null): string | null {
+  if (american === null || !Number.isFinite(american)) return null;
+  return american > 0 ? `+${american}` : String(american);
+}
+
+async function fetchDataGolfBestWinOddsDecimal(key: string): Promise<Map<string, number>> {
+  // DataGolf: Outright (finish position) odds
+  // Docs: https://datagolf.com/api-access (betting-tools/outrights)
+  const url =
+    `https://feeds.datagolf.com/betting-tools/outrights?tour=pga&market=win&odds_format=decimal&file_format=json&key=${encodeURIComponent(key)}`;
+
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(`DataGolf outrights failed: ${r.status}`);
+  const j = await r.json();
+
+  // The API returns JSON; historically this is either:
+  // - { data: [...] }
+  // - [...]
+  const rows: any[] = Array.isArray(j) ? j : (Array.isArray(j?.data) ? j.data : []);
+  const map = new Map<string, number>();
+
+  for (const row of rows) {
+    const rawName = row?.player_name || row?.name || row?.golfer || row?.player || "";
+    const nm = normalizeName(String(rawName));
+    if (!nm) continue;
+
+    let best: number | null = null;
+
+    // Grab any numeric fields that look like odds (decimal > 1)
+    for (const [k, v] of Object.entries(row || {})) {
+      const keyLower = String(k).toLowerCase();
+      if (!keyLower.includes("odds")) continue;
+      const num = Number(v);
+      if (!Number.isFinite(num) || num <= 1) continue;
+      if (best === null || num < best) best = num;
+    }
+
+    // Sometimes books are separate fields without "odds" in the key; as a fallback,
+    // consider any numeric value in [1.01, 10000] that is NOT a probability (<= 1).
+    if (best === null) {
+      for (const [k, v] of Object.entries(row || {})) {
+        const keyLower = String(k).toLowerCase();
+        if (keyLower.includes("prob")) continue;
+        const num = Number(v);
+        if (!Number.isFinite(num) || num <= 1.01 || num > 10000) continue;
+        if (best === null || num < best) best = num;
+      }
+    }
+
+    if (best !== null) map.set(nm, best);
+  }
+
+  return map;
+}
+
 function json(status: number, body: Json) {
   return new Response(JSON.stringify(body), {
     status,
@@ -300,37 +372,62 @@ Deno.serve(async (req) => {
 
   if (delErr) return json(500, { error: "Failed deleting prior week_pro_field", details: delErr.message });
 
-  const weekFieldRows = dedup.map((p, idx) => ({
-    week_number,
-    player_ext_id: p.ext_id,
-    player_name: p.display_name,
-    odds_rank: idx + 1,      // required NOT NULL
-    tier: 1,                 // required NOT NULL
-    odds_display: null,
-    odds_numeric: null,
-
-    // Optional extra columns you already have:
-    first_name: p.first_name,
-    last_name: p.last_name,
-    is_amateur: p.is_amateur,
-    source: "rapidapi_slashgolf_tournaments",
-    updated_at: nowIso,
-  }));
-
-  // Insert in chunks
-  const chunkSize = 500;
-  for (let i = 0; i < weekFieldRows.length; i += chunkSize) {
-    const chunk = weekFieldRows.slice(i, i + chunkSize);
-    const { error: insErr } = await supabase.from("week_pro_field").insert(chunk);
-    if (insErr) {
-      return json(500, {
-        error: "Failed inserting week_pro_field",
-        details: insErr.message,
-        inserted_so_far: i,
-      });
+  
+  // ---- Odds (DataGolf) ----
+  // We pull best available "win" odds (decimal) from DataGolf, then:
+  // - store numeric decimal in week_pro_field.odds_numeric
+  // - store American odds string in week_pro_field.odds_display
+  let oddsMap: Map<string, number> | null = null;
+  const dgKey = Deno.env.get("DATAGOLF_API_KEY") || "";
+  if (dgKey) {
+    try {
+      oddsMap = await fetchDataGolfBestWinOddsDecimal(dgKey);
+    } catch (e) {
+      console.error("DataGolf odds fetch failed:", e);
+      oddsMap = null; // still allow field sync to succeed
     }
   }
 
+  const enriched = dedup.map((p) => {
+    const nm = normalizeName(p.display_name);
+    const dec = oddsMap ? oddsMap.get(nm) ?? null : null;
+    const amer = dec !== null ? decimalToAmerican(dec) : null;
+    return {
+      ...p,
+      odds_decimal: dec,
+      odds_american: amer,
+      odds_display: formatAmerican(amer),
+    };
+  });
+
+  // Sort by best odds (lowest decimal) first; null odds last.
+  enriched.sort((a, b) => {
+    const ad = a.odds_decimal;
+    const bd = b.odds_decimal;
+    const an = ad === null || ad === undefined;
+    const bn = bd === null || bd === undefined;
+    if (an && bn) return a.display_name.localeCompare(b.display_name);
+    if (an) return 1;
+    if (bn) return -1;
+    return (ad as number) - (bd as number);
+  });
+
+  const weekFieldRows = enriched.map((p, idx) => ({
+    week_number,
+    player_ext_id: p.ext_id,
+    player_name: p.display_name,
+
+    // Rank is based on best odds available; still required NOT NULL.
+    odds_rank: idx + 1,
+    tier: 1, // required NOT NULL (can be auto-tiered later)
+
+    odds_display: p.odds_display,
+    odds_numeric: p.odds_decimal,
+
+    // Optional extra cols (safe if they exist in your table)
+    dg_id: p.dg_id ?? null,
+    tour_id: p.tour_id ?? null,
+  }));
   // Stamp weeks.field_last_synced_at
   const { error: stampErr } = await supabase
     .from("weeks")
