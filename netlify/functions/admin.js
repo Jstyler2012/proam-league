@@ -568,6 +568,131 @@ exports.handler = async (event) => {
       return json(200, { ok:true, row: Array.isArray(updated) ? updated[0] : updated });
     }
 
+
+// ---- datagolf/sync-week (upsert field + leaderboard from DataGolf for a given week)
+if (route === "datagolf/sync-week") {
+  const { getPreTournament, getInPlay } = require("./datagolf");
+  const weekNumber = Number(q.week_id ?? q.week_number ?? body.week_number ?? body.week_id);
+  if (!Number.isFinite(weekNumber)) return json(400, { ok:false, error:"Missing/invalid week_number (use ?week_id=...)" });
+
+  // load week row to get tourn_id (stored in weeks.tour_id)
+  const weeks = await sbRest(SUPABASE_URL, SERVICE_ROLE, "GET", `weeks?week_number=eq.${weekNumber}&select=*`);
+  const week = Array.isArray(weeks) ? weeks[0] : null;
+  if (!week) return json(404, { ok:false, error:`Week ${weekNumber} not found in weeks table` });
+
+  const tournId = (week.tour_id || "").toString().trim();
+  if (!tournId) {
+    return json(400, { ok:false, error:"weeks.tour_id is empty. Put the DataGolf tourn_id for this week into weeks.tour_id first." });
+  }
+
+  // 1) Field + outrights (pre-tournament)
+  let fieldInserted = 0;
+  try {
+    const pre = await getPreTournament({ tour: "pga", tourn_id: tournId });
+
+    // DataGolf response shape can vary; try a few common keys
+    const rows = pre?.data || pre?.players || pre?.field || pre;
+    const arr = Array.isArray(rows) ? rows : [];
+
+    for (const r of arr) {
+      const playerExtId = String(r.dg_id ?? r.player_id ?? r.id ?? "").trim();
+      const playerName = String(r.player_name ?? r.name ?? r.player ?? "").trim();
+      if (!playerExtId || !playerName) continue;
+
+      const oddsToWin = Number(r.odds_to_win ?? r.win_odds ?? r.outright_odds ?? r.win ?? NaN);
+      const oddsRank = Number(r.odds_rank ?? r.win_odds_rank ?? r.rank ?? NaN);
+
+      // simple tiering heuristic if odds_rank exists
+      let tier = null;
+      if (Number.isFinite(oddsRank)) {
+        if (oddsRank <= 15) tier = 1;
+        else if (oddsRank <= 35) tier = 2;
+        else if (oddsRank <= 60) tier = 3;
+        else tier = 4;
+      }
+
+      // upsert into week_pro_field
+      const payload = {
+        week_number: weekNumber,
+        player_ext_id: playerExtId,
+        player_name: playerName,
+        odds_to_win: Number.isFinite(oddsToWin) ? oddsToWin : null,
+        odds_rank: Number.isFinite(oddsRank) ? oddsRank : null,
+        tier,
+        updated_at: new Date().toISOString()
+      };
+
+      // PostgREST upsert via "on_conflict"
+      await sbRest(
+        SUPABASE_URL,
+        SERVICE_ROLE,
+        "POST",
+        `week_pro_field?on_conflict=week_number,player_ext_id`,
+        payload,
+        { "Prefer": "resolution=merge-duplicates,return=representation" }
+      );
+      fieldInserted++;
+    }
+  } catch (e) {
+    // don't fail whole sync if pre-tournament is unavailable (e.g. during event)
+  }
+
+  // 2) Live leaderboard-ish (in-play)
+  let leaderboardUpserts = 0;
+  try {
+    const live = await getInPlay({ tour: "pga", tourn_id: tournId });
+    const rows = live?.data || live?.players || live?.field || live;
+    const arr = Array.isArray(rows) ? rows : [];
+
+    for (const r of arr) {
+      const playerExtId = String(r.dg_id ?? r.player_id ?? r.id ?? "").trim();
+      const playerName = String(r.player_name ?? r.name ?? r.player ?? "").trim();
+      if (!playerExtId || !playerName) continue;
+
+      const position = Number(r.position ?? r.pos ?? NaN);
+      const scoreToPar = Number(r.score_to_par ?? r.score ?? r.to_par ?? NaN);
+      const thru = String(r.thru ?? r.through ?? r.holes_completed ?? "").trim();
+      const today = Number(r.today ?? r.round_score ?? NaN);
+      const round = Number(r.round ?? r.current_round ?? NaN);
+
+      const payload = {
+        week_number: weekNumber,
+        player_ext_id: playerExtId,
+        player_name: playerName,
+        position: Number.isFinite(position) ? position : null,
+        score_to_par: Number.isFinite(scoreToPar) ? scoreToPar : null,
+        thru: thru || null,
+        today: Number.isFinite(today) ? today : null,
+        round: Number.isFinite(round) ? round : null,
+        source: "datagolf",
+        updated_at: new Date().toISOString()
+      };
+
+      await sbRest(
+        SUPABASE_URL,
+        SERVICE_ROLE,
+        "POST",
+        `week_pro_leaderboard?on_conflict=week_number,player_ext_id`,
+        payload,
+        { "Prefer": "resolution=merge-duplicates,return=representation" }
+      );
+      leaderboardUpserts++;
+    }
+  } catch (e) {
+    // ignore
+  }
+
+  // touch weeks sync timestamps
+  await sbRest(
+    SUPABASE_URL,
+    SERVICE_ROLE,
+    "PATCH",
+    `weeks?week_number=eq.${weekNumber}`,
+    { field_last_synced_at: new Date().toISOString(), leaderboard_last_synced_at: new Date().toISOString() }
+  );
+
+  return json(200, { ok:true, week_number: weekNumber, field_upserts: fieldInserted, leaderboard_upserts: leaderboardUpserts });
+}
     return json(404, { ok:false, error:"Not found", route });
   } catch (e) {
     return json(500, { ok:false, error: e?.message || String(e) });
