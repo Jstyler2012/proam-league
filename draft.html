@@ -348,13 +348,15 @@ function renderDraftStatus(){
     return;
   }
 
-  const status = String(draftState.status || "");
+  const d = (draftState && draftState.draft) ? draftState.draft : draftState;
+
+  const status = String(d.status || "");
   if(status === "NOT_INITIALIZED"){
     el.innerHTML = `<b>Status:</b> NOT INITIALIZED<br><span class="small">This week’s draft hasn’t been created/opened yet. Once admin/cron initializes it, picks will open here automatically.</span>`;
     return;
   }
-  const startAt = draftState.draft_starts_at ? fmtTS(draftState.draft_starts_at) : "—";
-  const swapDeadline = draftState.swap_deadline_at ? fmtTS(draftState.swap_deadline_at) : "—";
+  const startAt = d.draft_starts_at ? fmtTS(d.draft_starts_at) : "—";
+  const swapDeadline = d.swap_deadline_at ? fmtTS(d.swap_deadline_at) : "—";
   const serverNow = effectiveServerNowMs();
 
   if(["PREP","ORDER_READY","ORDER_PUBLISHED"].includes(status)){
@@ -363,9 +365,9 @@ function renderDraftStatus(){
   }
 
   if(status==="LIVE"){
-    const on = boardRows.find(r => String(r.player_id)===String(draftState.turn_player_id));
+    const on = boardRows.find(r => String(r.player_id)===String(d.turn_player_id));
     const who = on?.player_name || "—";
-    const started = draftState.turn_started_at ? Date.parse(draftState.turn_started_at) : null;
+    const started = d.turn_started_at ? Date.parse(d.turn_started_at) : null;
     const elapsed = (started!=null) ? Math.max(0, Math.floor((serverNow-started)/1000)) : null;
     const remaining = (elapsed!=null) ? Math.max(0, 60-elapsed) : null;
     const remTxt = remaining==null ? "—" : `${remaining}s`;
@@ -401,12 +403,12 @@ function canPickNow(){
   if(!isParticipating) return { ok:false, reason:"You are not participating this week. Click “Participate this week” first." };
   if(!draftState) return { ok:false, reason:"Draft state unavailable. Click Refresh." };
 
-  const status = String(draftState.status || "");
+  const status = String(d.status || "");
   const myId = String(me.player.id);
 
   if(status==="LIVE"){
-    if(String(draftState.turn_player_id||"") !== myId){
-      const on = boardRows.find(r => String(r.player_id)===String(draftState.turn_player_id));
+    if(String(d.turn_player_id||"") !== myId){
+      const on = boardRows.find(r => String(r.player_id)===String(d.turn_player_id));
       return { ok:false, reason:`Not your turn. On the clock: ${on?.player_name || "—"}.` };
     }
     return { ok:true, mode:"draft" };
