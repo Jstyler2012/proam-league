@@ -100,6 +100,10 @@
     </div>
   </div>
 
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="/supabase-config.js"></script>
+
 <script>
 /* -------------------------
    API endpoints
@@ -116,6 +120,36 @@ const API = {
   draftPick: "/api-mutate/draft-pick",
   draftSwap: "/api-mutate/draft-swap",
 };
+
+/* -------------------------
+   live draft timing
+------------------------- */
+const PICK_SECONDS = 60;
+const POLL_MS = 5000;
+
+let serverOffsetMs = 0; // server_now - Date.now()
+let countdownTimer = null;
+let pollTimer = null;
+let realtimeChannel = null;
+let refreshQueued = false;
+
+function updateServerOffset(){
+  if(!serverNowIso) return;
+  const s = Date.parse(serverNowIso);
+  if(Number.isFinite(s)) serverOffsetMs = s - Date.now();
+}
+function serverNowMs(){
+  return Date.now() + (serverOffsetMs||0);
+}
+function debounceRefresh(){
+  if(refreshQueued) return;
+  refreshQueued = true;
+  setTimeout(async ()=>{
+    refreshQueued = false;
+    try{ await refreshAll(); }catch(e){ console.warn("refreshAll failed", e); }
+  }, 150);
+}
+
 
 /* -------------------------
    helpers
@@ -364,7 +398,7 @@ function renderDraftStatus(){
     const who = on?.player_name || "—";
     const started = draftState.turn_started_at ? Date.parse(draftState.turn_started_at) : null;
     const elapsed = (started!=null) ? Math.max(0, Math.floor((serverNow-started)/1000)) : null;
-    const remaining = (elapsed!=null) ? Math.max(0, 60-elapsed) : null;
+    const remaining = (elapsed!=null) ? Math.max(0, PICK_SECONDS-elapsed) : null;
     const remTxt = remaining==null ? "—" : `${remaining}s`;
     el.innerHTML = `<b>Status:</b> LIVE<br><b>On the clock:</b> ${escapeHTML(who)}<br><b>Time remaining:</b> ${escapeHTML(remTxt)}`;
     return;
@@ -565,20 +599,93 @@ async function loadPros(){
 }
 
 async function refreshAll(){
-  renderWeekMeta();
-  renderDraftStatus();
-  renderBoard();
+  if (!currentWeek?.week_number && currentWeek?.week_number !== 0) return;
 
   // Load participation first (works even if draft isn't initialized)
   await loadParticipating();
   // Then board (draft picks if available, otherwise participant list)
   await loadBoard();
   await loadDraftState();
+
+  // While LIVE, keep the server-side clock moving (timeouts / advance)
+  if (draftState?.status === "LIVE") {
+    try {
+      await postJSON("/api-mutate/draft-tick", { week_id: currentWeek.week_number });
+      await loadBoard();
+      await loadDraftState();
+    } catch(e){
+      console.warn("draft-tick failed", e);
+    }
+  }
+
   await loadPros();
 
   renderWeekMeta();
   renderDraftStatus();
   renderBoard();
+}
+
+function stopLiveLoops(){
+  if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null; }
+  if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+  if (realtimeChannel && window.sb) {
+    try { window.sb.removeChannel(realtimeChannel); } catch (_) {}
+    realtimeChannel = null;
+  }
+}
+
+function startCountdownLoop(){
+  if (countdownTimer) clearInterval(countdownTimer);
+  countdownTimer = setInterval(() => {
+    // Only re-render status; keep UI smooth between polls/realtime
+    if (draftState?.status === "LIVE") {
+      renderDraftStatus();
+    }
+  }, 1000);
+}
+
+function startPollLoop(){
+  if (pollTimer) clearInterval(pollTimer);
+  pollTimer = setInterval(() => {
+    // Polling is a resilience fallback even with realtime
+    debounceRefresh();
+  }, POLL_MS);
+}
+
+function startRealtime(){
+  // Supabase Realtime (push updates) + local 1s countdown for smooth UX
+  if (!window.sb) {
+    console.warn("Supabase client not available; realtime disabled.");
+    return;
+  }
+  if (!currentWeek?.week_number && currentWeek?.week_number !== 0) return;
+
+  // Remove any existing channel
+  if (realtimeChannel) {
+    try { window.sb.removeChannel(realtimeChannel); } catch (_) {}
+    realtimeChannel = null;
+  }
+
+  const wn = currentWeek.week_number;
+
+  realtimeChannel = window.sb
+    .channel(`draft-week-${wn}`)
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "week_draft", filter: `week_number=eq.${wn}` },
+      () => debounceRefresh()
+    )
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "week_entries", filter: `week_number=eq.${wn}` },
+      () => debounceRefresh()
+    )
+    .subscribe((status) => {
+      // status: SUBSCRIBED | CHANNEL_ERROR | TIMED_OUT | CLOSED
+      if (status !== "SUBSCRIBED") {
+        console.warn("realtime status:", status);
+      }
+    });
 }
 
 /* -------------------------
@@ -692,6 +799,9 @@ if (token && adminLink) {
     if(currentWeek?.week_number != null) setWeekInUrl(currentWeek.week_number);
 
     await refreshAll();
+    startCountdownLoop();
+    startPollLoop();
+    startRealtime();
 
   }catch(e){
     showMsg($("pickMsg"), "Error: " + e.message, "bad");
@@ -699,9 +809,13 @@ if (token && adminLink) {
 }
 
 $("weekSel").addEventListener("change", async () => {
+  stopLiveLoops();
   await loadCurrentWeek();
   if(currentWeek?.week_number != null) setWeekInUrl(currentWeek.week_number);
   await refreshAll();
+  startCountdownLoop();
+  startPollLoop();
+  startRealtime();
 });
 
 $("joinBtn").addEventListener("click", doParticipate);
@@ -709,6 +823,7 @@ $("pickBtn").addEventListener("click", submitPick);
 $("refreshBtn").addEventListener("click", boot);
 
 boot();
+
 </script>
 </body>
 </html>
