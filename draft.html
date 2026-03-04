@@ -282,10 +282,10 @@ function startRealtimeLoops() {
   // Poll server so UI stays in sync as picks happen
   if (!draftPollIntervalHandle) {
     draftPollIntervalHandle = setInterval(() => {
-      if (currentWeekNumber === null || currentWeekNumber === undefined) return;
-      if (currentDraft && currentDraft.status === 'LIVE') {
-        fetch(`/api-mutate/draft-tick?week_id=${encodeURIComponent(currentWeekNumber)}`, { method: 'POST' }).catch(() => {});
-      }
+      // Source of truth is the selected/current week object.
+      // Older builds referenced `currentWeekNumber` (never defined), which
+      // throws a ReferenceError every interval and stops the UI from updating.
+      if (!currentWeek || currentWeek.week_number === null || currentWeek.week_number === undefined) return;
       loadDraftState();
     }, 5000);
   }
@@ -695,10 +695,6 @@ if (token && adminLink) {
     if(currentWeek?.week_number != null) setWeekInUrl(currentWeek.week_number);
 
     await refreshAll();
-
-    // Start polling + 1s countdown immediately so the clock ticks without
-    // requiring the user to click "Participate this week".
-    startRealtimeLoops();
 
   }catch(e){
     showMsg($("pickMsg"), "Error: " + e.message, "bad");
