@@ -2,7 +2,14 @@
  * DataGolf API helper
  * Docs: https://datagolf.com/api-access
  */
-const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
+// Netlify Functions run on modern Node (18+). `fetch` is available globally.
+// Using the global fetch avoids adding `node-fetch` as a dependency.
+const fetch = globalThis.fetch;
+
+if (typeof fetch !== "function") {
+  throw new Error("Global fetch is not available in this runtime. Set Netlify Node version to 18+ (recommended 20/22)." );
+}
+
 
 function getDGKey() {
   const key = process.env.DATAGOLF_API_KEY || process.env.DATAGOLF_KEY;
