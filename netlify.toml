@@ -1,38 +1,32 @@
 [build]
-  publish = "."
   functions = "netlify/functions"
 
-# Run sync-field weekly (UTC time).
-# 0 16 * * 1 = Mondays 16:00 UTC (12:00 PM EDT)
-# NOTE: When ET is on standard time (EST), 12:00 PM ET is 17:00 UTC.
+# --- Scheduled function ---
+# Runs every 6 hours (CRON is interpreted in UTC). :contentReference[oaicite:1]{index=1}
 [functions."sync-field"]
-  schedule = "0 16 * * 1"
+  schedule = "0 */6 * * *"
 
-# Public API routes
+# --- Your existing API gateway redirects ---
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/public/:splat"
   status = 200
 
-# Auth API routes
 [[redirects]]
   from = "/api-auth/*"
   to = "/.netlify/functions/auth/:splat"
   status = 200
 
-# Mutations (writes)
 [[redirects]]
   from = "/api-mutate/*"
   to = "/.netlify/functions/mutate/:splat"
   status = 200
 
-# Admin routes
 [[redirects]]
   from = "/api-admin/*"
   to = "/.netlify/functions/admin/:splat"
   status = 200
 
-# Pro score updater
 [[redirects]]
   from = "/api-proscore"
   to = "/.netlify/functions/proscore"
