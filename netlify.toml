@@ -1,12 +1,10 @@
 [build]
   functions = "netlify/functions"
 
-# --- Scheduled function ---
-# Runs every 6 hours (CRON is interpreted in UTC). :contentReference[oaicite:1]{index=1}
+# Runs every 6 hours (CRON is interpreted in UTC).
 [functions."sync-field"]
   schedule = "0 */6 * * *"
 
-# --- Your existing API gateway redirects ---
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/public/:splat"
