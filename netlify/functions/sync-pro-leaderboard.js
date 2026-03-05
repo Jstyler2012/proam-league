@@ -39,7 +39,7 @@ async function sb(method, path, body, prefer = "return=minimal") {
   try { return JSON.parse(txt); } catch { return txt; }
 }
 
-// ET date string (YYYY-MM-DD) without needing timezone libs
+// ET date string (YYYY-MM-DD)
 function todayInET() {
   return new Date().toLocaleDateString("en-CA", { timeZone: "America/New_York" });
 }
@@ -67,45 +67,85 @@ async function determineCurrentWeekRowET() {
 
 function parseToIntMaybe(v) {
   if (v === null || v === undefined) return null;
-  const n = Number(String(v).replace(/[^\d\-+]/g, ""));
+  const s = String(v).trim();
+  if (!s) return null;
+  const n = Number(s.replace(/[^\d\-+]/g, ""));
   return Number.isFinite(n) ? n : null;
 }
 
-// Very defensive: DataGolf shapes can vary over time.
-// Try common containers.
+/**
+ * DataGolf response shapes can vary:
+ * - sometimes players are at payload.players
+ * - sometimes payload.data / payload.results
+ * - sometimes the entire payload IS the array
+ * - sometimes it's nested under some key we don't know
+ *
+ * This tries the obvious keys first, then scans top-level keys for
+ * "an array of objects that looks like player rows".
+ */
 function pickPlayers(payload) {
   if (!payload) return [];
-  if (Array.isArray(payload.players)) return payload.players;
-  if (Array.isArray(payload.leaderboard)) return payload.leaderboard;
-  if (Array.isArray(payload.data)) return payload.data;
-  if (Array.isArray(payload.results)) return payload.results;
+  if (Array.isArray(payload)) return payload;
+
+  const directKeys = ["players", "leaderboard", "data", "results", "rows"];
+  for (const k of directKeys) {
+    if (Array.isArray(payload[k])) return payload[k];
+  }
+
+  // scan top-level: find the first array of objects that contains dg_id/player_id/id
+  for (const [k, v] of Object.entries(payload)) {
+    if (!Array.isArray(v) || !v.length) continue;
+    const first = v[0];
+    if (first && typeof first === "object") {
+      const hasId =
+        ("dg_id" in first) ||
+        ("player_id" in first) ||
+        ("id" in first) ||
+        (first.player && typeof first.player === "object" && ("dg_id" in first.player));
+      if (hasId) return v;
+    }
+  }
+
   return [];
 }
 
 function computeCutLine(payload, rows) {
-  // 1) if API provides cut line, use it
   const direct =
     payload?.cut_line ??
     payload?.cutLine ??
     payload?.cut_line_to_par ??
-    payload?.cut?.line;
+    payload?.cut?.line ??
+    payload?.cutline;
 
   const directInt = parseToIntMaybe(direct);
   if (directInt !== null) return directInt;
 
-  // 2) infer: if some rows look like MC/CUT, find best score among them and use that as cut line proxy
   const cutRows = rows.filter(r => {
     const pos = (r.position || "").toLowerCase();
     const st  = (r.status || "").toLowerCase();
     return pos.includes("cut") || pos === "mc" || st === "mc" || st === "cut";
   });
 
-  // If we have cut-marked players, cut line is usually the score of the last guy who made it,
-  // but we don’t have that reliably; using "best MC score" is a decent approximation.
   const mcScores = cutRows.map(r => r.score_to_par).filter(n => n !== null);
   if (mcScores.length) return Math.min(...mcScores);
 
   return null;
+}
+
+function safeTrimRaw(payload) {
+  // avoid storing multi-MB blobs if DG ever changes format
+  // keep top-level keys + first 3 player rows
+  try {
+    const players = pickPlayers(payload);
+    const trimmed = { ...payload };
+    if (Array.isArray(players) && players.length) {
+      trimmed.__players_preview = players.slice(0, 3);
+      trimmed.__players_count = players.length;
+    }
+    return trimmed;
+  } catch {
+    return payload;
+  }
 }
 
 exports.handler = async (event) => {
@@ -123,7 +163,6 @@ exports.handler = async (event) => {
       } catch {}
     }
 
-    // optional manual override: ?week_id=#
     const q = event.queryStringParameters || {};
     let weekRow = null;
 
@@ -142,7 +181,6 @@ exports.handler = async (event) => {
     const start = String(weekRow.start_date || "").slice(0, 10);
     const end   = String(weekRow.end_date || "").slice(0, 10);
 
-    // If outside tournament window, no-op (still returns 200 for scheduler health)
     const inWindow = start && end && today >= start && today <= end;
     if (!inWindow && isScheduled) {
       return json(200, { ok: true, skipped: true, reason: "outside tournament window", week_number: weekRow.week_number });
@@ -150,31 +188,33 @@ exports.handler = async (event) => {
 
     const dgUrl =
       `https://feeds.datagolf.com/preds/live-tournament-stats` +
-      `?tour=pga&key=${encodeURIComponent(DATAGOLF_API_KEY)}`;
+      `?tour=pga&file_format=json&key=${encodeURIComponent(DATAGOLF_API_KEY)}`;
 
     const dg = await fetchJson(dgUrl);
     if (!dg.res.ok) {
       return json(502, { ok: false, error: `DataGolf failed (${dg.res.status})`, preview: (dg.text || "").slice(0, 800) });
     }
 
-    const payload = dg.data || {};
+    const payload = dg.data ?? null;
     const players = pickPlayers(payload);
+
+    console.log("[sync-pro-leaderboard] week_number:", weekRow.week_number);
+    console.log("[sync-pro-leaderboard] datagolf top-level keys:", payload && typeof payload === "object" ? Object.keys(payload) : typeof payload);
+    console.log("[sync-pro-leaderboard] players found:", Array.isArray(players) ? players.length : 0);
 
     const nowIso = new Date().toISOString();
 
-    // Normalize into table rows
     const rows = [];
     for (const p of (players || [])) {
       const ext =
         p?.dg_id ?? p?.player_id ?? p?.id ?? p?.player?.dg_id ?? null;
       if (!ext) continue;
 
-      const position = p?.position ?? p?.pos ?? p?.place ?? null;
+      const position = p?.position ?? p?.pos ?? p?.place ?? p?.finish_position ?? null;
 
-      // score_to_par is typically numeric; handle "+3" etc
-      const score_to_par = parseToIntMaybe(p?.score_to_par ?? p?.to_par ?? p?.total_to_par ?? p?.scoreToPar);
+      const score_to_par = parseToIntMaybe(p?.score_to_par ?? p?.to_par ?? p?.total_to_par ?? p?.scoreToPar ?? p?.score);
 
-      const thru = p?.thru ?? p?.holes_completed ?? p?.holes ?? p?.thru_hole ?? null;
+      const thru = p?.thru ?? p?.holes_completed ?? p?.holes ?? p?.thru_hole ?? p?.thruToday ?? null;
       const round = parseToIntMaybe(p?.round ?? p?.current_round ?? p?.rnd);
       const strokes = parseToIntMaybe(p?.strokes ?? p?.total_strokes);
 
@@ -199,18 +239,14 @@ exports.handler = async (event) => {
 
     const cutLine = computeCutLine(payload, rows);
 
-    // Optionally mark is_cut if we can
     if (cutLine !== null) {
       for (const r of rows) {
-        // heuristic: if score worse than cut line and round >= 2, likely cut (but don’t be too aggressive)
         if (r.score_to_par !== null && r.round !== null && r.round >= 2) {
           r.is_cut = r.score_to_par > cutLine;
         }
       }
     }
 
-    // Upsert leaderboard entries
-    // NOTE: PostgREST upsert needs ?on_conflict=week_number,player_ext_id
     if (rows.length) {
       await sb(
         "POST",
@@ -220,8 +256,8 @@ exports.handler = async (event) => {
       );
     }
 
-    // Snapshot row
-    const snapshot = {
+    // Store a trimmed payload snapshot so we can see real DG shape in Supabase
+    await sb("POST", "pro_leaderboard_snapshots", {
       week_number: Number(weekRow.week_number),
       fetched_at: nowIso,
       tour: "pga",
@@ -231,13 +267,10 @@ exports.handler = async (event) => {
       cut_line_to_par: cutLine,
       is_in_progress: inWindow ? true : null,
       source: "datagolf",
-      raw: null, // set to payload if you actually want to store it
-    };
-    await sb("POST", "pro_leaderboard_snapshots", snapshot, "return=minimal");
+      raw: safeTrimRaw(payload),
+    }, "return=minimal");
 
-    // Update week metadata
-    const status =
-      inWindow ? "live" : "pre"; // keep simple; you can detect "final" later from payload
+    const status = inWindow ? "live" : "pre";
     await sb(
       "PATCH",
       `weeks?week_number=eq.${Number(weekRow.week_number)}`,
@@ -257,6 +290,7 @@ exports.handler = async (event) => {
     });
 
   } catch (err) {
+    console.log("[sync-pro-leaderboard] error:", err);
     return json(500, { ok: false, error: err.message });
   }
 };
