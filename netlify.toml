@@ -4,8 +4,11 @@
 # Runs every 6 hours (CRON is interpreted in UTC).
 [functions."sync-field"]
   schedule = "0 */6 * * *"
-
-[[redirects]]
+  
+[functions."sync-pro-leaderboard"]
+  schedule = "*/5 * * * *"
+  
+  [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/public/:splat"
   status = 200
