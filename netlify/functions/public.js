@@ -202,8 +202,7 @@ exports.handler = async (event) => {
 
       // Fetch leaderboard entries (fallback to service role if anon blocked)
       const lbPath =
-        `pro_leaderboard_entries?select=week_number,player_ext_id,position,score_to_par,thru,today,round,strokes,status,is_cut,updated_at` +
-        `&week_number=eq.${Number(week.week_number)}` +
+        `pro_leaderboard_entries?select=week_number,player_ext_id,position,score_to_par,today,thru,round,strokes,status,is_cut,updated_at&week_number=eq.${Number(week.week_number)}&order=score_to_par.asc.nullslast` +
         `&order=score_to_par.asc.nullslast`;
 
       let lbOut = await sbAnon(SUPABASE_URL, SUPABASE_ANON_KEY, "GET", lbPath);
@@ -715,107 +714,7 @@ if (route === "pros") {
       return json(200, { rows: out.json || [] });
     }
 
-    // -------------------------
-// pro-leaderboard
-// GET /api/pro-leaderboard?week_id=7
-// Returns pro leaderboard rows with player_name hydrated from week_pro_field (preferred) or pro_players.
-// -------------------------
-if (route === "pro-leaderboard") {
-  const qs = event.queryStringParameters || {};
-  const requestedWeek = qs.week_id ? Number(qs.week_id) : null;
-
-  // Pull weeks list (so we can select a week if week_id not provided)
-  const weeksOut = await sbAnon(
-    SUPABASE_URL,
-    SUPABASE_ANON_KEY,
-    "GET",
-    "weeks?select=week_number,label,tournament_name,start_date,end_date,logo_url,leaderboard_last_synced_at,pro_leaderboard_cut_line_to_par,pro_leaderboard_status&order=week_number.asc"
-  );
-  if (!weeksOut.ok) return text(weeksOut.status, weeksOut.text);
-
-  const weeks = weeksOut.json || [];
-  if (!weeks.length) return json(200, { week: null, rows: [] });
-
-  let week = null;
-
-  if (requestedWeek && Number.isFinite(requestedWeek)) {
-    week = weeks.find(w => Number(w.week_number) === requestedWeek) || null;
-  } else {
-    // Use same "current week" date-window approach as your existing routes
-    const today = new Date().toLocaleDateString("en-CA", { timeZone: "America/New_York" });
-
-    const inRange = weeks.find((w) => {
-      if (!w.start_date || !w.end_date) return false;
-      const s = String(w.start_date).slice(0, 10);
-      const e = String(w.end_date).slice(0, 10);
-      return today >= s && today <= e;
-    });
-
-    week =
-      inRange ||
-      (weeks[0]?.start_date && today < String(weeks[0].start_date).slice(0, 10)
-        ? weeks[0]
-        : weeks[weeks.length - 1]);
-  }
-
-  if (!week) return json(200, { week: null, rows: [] });
-
-  // Leaderboard rows for this week
-  const lbOut = await sbAnon(
-    SUPABASE_URL,
-    SUPABASE_ANON_KEY,
-    "GET",
-    `pro_leaderboard_entries?select=week_number,player_ext_id,position,score_to_par,thru,today,round,strokes,status,is_cut,updated_at&week_number=eq.${Number(week.week_number)}&order=score_to_par.asc.nullslast`
-  );
-  if (!lbOut.ok) return text(lbOut.status, lbOut.text);
-
-  const lbRows = lbOut.json || [];
-
-  // Name hydration:
-  // Prefer week_pro_field because it is week-scoped and already has player_name.
-  const fieldOut = await sbAnon(
-    SUPABASE_URL,
-    SUPABASE_ANON_KEY,
-    "GET",
-    `week_pro_field?select=player_ext_id,player_name&week_number=eq.${Number(week.week_number)}`
-  );
-
-  const nameMap = new Map();
-  if (fieldOut.ok) {
-    for (const r of (fieldOut.json || [])) {
-      if (r?.player_ext_id && r?.player_name) nameMap.set(String(r.player_ext_id), String(r.player_name));
-    }
-  }
-
-  // fallback: pro_players (if present in your DB)
-  if (nameMap.size === 0) {
-    const prosOut = await sbAnon(
-      SUPABASE_URL,
-      SUPABASE_ANON_KEY,
-      "GET",
-      "pro_players?select=ext_id,display_name&limit=10000"
-    );
-    if (prosOut.ok) {
-      for (const r of (prosOut.json || [])) {
-        if (r?.ext_id && r?.display_name) nameMap.set(String(r.ext_id), String(r.display_name));
-      }
-    }
-  }
-
-  const rows = lbRows.map(r => ({
-    ...r,
-    player_name: nameMap.get(String(r.player_ext_id)) || null,
-  }));
-
-  return json(200, {
-    week,
-    cut_line_to_par: week.pro_leaderboard_cut_line_to_par ?? null,
-    rows
-  });
-}
-
-
-return json(404, { error: "Not found", route, rawPath: event.path });
+    return json(404, { error: "Not found", route, rawPath: event.path });
   } catch (err) {
     return text(500, err?.message || String(err));
   }
