@@ -244,6 +244,15 @@ function findTournamentInFieldUpdates(fieldUpdatesJson, weekRow) {
 exports.handler = async (event) => {
   if (event.httpMethod === "OPTIONS") return json(204, { ok: true });
 
+  console.log("SYNC FIELD START", {
+    path: event.path,
+    query: event.queryStringParameters || {},
+    hasSUPABASE_URL: !!process.env.SUPABASE_URL,
+    hasSERVICE_ROLE: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+    hasDG_KEY: !!process.env.DATAGOLF_API_KEY,
+    time: new Date().toISOString(),
+  });
+
   try {
     if (!SUPABASE_URL) return json(500, { ok: false, error: "Missing SUPABASE_URL" });
     if (!SERVICE_KEY) return json(500, { ok: false, error: "Missing SUPABASE_SERVICE_ROLE_KEY" });
@@ -471,7 +480,14 @@ exports.handler = async (event) => {
     } catch {
       // non-fatal
     }
-
+console.log("SYNC FIELD COMPLETE", {
+  scheduled: isScheduled,
+  week_number: weekNum,
+  tournament_name: weekRow?.tournament_name,
+  field_count: field?.length,
+  odds_updated: odds?.odds_updated,
+  time: new Date().toISOString(),
+});
     return json(200, {
       ok: true,
       scheduled: isScheduled,
@@ -499,12 +515,17 @@ exports.handler = async (event) => {
         odds,
       },
     });
-  } catch (err) {
-    console.error("sync-field error:", err);
-    return json(500, {
-      ok: false,
-      error: err?.message || String(err),
-      stack: err?.stack ? String(err.stack).split("\n").slice(0, 15).join("\n") : undefined,
-    });
-  }
+} catch (err) {
+  console.error("SYNC FIELD ERROR", {
+    message: err?.message || String(err),
+    stack: err?.stack || null,
+    time: new Date().toISOString(),
+  });
+
+  return json(500, {
+    ok: false,
+    error: err?.message || String(err),
+    stack: err?.stack ? String(err.stack).split("\n").slice(0, 15).join("\n") : undefined,
+  });
+}
 };
