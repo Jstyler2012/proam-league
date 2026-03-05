@@ -1,18 +1,19 @@
 'use strict';
 
 /**
- * Sync PGA live leaderboard-ish scoring into Supabase.
+ * sync-pro-leaderboard
+ * - Pulls "live" tournament data from DataGolf
+ * - Detects current week from Supabase weeks table (ET date window)
+ * - Upserts rows into pro_leaderboard_entries
+ * - Writes a snapshot row (trimmed payload preview)
  *
- * IMPORTANT:
- * DataGolf /preds/live-tournament-stats is a "live stats" feed. In the payload shape we're seeing,
- * the player "to-par" value is landing in a field that our earlier mapping treated as "round".
- * Result: score_to_par = null and round = -5/-3/etc (which is actually to-par).
- *
- * This version keeps your DB schema intact and applies a robust fix:
- * - If score_to_par is null AND round is a negative/large magnitude number, we treat that as score_to_par.
- * - We then set round to null (unless we can confidently read a 1-4 round number).
- *
- * Later, if you upgrade to a true scoring leaderboard endpoint (in-play / leaderboard), you can tighten mappings.
+ * IMPORTANT MAPPING NOTE (based on your real payload):
+ * In the DataGolf payload you are currently receiving, the field `today` is actually the
+ * tournament "to-par" value we want to display as score_to_par on the leaderboard.
+ * The field `round` is the round number (1..4).
+ * Therefore:
+ *   score_to_par = p.today
+ *   today        = null  (we can populate later if we switch to a true scoring leaderboard feed)
  */
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
@@ -43,9 +44,9 @@ async function sb(method, path, body, prefer = "return=minimal") {
       apikey: SERVICE_KEY,
       Authorization: `Bearer ${SERVICE_KEY}`,
       "content-type": "application/json",
-      Prefer: prefer
+      Prefer: prefer,
     },
-    body: body ? JSON.stringify(body) : undefined
+    body: body ? JSON.stringify(body) : undefined,
   });
 
   const txt = await res.text();
@@ -94,15 +95,12 @@ function toStringMaybe(v) {
   return s ? s : null;
 }
 
-/**
- * Robustly find the player array in the DataGolf payload.
- * Our log shows top-level keys: course_name, event_name, last_updated, live_stats, stat_display, stat_round
- * so live_stats is likely what we want.
- */
 function pickPlayers(payload) {
   if (!payload) return [];
   if (Array.isArray(payload)) return payload;
 
+  // Your logs show these keys exist at top-level:
+  // course_name, event_name, last_updated, live_stats, stat_display, stat_round
   const directKeys = ["live_stats", "players", "leaderboard", "data", "results", "rows"];
   for (const k of directKeys) {
     if (Array.isArray(payload[k])) return payload[k];
@@ -112,7 +110,10 @@ function pickPlayers(payload) {
     if (!Array.isArray(v) || !v.length) continue;
     const first = v[0];
     if (!first || typeof first !== "object") continue;
-    const hasId = ("dg_id" in first) || ("player_id" in first) || ("id" in first) ||
+    const hasId =
+      ("dg_id" in first) ||
+      ("player_id" in first) ||
+      ("id" in first) ||
       (first.player && typeof first.player === "object" && ("dg_id" in first.player));
     if (hasId) return v;
   }
@@ -163,33 +164,24 @@ function normalizePlayerRow(p, weekNumber, nowIso) {
 
   const position = toStringMaybe(p?.position ?? p?.pos ?? p?.place ?? p?.rank ?? p?.finish_position);
 
-  // What we *want* in score_to_par:
-  let score_to_par = parseToIntMaybe(
-    p?.score_to_par ?? p?.to_par ?? p?.total_to_par ?? p?.tourn_to_par ?? p?.score ?? p?.total ?? p?.toPar
+  // ✅ Per your current payload: `today` is the to-par tournament value we want on the leaderboard
+  const score_to_par = parseToIntMaybe(
+    p?.today ?? p?.score_to_par ?? p?.to_par ?? p?.total_to_par ?? p?.tourn_to_par ?? p?.score ?? p?.total ?? p?.toPar
   );
 
-  const today = parseToIntMaybe(
-    p?.today ?? p?.round_to_par ?? p?.r_to_par ?? p?.todays_to_par ?? p?.roundScoreToPar
-  );
+  // We don't currently have a reliable "today/round-to-par" separate value in this payload.
+  const today = null;
 
   const thru = toStringMaybe(
     p?.thru ?? p?.holes_completed ?? p?.holes ?? p?.thru_hole ?? p?.thruToday ?? p?.holes_thru
   );
 
-  // Some DG payloads include round number; but in your current output this field is actually the -5/-3/-2 value.
-  let round = parseToIntMaybe(
+  const round = parseToIntMaybe(
     p?.round ?? p?.current_round ?? p?.rnd ?? p?.event_round
   );
 
   const strokes = parseToIntMaybe(p?.strokes ?? p?.total_strokes ?? p?.totalStrokes);
   const status = toStringMaybe(p?.status ?? p?.player_status ?? p?.result_status);
-
-  // ✅ HOTFIX: if score_to_par is null but "round" looks like a to-par (negative or large magnitude), move it.
-  // Round numbers should almost always be 1-4. Anything outside [0..5] is suspicious.
-  if (score_to_par === null && round !== null && (round < 0 || round > 5)) {
-    score_to_par = round;
-    round = null;
-  }
 
   return {
     week_number: Number(weekNumber),
@@ -246,7 +238,6 @@ exports.handler = async (event) => {
 
     const nowIso = new Date().toISOString();
 
-    // Live stats feed (what you're using now)
     const dgUrl =
       `https://feeds.datagolf.com/preds/live-tournament-stats` +
       `?tour=pga&file_format=json&key=${encodeURIComponent(DATAGOLF_API_KEY)}`;
