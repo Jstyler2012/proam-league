@@ -6,20 +6,19 @@
 //   - public.week_pro_field (replace for week_number)
 //   - public.weeks.field_last_synced_at (timestamp)
 //
-// Requires env vars in Netlify:
+// Env vars (Netlify):
 //   SUPABASE_URL
 //   SUPABASE_SERVICE_ROLE_KEY
 //   DATAGOLF_API_KEY
-// Optional protection:
+// Optional protection for manual URL calls:
 //   ADMIN_PIN (or ADMIN_TOKEN or SYNC_PIN)
-// Usage:
-//   /.netlify/functions/sync-field?week_id=0&pin=XXXX
-//   /.netlify/functions/sync-field?week_id=3&pin=XXXX
-//   (if week_id omitted, picks current week by date)
 //
-// Notes:
-// - This function assumes `weeks.week_number` is your canonical league week key.
-// - It matches the DataGolf tournament primarily by weeks.tourn_id / org_id, then by date overlap.
+// Manual usage (only for debugging / admin):
+//   /.netlify/functions/sync-field?pin=XXXX
+//   /.netlify/functions/sync-field?week_id=7&pin=XXXX
+//
+// Scheduled usage:
+//   scheduled by netlify.toml, runs without pin/week_id
 
 const ADMIN_PIN = (process.env.ADMIN_PIN || process.env.ADMIN_TOKEN || process.env.SYNC_PIN || "").trim();
 const SUPABASE_URL = (process.env.SUPABASE_URL || "").trim();
@@ -31,7 +30,7 @@ function corsHeaders() {
     "content-type": "application/json; charset=utf-8",
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Headers": "Content-Type, Authorization",
-    "Access-Control-Allow-Methods": "GET, OPTIONS",
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
   };
 }
 
@@ -159,8 +158,36 @@ function extractBestDecimal(dg) {
   return Math.min(...decimals);
 }
 
-// field-updates sometimes returns a list of tournaments; sometimes nested.
-// This attempts to find the tournament that corresponds to your `weeks` row.
+// --- NEW: get today's date in America/New_York as YYYY-MM-DD ---
+function todayInET() {
+  const fmt = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/New_York",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  return fmt.format(new Date()); // e.g. "2026-03-04"
+}
+
+async function determineCurrentWeekNumberET() {
+  const weeks = await sb("GET", "weeks?select=week_number,start_date,end_date&order=week_number.asc");
+  if (!Array.isArray(weeks) || !weeks.length) return null;
+
+  const today = todayInET(); // "YYYY-MM-DD"
+
+  const inRange = weeks.find((w) => {
+    if (!w.start_date || !w.end_date) return false;
+    return today >= String(w.start_date).slice(0, 10) && today <= String(w.end_date).slice(0, 10);
+  });
+
+  if (inRange?.week_number != null) return Number(inRange.week_number);
+
+  const first = weeks[0];
+  if (first?.start_date && today < String(first.start_date).slice(0, 10)) return Number(first.week_number);
+  return Number(weeks[weeks.length - 1].week_number);
+}
+
+// field-updates tournament matching
 function findTournamentInFieldUpdates(fieldUpdatesJson, weekRow) {
   const candidates = [];
 
@@ -173,7 +200,6 @@ function findTournamentInFieldUpdates(fieldUpdatesJson, weekRow) {
 
   for (const arr of containers) for (const t of arr) candidates.push(t);
 
-  // Single-tournament shape
   if (!candidates.length && (fieldUpdatesJson?.field || fieldUpdatesJson?.players)) return fieldUpdatesJson;
 
   const wantedTournId = normalizeTournamentId(weekRow?.tourn_id);
@@ -196,8 +222,8 @@ function findTournamentInFieldUpdates(fieldUpdatesJson, weekRow) {
   }
 
   // Date overlap fallback
-  const ws = weekRow?.start_date ? new Date(`${weekRow.start_date}T00:00:00Z`) : null;
-  const we = weekRow?.end_date ? new Date(`${weekRow.end_date}T23:59:59Z`) : null;
+  const ws = weekRow?.start_date ? new Date(`${String(weekRow.start_date).slice(0, 10)}T00:00:00Z`) : null;
+  const we = weekRow?.end_date ? new Date(`${String(weekRow.end_date).slice(0, 10)}T23:59:59Z`) : null;
 
   if (ws && we) {
     const hit = candidates.find((t) => {
@@ -214,49 +240,41 @@ function findTournamentInFieldUpdates(fieldUpdatesJson, weekRow) {
   return null;
 }
 
-async function determineCurrentWeekNumber() {
-  const weeks = await sb("GET", "weeks?select=week_number,start_date,end_date&order=week_number.asc");
-  if (!Array.isArray(weeks) || !weeks.length) return null;
-
-  const now = new Date();
-
-  const inRange = weeks.find((w) => {
-    if (!w.start_date || !w.end_date) return false;
-    const s = new Date(`${w.start_date}T00:00:00`);
-    const e = new Date(`${w.end_date}T23:59:59`);
-    return now >= s && now <= e;
-  });
-
-  if (inRange?.week_number != null) return Number(inRange.week_number);
-
-  // If before season start, return first; else last
-  const first = weeks[0];
-  if (first?.start_date && now < new Date(`${first.start_date}T00:00:00`)) return Number(first.week_number);
-  return Number(weeks[weeks.length - 1].week_number);
-}
-
 exports.handler = async (event) => {
   if (event.httpMethod === "OPTIONS") return json(204, { ok: true });
 
   try {
-    // Basic env validation
     if (!SUPABASE_URL) return json(500, { ok: false, error: "Missing SUPABASE_URL" });
     if (!SERVICE_KEY) return json(500, { ok: false, error: "Missing SUPABASE_SERVICE_ROLE_KEY" });
     if (!DATAGOLF_API_KEY) return json(500, { ok: false, error: "Missing DATAGOLF_API_KEY" });
 
     const q = event.queryStringParameters || {};
-    const pin = String(q.pin || "").trim();
-    if (ADMIN_PIN && pin !== ADMIN_PIN) return json(401, { ok: false, error: "Invalid pin" });
 
-    // week_id param (your UI uses week_id)
+    // --- NEW: scheduled invocation detection (Netlify sends JSON body with next_run). :contentReference[oaicite:4]{index=4}
+    let isScheduled = false;
+    if (event.body) {
+      try {
+        const parsed = JSON.parse(event.body);
+        if (parsed && typeof parsed.next_run === "string") isScheduled = true;
+      } catch {
+        // ignore
+      }
+    }
+
+    // Manual invocations require pin (if configured). Scheduled invocations bypass pin.
+    const pin = String(q.pin || "").trim();
+    if (!isScheduled && ADMIN_PIN && pin !== ADMIN_PIN) return json(401, { ok: false, error: "Invalid pin" });
+
+    // --- Week selection ---
+    // If week_id omitted, we auto-detect current week in America/New_York (so you never need week_id).
     let weekNum = Number(q.week_id ?? q.week_number);
     if (!Number.isFinite(weekNum)) {
-      const auto = await determineCurrentWeekNumber();
+      const auto = await determineCurrentWeekNumberET();
       if (!Number.isFinite(auto)) return json(400, { ok: false, error: "Could not determine current week_number" });
       weekNum = auto;
     }
 
-    // Load target week row (includes tourn_id/org_id for matching)
+    // Load target week
     const weekRows = await sb(
       "GET",
       `weeks?select=week_number,label,tournament_name,start_date,end_date,season_year,tourn_id,org_id&week_number=eq.${weekNum}&limit=1`
@@ -304,7 +322,6 @@ exports.handler = async (event) => {
       });
     }
 
-    // Build canonical field list from DataGolf
     const nowIso = new Date().toISOString();
 
     const field = [];
@@ -313,14 +330,12 @@ exports.handler = async (event) => {
     for (const p of players) {
       const ext = p?.dg_id ?? p?.player_id ?? p?.id ?? p?.tour_player_id ?? p?.pga_id ?? null;
       const fullName = p?.player_name ?? p?.name ?? p?.full_name ?? p?.player ?? null;
-
       if (!ext || !fullName) continue;
 
       const first = p?.first_name ?? null;
       const last = p?.last_name ?? null;
       const isAm = p?.is_amateur ?? p?.amateur ?? null;
 
-      // Upsert into pro_players (FK target)
       proPlayersUpsert.push({
         ext_id: String(ext),
         first_name: first,
@@ -330,7 +345,6 @@ exports.handler = async (event) => {
         updated_at: nowIso,
       });
 
-      // Week field row; odds populated later
       field.push({
         week_number: weekNum,
         player_ext_id: String(ext),
@@ -340,19 +354,16 @@ exports.handler = async (event) => {
         is_amateur: isAm === true,
         odds_numeric: null,
         odds_display: null,
-        odds_rank: 100000, // required NOT NULL
-        tier: 4,           // required NOT NULL
+        odds_rank: 100000,
+        tier: 4,
         source: "datagolf_field_updates",
         updated_at: nowIso,
       });
     }
 
-    if (!field.length) {
-      return json(400, { ok: false, error: "No usable players extracted (missing id/name)." });
-    }
+    if (!field.length) return json(400, { ok: false, error: "No usable players extracted (missing id/name)." });
 
-    // 1) Upsert pro_players (so week_pro_field FK insert never fails)
-    // Supabase REST upsert: Prefer: resolution=merge-duplicates and on_conflict
+    // Upsert pro_players (FK target)
     await sb(
       "POST",
       "pro_players?on_conflict=ext_id",
@@ -360,19 +371,12 @@ exports.handler = async (event) => {
       "resolution=merge-duplicates,return=minimal"
     );
 
-    // 2) Replace week_pro_field rows for this week
+    // Replace week_pro_field
     await sb("DELETE", `week_pro_field?week_number=eq.${weekNum}`, null, "return=minimal");
     await sb("POST", "week_pro_field", field, "return=minimal");
 
-    // 3) Attach odds (DataGolf outrights)
-    let odds = {
-      dg_status: null,
-      dg_count: 0,
-      mapped_count: 0,
-      odds_updated: 0,
-      dg_error: null,
-      preview: null,
-    };
+    // Attach odds
+    let odds = { dg_status: null, dg_count: 0, mapped_count: 0, odds_updated: 0, dg_error: null, preview: null };
 
     try {
       const ogUrl =
@@ -389,7 +393,6 @@ exports.handler = async (event) => {
         const dgPlayers = pickArray(og.data);
         odds.dg_count = dgPlayers.length;
 
-        // Build odds map keyed by last|firstInitial
         const oddsMap = new Map();
         for (const dg of dgPlayers) {
           const nm = extractName(dg);
@@ -412,10 +415,8 @@ exports.handler = async (event) => {
 
         odds.mapped_count = matched.length;
 
-        // Rank favorites by lowest decimal
         matched.sort((a, b) => a._dec - b._dec);
 
-        // Assign odds_rank + tier and update week_pro_field rows
         for (let i = 0; i < matched.length; i++) {
           const r = matched[i];
           const oddsRank = i + 1;
@@ -445,8 +446,7 @@ exports.handler = async (event) => {
           odds.odds_updated++;
         }
 
-        // For anyone without odds, keep tier=4, but make odds_rank deterministic
-        // (so ordering is stable; required by NOT NULL)
+        // Deterministic tail ranks for those without odds
         let tailRank = (matched.length || 0) + 1000;
         const matchedSet = new Set(matched.map((m) => m.player_ext_id));
 
@@ -456,12 +456,7 @@ exports.handler = async (event) => {
           await sb(
             "PATCH",
             `week_pro_field?week_number=eq.${weekNum}&player_ext_id=eq.${encodeURIComponent(r.player_ext_id)}`,
-            {
-              odds_rank: tailRank,
-              tier: 4,
-              source: "datagolf_field_updates",
-              updated_at: nowIso,
-            },
+            { odds_rank: tailRank, tier: 4, source: "datagolf_field_updates", updated_at: nowIso },
             "return=minimal"
           );
         }
@@ -470,20 +465,16 @@ exports.handler = async (event) => {
       odds.dg_error = e?.message || String(e);
     }
 
-    // 4) Stamp weeks.field_last_synced_at
+    // Stamp field_last_synced_at
     try {
-      await sb(
-        "PATCH",
-        `weeks?week_number=eq.${weekNum}`,
-        { field_last_synced_at: nowIso },
-        "return=minimal"
-      );
+      await sb("PATCH", `weeks?week_number=eq.${weekNum}`, { field_last_synced_at: nowIso }, "return=minimal");
     } catch {
       // non-fatal
     }
 
     return json(200, {
       ok: true,
+      scheduled: isScheduled,
       week_number: weekNum,
       week: {
         week_number: weekRow.week_number,
