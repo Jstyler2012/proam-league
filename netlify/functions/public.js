@@ -793,11 +793,11 @@ if (route === "pro-leaderboard") {
       SUPABASE_URL,
       SUPABASE_ANON_KEY,
       "GET",
-      "pro_players?select=ext_id,player_name&limit=10000"
+      "pro_players?select=ext_id,display_name&limit=10000"
     );
     if (prosOut.ok) {
       for (const r of (prosOut.json || [])) {
-        if (r?.ext_id && r?.player_name) nameMap.set(String(r.ext_id), String(r.player_name));
+        if (r?.ext_id && r?.display_name) nameMap.set(String(r.ext_id), String(r.display_name));
       }
     }
   }
