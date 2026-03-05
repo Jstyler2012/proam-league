@@ -2,23 +2,24 @@
 //
 // Production: sync a league week’s pro field + odds using DataGolf only.
 // Writes:
-//   - public.pro_players (upsert by ext_id)  [FK target]
+//   - public.pro_players (upsert by ext_id)
 //   - public.week_pro_field (replace for week_number)
-//   - public.weeks.field_last_synced_at (timestamp)
+//   - public.weeks.field_last_synced_at
 //
 // Env vars (Netlify):
 //   SUPABASE_URL
 //   SUPABASE_SERVICE_ROLE_KEY
 //   DATAGOLF_API_KEY
+//
 // Optional protection for manual URL calls:
 //   ADMIN_PIN (or ADMIN_TOKEN or SYNC_PIN)
 //
-// Manual usage (only for debugging / admin):
+// Manual usage:
 //   /.netlify/functions/sync-field?pin=XXXX
 //   /.netlify/functions/sync-field?week_id=7&pin=XXXX
 //
 // Scheduled usage:
-//   scheduled by netlify.toml, runs without pin/week_id
+//   scheduled by netlify.toml; runs without pin/week_id
 
 const ADMIN_PIN = (process.env.ADMIN_PIN || process.env.ADMIN_TOKEN || process.env.SYNC_PIN || "").trim();
 const SUPABASE_URL = (process.env.SUPABASE_URL || "").trim();
@@ -158,7 +159,7 @@ function extractBestDecimal(dg) {
   return Math.min(...decimals);
 }
 
-// --- NEW: get today's date in America/New_York as YYYY-MM-DD ---
+// Get today's date in America/New_York as YYYY-MM-DD
 function todayInET() {
   const fmt = new Intl.DateTimeFormat("en-CA", {
     timeZone: "America/New_York",
@@ -166,14 +167,14 @@ function todayInET() {
     month: "2-digit",
     day: "2-digit",
   });
-  return fmt.format(new Date()); // e.g. "2026-03-04"
+  return fmt.format(new Date());
 }
 
 async function determineCurrentWeekNumberET() {
   const weeks = await sb("GET", "weeks?select=week_number,start_date,end_date&order=week_number.asc");
   if (!Array.isArray(weeks) || !weeks.length) return null;
 
-  const today = todayInET(); // "YYYY-MM-DD"
+  const today = todayInET();
 
   const inRange = weeks.find((w) => {
     if (!w.start_date || !w.end_date) return false;
@@ -250,7 +251,7 @@ exports.handler = async (event) => {
 
     const q = event.queryStringParameters || {};
 
-    // --- NEW: scheduled invocation detection (Netlify sends JSON body with next_run). :contentReference[oaicite:4]{index=4}
+    // Scheduled invocation detection: Netlify sends a JSON body with next_run.
     let isScheduled = false;
     if (event.body) {
       try {
@@ -265,8 +266,7 @@ exports.handler = async (event) => {
     const pin = String(q.pin || "").trim();
     if (!isScheduled && ADMIN_PIN && pin !== ADMIN_PIN) return json(401, { ok: false, error: "Invalid pin" });
 
-    // --- Week selection ---
-    // If week_id omitted, we auto-detect current week in America/New_York (so you never need week_id).
+    // Week selection (auto-detect if omitted)
     let weekNum = Number(q.week_id ?? q.week_number);
     if (!Number.isFinite(weekNum)) {
       const auto = await determineCurrentWeekNumberET();
