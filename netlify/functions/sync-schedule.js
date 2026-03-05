@@ -193,19 +193,21 @@ exports.handler = async (event) => {
         const name = getEvName(ev);
 
         await sb(
-          "PATCH",
-          `weeks?id=eq.${w.id}`,
-          {
-            // DO NOT TOUCH week_number
-            tourn_id: ids.tourn_id || w.tourn_id || null,
-            org_id: ids.org_id || w.org_id || null,
-            season_year: Number(season) || w.season_year || null,
-            tournament_name: name || w.tournament_name || null,
-            start_date: dates.start_date || w.start_date || null,
-            end_date: dates.end_date || w.end_date || null,
-            api_status: "datagolf",
-            api_last_synced_at: nowIso,
-          },
+  "PATCH",
+  `weeks?id=eq.${w.id}`,
+  {
+    tourn_id: ids.tourn_id || w.tourn_id || null,
+    org_id: ids.org_id || w.org_id || null,
+    season_year: Number(season) || w.season_year || null,
+
+    // NEVER overwrite UI name
+    tournament_name: w.tournament_name,
+
+    start_date: dates.start_date || w.start_date || null,
+    end_date: dates.end_date || w.end_date || null,
+    api_status: "datagolf",
+    api_last_synced_at: nowIso,
+  },
           "return=minimal"
         );
 
@@ -214,9 +216,7 @@ exports.handler = async (event) => {
         continue;
       }
 
-      // B) Missing IDs: choose by matching your existing tournament_name (your chosen week name)
-      const baseName = norm(w.tournament_name);
-      if (!baseName) continue;
+    tournament_name: w.tournament_name,     
 
       // Score all DG events against your existing name
       const scored = events
