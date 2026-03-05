@@ -5,568 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Week Leaderboard • Wellman Golf Club Pro-Am League</title>
   <link rel="stylesheet" href="./styles.css">
-  <style>
-:root{
-      --bg:#0b1220;
-      --text:#e8eefc;
-      --muted:#a9b7d6;
-      --brand:#47d7ac;
-      --brand2:#5aa7ff;
-      --danger:#ff5a7a;
-      --warn:#ffcf5a;
-      --ok:#49e28b;
-
-      --majorBorder: rgba(255,207,90,.55);
-      --majorText: #ffe6ad;
-      --majorBg: rgba(255,207,90,.10);
-
-      --border:rgba(255,255,255,.10);
-      --shadow: 0 12px 40px rgba(0,0,0,.35);
-      --radius: 18px;
-    }
-
-    *{ box-sizing:border-box; }
-    html, body { height:100%; }
-    body{
-      margin:0;
-      background: radial-gradient(900px 520px at 20% 0%, rgba(90,167,255,.10), transparent 55%),
-                  radial-gradient(900px 520px at 80% 0%, rgba(71,215,172,.10), transparent 55%),
-                  var(--bg);
-      color: var(--text);
-      font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
-    }
-    a{ color:inherit; text-decoration:none; }
-
-    .wrap{ max-width:1100px; margin:0 auto; padding:22px 16px 56px; }
-
-    /* ---------- Masthead: ONE box (image + season pill + nav pills) ---------- */
-    .masthead{
-      border-radius: var(--radius);
-      border: 1px solid var(--border);
-      overflow: hidden;
-      box-shadow: var(--shadow);
-      margin-bottom: 16px;
-      background: rgba(0,0,0,.18);
-    }
-
-.mastBanner{
-  width: 100%;
-  height: 96px; /* was 110px — shorter = less cropping so logo fits */
-  background-image: url("/assets/header-banner.jpg");
-  background-repeat: no-repeat;
-
-  /* Fill the box */
-  background-size: 35% auto;
-
-  /* Favor the logo/text area */
-  background-position: left 42%;
-
-  background-color: rgba(0,0,0,.18);
-}
-
-    /* Controls live inside SAME box (below banner) */
-    .mastControls{
-      border-top: 1px solid rgba(255,255,255,.08);
-      padding: 12px 12px 14px;
-      background: rgba(0,0,0,.16);
-    }
-
-    .mastControlsInner{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:12px;
-      flex-wrap:wrap;
-
-      border-radius: 16px;
-      padding: 10px 12px;
-      border: 1px solid rgba(255,255,255,.12);
-      background: rgba(0,0,0,.24);
-
-      /* IMPORTANT: no blur */
-      backdrop-filter: none;
-    }
-
-    .seasonPill{
-      display:inline-flex;
-      align-items:center;
-      justify-content:center;
-      gap:8px;
-      padding:7px 12px;
-      border-radius:999px;
-      border:1px solid rgba(255,255,255,.12);
-      background: rgba(255,255,255,.06);
-      color: rgba(233,241,255,.86);
-      font-size:13px;
-      white-space: nowrap;
-    }
-
-    .navRow{
-      display:flex;
-      gap:8px;
-      flex-wrap:wrap;
-      justify-content:flex-end;
-    }
-
-    /* Keep your existing nav pill styles */
-    .navTab{
-      padding:8px 14px;
-      border-radius:999px;
-      border:1px solid var(--border);
-      text-decoration:none;
-      font-size:13px;
-      color:var(--muted);
-      font-weight:700;
-      transition:.15s;
-      background: rgba(255,255,255,.04);
-    }
-    .navTab:hover{
-      border-color:rgba(90,167,255,.45);
-      color:#cfe3ff;
-      background: rgba(255,255,255,.06);
-    }
-    .navTabActive{
-      border-color:rgba(71,215,172,.45);
-      color:#c9fff0;
-      background:rgba(71,215,172,.12);
-    }
-
- @media (max-width: 700px){
-
-  /* Banner strip */
-  .mastBanner{
-    height: 88px;
-    background-size: cover;
-    background-position: center 43%;
-  }
-
-  /* Make the bar itself shorter */
-  .mastBar{
-    padding: 8px 10px 10px;
-  }
-
-  /* Make the inner panel shorter */
-  .mastBarInner{
-    padding: 8px 10px;
-    gap: 8px;
-    justify-content:center;
-    text-align:center;
-  }
-
-  /* Season pill shorter */
-  .seasonPill{
-    padding: 6px 10px;
-    font-size: 12.5px;
-    width: 100%;
-    justify-content:center;
-    white-space: normal;
-  }
-
-  /* Nav row tighter */
-  .navRow{
-    width:100%;
-    justify-content:center;
-    gap: 6px;
-  }
-
-  /* Nav buttons shorter */
-  .navTab{
-    padding: 7px 12px;
-    font-size: 12.5px;
-  }
-}
-
-    /* Kept for JS updates, hidden */
-    .pillrow{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; justify-content:flex-start; }
-    .pill{
-      border:1px solid var(--border);
-      background: rgba(255,255,255,.06);
-      padding:8px 10px; border-radius:999px;
-      font-size:12px; color:var(--muted);
-      display:flex; gap:8px; align-items:center;
-    }
-    .dot{ width:8px; height:8px; border-radius:50%; background:var(--warn); }
-    .dot.ok{ background:var(--ok); }
-    .dot.bad{ background:var(--danger); }
-    .mastheadControls{ display:none !important; }
-
-    /* ---------- Cards + layout ---------- */
-    .grid{
-      display:grid;
-      grid-template-columns: 1fr 1.4fr; /* leaderboard wider on desktop */
-      gap:16px;
-    }
-    @media (max-width: 980px){
-      .grid{ grid-template-columns: 1fr; gap:12px; } /* stack on mobile for clean fit */
-    }
-
-    .card{
-      background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
-      border:1px solid var(--border);
-      border-radius: var(--radius);
-      box-shadow: var(--shadow);
-      overflow:hidden;
-    }
-    .card .hd{
-      padding:14px 16px;
-      display:flex; align-items:center; justify-content:space-between; gap:12px;
-      background: rgba(0,0,0,.14);
-      border-bottom:1px solid var(--border);
-    }
-    .card .hd h2{
-      margin:0;
-      font-size:14px;
-      letter-spacing:.3px;
-      text-transform:uppercase;
-      color:var(--muted);
-    }
-    .card .bd{ padding:16px; }
-
-    @media (max-width:560px){
-      .card .hd{ padding: 10px 12px; }
-      .card .bd{ padding: 12px; }
-    }
-
-    .btn{
-      appearance:none; border:none; cursor:pointer;
-      background: linear-gradient(135deg, var(--brand2), var(--brand));
-      color:#04101e; font-weight:800;
-      padding:10px 12px; border-radius:12px;
-      box-shadow: 0 10px 24px rgba(0,0,0,.28);
-      transition: transform .08s ease;
-      font-size:13px;
-    }
-    .btn:active{ transform: translateY(1px); }
-    .btn.secondary{
-      background: rgba(255,255,255,.08);
-      color:var(--text);
-      border:1px solid var(--border);
-      box-shadow:none;
-      font-weight:700;
-    }
-
-    .row{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
-    .field{
-      display:flex; flex-direction:column; gap:6px;
-      min-width: 180px;
-      flex: 1;
-    }
-    label{ font-size:12px; color:var(--muted); }
-    input, select{
-      width:100%;
-      padding:10px 12px;
-      border-radius:12px;
-      border:1px solid var(--border);
-      background: rgba(0,0,0,.25);
-      color:var(--text);
-      outline:none;
-    }
-    input::placeholder{ color: rgba(233,241,255,.35); }
-
-    .split{ display:grid; grid-template-columns: 1fr 1fr; gap:10px; }
-    @media(max-width:560px){ .split{ grid-template-columns:1fr; } }
-
-    .submitActions{
-      display:flex;
-      gap:10px;
-      flex-wrap:wrap;
-      margin-top:12px;
-    }
-    @media(max-width:560px){
-      .submitActions{ flex-direction:column; }
-      .submitActions .btn{ width:100%; }
-    }
-
-    .badge{
-      display:inline-flex; align-items:center; gap:8px;
-      padding:6px 10px; border-radius:999px;
-      background: rgba(71,215,172,.12);
-      border:1px solid rgba(71,215,172,.28);
-      color:#c9fff0;
-      font-weight:700; font-size:12px;
-      white-space: nowrap;
-    }
-    .badge.gray{
-      background: rgba(255,255,255,.06);
-      border:1px solid var(--border);
-      color: var(--muted);
-      font-weight:700;
-    }
-    .badge.weekPill{
-      font-size:13px;
-      padding:7px 12px;
-      font-weight:900;
-      letter-spacing:.2px;
-    }
-
-    .msg{
-      margin-top:10px;
-      border:1px solid var(--border);
-      background: rgba(0,0,0,.22);
-      padding:10px 12px;
-      border-radius:12px;
-      color:var(--muted);
-      font-size:13px;
-      white-space: pre-wrap;
-    }
-    .msg.ok{ border-color: rgba(73,226,139,.3); color:#c9ffde; }
-    .msg.bad{ border-color: rgba(255,90,122,.35); color:#ffd0da; }
-
-    .footer{
-      margin-top:16px;
-      color:rgba(233,241,255,.45);
-      font-size:12px;
-      text-align:center;
-    }
-
-    /* Hide Public pill beside Submit title (keep for JS state updates) */
-    #lockBadge{ display:none !important; }
-
-    /* ---------- Week hero ---------- */
-    .weekHero{
-      position: relative;
-      min-height: 150px;
-      padding: 16px;
-      border-top: 1px solid var(--border);
-      background: rgba(0,0,0,.16);
-      overflow: hidden;
-      background-repeat: no-repeat;
-      background-size: cover;
-      background-position: right center;
-    }
-    .weekHeroOverlay{
-      position:absolute;
-      inset:0;
-      background:
-        linear-gradient(90deg, rgba(5,10,20,.92) 0%, rgba(5,10,20,.78) 44%, rgba(5,10,20,.35) 100%),
-        radial-gradient(900px 320px at 20% 10%, rgba(90,167,255,.18), transparent 60%),
-        radial-gradient(800px 280px at 80% 0%, rgba(71,215,172,.14), transparent 60%);
-    }
-    .weekHeroContent{
-      position: relative;
-      z-index: 1;
-      display:flex;
-      align-items:center;
-      gap: 14px;
-      flex-wrap: wrap;
-    }
-    .weekHeroLogo{
-      width: 88px;
-      height: 88px;
-      border-radius: 18px;
-      border: 1px solid var(--border);
-      background: rgba(0,0,0,.18);
-      object-fit: contain;
-      flex: 0 0 auto;
-    }
-    .weekHeroText{ flex: 1; min-width: 240px; }
-    .weekHeroTitle{
-      font-weight: 900;
-      font-size: 18px;
-      letter-spacing: .2px;
-      line-height: 1.15;
-    }
-    .weekHeroDates{
-      margin-top: 6px;
-      color: rgba(233,241,255,.75);
-      font-size: 13px;
-    }
-
-    /* ---------- Schedule carousel ---------- */
-    .scheduleCarouselWrap{
-      border-top: 1px solid var(--border);
-      background: rgba(0,0,0,.14);
-      padding: 12px 12px 14px;
-    }
-    .scheduleCarouselHd{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:12px;
-      margin-bottom:10px;
-    }
-    .scheduleCarouselHd .hint{
-      color: rgba(233,241,255,.55);
-      font-size: 12px;
-    }
-    .scheduleCarousel{
-      display:flex;
-      gap:10px;
-      overflow-x:auto;
-      padding-bottom: 6px;
-      scroll-snap-type: x mandatory;
-      scroll-padding: 0 50%;
-      scroll-behavior: smooth;
-      -webkit-overflow-scrolling: touch;
-    }
-    .scheduleCarousel::-webkit-scrollbar{ height: 8px; }
-    .scheduleCarousel::-webkit-scrollbar-thumb{
-      background: rgba(255,255,255,.12);
-      border-radius: 999px;
-    }
-    .scheduleItem{
-      flex: 0 0 auto;
-      min-width: 260px;
-      max-width: 340px;
-      scroll-snap-align: center;
-      scroll-snap-stop: always;
-
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:12px;
-      padding:12px 12px;
-      border-radius:14px;
-      border:1px solid var(--border);
-      background: rgba(0,0,0,.18);
-      cursor:pointer;
-      transition: transform .08s ease, background .12s ease, border-color .12s ease;
-    }
-    .scheduleItem:active{ transform: translateY(1px); }
-    .scheduleItem.active{
-      border-color: rgba(71,215,172,.35);
-      background: rgba(71,215,172,.08);
-    }
-    .scheduleLeft{
-      display:flex;
-      align-items:center;
-      gap:12px;
-      min-width:0;
-      flex:1;
-    }
-    .scheduleLogo{
-      width:40px; height:40px;
-      border-radius:12px;
-      border:1px solid var(--border);
-      background: rgba(0,0,0,.18);
-      object-fit: contain;
-      flex:0 0 auto;
-    }
-    .scheduleText{ min-width:0; }
-    .scheduleName{
-      font-weight:800;
-      font-size:13px;
-      white-space:nowrap;
-      overflow:hidden;
-      text-overflow:ellipsis;
-      max-width: 230px;
-    }
-    .scheduleMeta{ margin-top:2px; color:var(--muted); font-size:12px; }
-
-    .tag{
-      display:inline-flex;
-      align-items:center;
-      gap:8px;
-      padding:6px 10px;
-      border-radius:999px;
-      border:1px solid var(--border);
-      background: rgba(255,255,255,.06);
-      color: var(--muted);
-      font-weight:800;
-      font-size:12px;
-      flex: 0 0 auto;
-      white-space: nowrap;
-    }
-    .tag.major{
-      border-color: var(--majorBorder);
-      color: var(--majorText);
-      background: var(--majorBg);
-    }
-
-    .card.weekMajorCard{
-      border-color: var(--majorBorder);
-      box-shadow:
-        0 12px 40px rgba(0,0,0,.35),
-        0 0 0 1px rgba(255,207,90,.12),
-        0 0 26px rgba(255,207,90,.14);
-    }
-    .card.weekMajorCard .hd{ border-bottom-color: rgba(255,207,90,.25); }
-    .badge.majorBadge{
-      border-color: var(--majorBorder) !important;
-      color: var(--majorText) !important;
-      background: var(--majorBg) !important;
-      font-weight: 800 !important;
-    }
-    .badge.majorPts{
-      border-color: rgba(255,207,90,.55) !important;
-      color: #ffe6ad !important;
-      background: rgba(255,207,90,.10) !important;
-      font-weight: 800 !important;
-    }
-
-    /* ---------- Leaderboard (KEEP desktop look on mobile) ---------- */
-    table{
-      width:100%;
-      border-collapse:collapse;
-      border-radius: 14px;
-      border:1px solid var(--border);
-      background: rgba(0,0,0,.18);
-      overflow:hidden;
-    }
-    th, td{
-      padding:10px 10px;
-      border-bottom:1px solid rgba(255,255,255,.07);
-      text-align:left;
-      font-size:13px;
-      vertical-align: middle;
-      white-space: nowrap;
-    }
-    th{
-      color:var(--muted);
-      font-weight:700;
-      font-size:12px;
-      text-transform:uppercase;
-      letter-spacing:.3px;
-    }
-    tr:last-child td{ border-bottom:none; }
-
-    .mono{ font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
-    .center{ text-align:center !important; }
-
-    .rankPill{
-      display:inline-flex;
-      align-items:center;
-      justify-content:center;
-      min-width:34px;
-      padding:6px 8px;
-      border-radius:999px;
-      background: rgba(255,255,255,.06);
-      border:1px solid var(--border);
-      font-weight:900;
-    }
-    .totalPill{
-      display:inline-flex;
-      align-items:center;
-      justify-content:center;
-      min-width:54px;
-      padding:6px 8px;
-      border-radius:999px;
-      background: rgba(71,215,172,.10);
-      border:1px solid rgba(71,215,172,.24);
-      font-weight:900;
-    }
-
-    /* Let the table stay “desktop style”; allow horizontal scroll ONLY if needed */
-    .tableWrap{
-      width:100%;
-      overflow-x:auto;
-      -webkit-overflow-scrolling: touch;
-      border-radius: 14px;
-    }
-
-    @media (max-width:560px){
-      th, td{ padding: 7px 6px; font-size: 12px; }
-      th{ font-size: 10.5px; letter-spacing:.35px; }
-
-      .playerCell{
-        max-width: 110px;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-        font-weight: 800;
-      }
-    }
-  </style>
 </head>
 
 <body>
@@ -604,7 +42,7 @@
       <div class="cardHead">
         <div>
           <div class="cardTitle">Current Tournament Leaderboard</div>
-          <div class="cardSub">Pulled from DataGolf and cached in Supabase.</div>
+          <div class="cardSub">POS • PLAYER • TOT • TODAY • THRU</div>
         </div>
         <div id="lbMsg" class="msg" style="display:none;"></div>
       </div>
@@ -615,7 +53,7 @@
             <tr>
               <th class="center" style="width:84px;">Pos</th>
               <th>Player</th>
-              <th class="center" style="width:110px;">To Par</th>
+              <th class="center" style="width:110px;">Tot</th>
               <th class="center" style="width:110px;">Today</th>
               <th class="center" style="width:110px;">Thru</th>
             </tr>
@@ -630,7 +68,6 @@
 
   <script>
     const API = {
-      currentWeek: "/api/current-week",
       proLeaderboard: "/api/pro-leaderboard",
     };
 
@@ -645,7 +82,7 @@
     function hideMsg(el){ if(el) el.style.display = "none"; }
 
     async function getJSON(url){
-      const res = await fetch(url, { headers: { "accept": "application/json" } });
+      const res = await fetch(url, { headers: { "accept": "application/json" }});
       if(!res.ok){
         const t = await res.text();
         throw new Error(`HTTP ${res.status}: ${t}`);
@@ -728,8 +165,8 @@
 
       $("lbBody").innerHTML = rows.map((r) => {
         const pos = r.position || "—";
-        const name = r.player_name || r.player_ext_id || "—";
-        const toPar = fmtToPar(r.score_to_par);
+        const name = r.player_name || "—";
+        const tot = fmtToPar(r.score_to_par);
         const today = fmtToPar(r.today);
         const thru = (r.thru === null || r.thru === undefined || r.thru === "") ? "—" : String(r.thru);
 
@@ -740,7 +177,7 @@
           <tr>
             <td class="mono center"><span class="rankPill">${pos}</span></td>
             <td class="playerCell">${name}</td>
-            <td class="mono center"><span class="totalPill">${toPar}</span></td>
+            <td class="mono center"><span class="totalPill">${tot}</span></td>
             <td class="mono center">${today}</td>
             <td class="mono center">${thru}</td>
           </tr>
@@ -767,18 +204,16 @@
         renderRows(data.rows || [], data.cut_line_to_par);
         updateLastUpdated(week.leaderboard_last_synced_at || null);
 
-        // client refresh (server sync is every 5 mins; this just re-fetches display)
-        const status = week.pro_leaderboard_status || "";
-        if(status.toLowerCase() === "live"){
+        // client refresh
+        const status = (week.pro_leaderboard_status || "").toLowerCase();
+        if(status === "live"){
           setInterval(async () => {
             try {
               const fresh = await getJSON(API.proLeaderboard);
               renderCutBadge(fresh.cut_line_to_par);
               renderRows(fresh.rows || [], fresh.cut_line_to_par);
               updateLastUpdated(fresh.week?.leaderboard_last_synced_at || null);
-            } catch(e) {
-              // don't spam
-            }
+            } catch(e) {}
           }, 60_000);
         }
       } catch(e) {
