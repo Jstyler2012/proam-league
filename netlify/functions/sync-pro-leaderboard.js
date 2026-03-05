@@ -1,19 +1,27 @@
 'use strict';
 
 /**
- * sync-pro-leaderboard
- * - Pulls "live" tournament data from DataGolf
- * - Detects current week from Supabase weeks table (ET date window)
- * - Upserts rows into pro_leaderboard_entries
- * - Writes a snapshot row (trimmed payload preview)
+ * sync-pro-leaderboard (DataGolf -> Supabase)
  *
- * IMPORTANT MAPPING NOTE (based on your real payload):
- * In the DataGolf payload you are currently receiving, the field `today` is actually the
- * tournament "to-par" value we want to display as score_to_par on the leaderboard.
- * The field `round` is the round number (1..4).
- * Therefore:
- *   score_to_par = p.today
- *   today        = null  (we can populate later if we switch to a true scoring leaderboard feed)
+ * Your UI wants columns like the PGA site:
+ *   POS | PLAYER | TOT | TODAY | THRU
+ *
+ * DB fields:
+ *   score_to_par  -> TOT
+ *   today         -> TODAY (current round to-par)
+ *   thru          -> THRU
+ *
+ * DataGolf note:
+ * - The /preds/live-tournament-stats endpoint is primarily a *stats* feed. In the payload shape
+ *   we're seeing, the only reliable "to-par" number per player is in a field commonly named `today`.
+ *   During R1, that value equals both TOT and TODAY. In later rounds, this feed may not include a
+ *   separate round-only score. (DataGolf has stated they cannot provide true hole-by-hole scoring via API.)
+ *
+ * Mapping strategy:
+ * - TOT: use the best available tournament to-par field (try multiple keys; fall back to p.today).
+ * - TODAY: use a best-effort round-to-par field if present; otherwise:
+ *      - if round == 1 and TOT exists, set TODAY = TOT (because they're the same in R1)
+ *      - else TODAY = null
  */
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
@@ -61,7 +69,8 @@ function todayInET() {
 }
 
 async function determineCurrentWeekRowET() {
-  const weeks = await sb("GET",
+  const weeks = await sb(
+    "GET",
     "weeks?select=week_number,start_date,end_date,tournament_name,tourn_id,org_id,season_year&order=week_number.asc"
   );
   if (!Array.isArray(weeks) || !weeks.length) return null;
@@ -99,8 +108,6 @@ function pickPlayers(payload) {
   if (!payload) return [];
   if (Array.isArray(payload)) return payload;
 
-  // Your logs show these keys exist at top-level:
-  // course_name, event_name, last_updated, live_stats, stat_display, stat_round
   const directKeys = ["live_stats", "players", "leaderboard", "data", "results", "rows"];
   for (const k of directKeys) {
     if (Array.isArray(payload[k])) return payload[k];
@@ -132,13 +139,13 @@ function computeCutLine(payload, rows) {
   const directInt = parseToIntMaybe(direct);
   if (directInt !== null) return directInt;
 
-  const cutRows = rows.filter(r => {
+  const cutRows = rows.filter((r) => {
     const pos = (r.position || "").toLowerCase();
-    const st  = (r.status || "").toLowerCase();
+    const st = (r.status || "").toLowerCase();
     return pos.includes("cut") || pos === "mc" || st === "mc" || st === "cut";
   });
 
-  const mcScores = cutRows.map(r => r.score_to_par).filter(n => n !== null);
+  const mcScores = cutRows.map((r) => r.score_to_par).filter((n) => n !== null);
   if (mcScores.length) return Math.min(...mcScores);
 
   return null;
@@ -147,7 +154,10 @@ function computeCutLine(payload, rows) {
 function safeTrimRaw(payload) {
   try {
     const players = pickPlayers(payload);
-    const trimmed = (payload && typeof payload === "object" && !Array.isArray(payload)) ? { ...payload } : { payload_type: typeof payload };
+    const trimmed =
+      payload && typeof payload === "object" && !Array.isArray(payload)
+        ? { ...payload }
+        : { payload_type: typeof payload };
     if (Array.isArray(players) && players.length) {
       trimmed.__players_preview = players.slice(0, 3);
       trimmed.__players_count = players.length;
@@ -164,20 +174,32 @@ function normalizePlayerRow(p, weekNumber, nowIso) {
 
   const position = toStringMaybe(p?.position ?? p?.pos ?? p?.place ?? p?.rank ?? p?.finish_position);
 
-  // ✅ Per your current payload: `today` is the to-par tournament value we want on the leaderboard
-  const score_to_par = parseToIntMaybe(
-    p?.today ?? p?.score_to_par ?? p?.to_par ?? p?.total_to_par ?? p?.tourn_to_par ?? p?.score ?? p?.total ?? p?.toPar
+  const round = parseToIntMaybe(p?.round ?? p?.current_round ?? p?.rnd ?? p?.event_round);
+
+  // TOT: try common tournament-to-par keys first; fall back to p.today (what you're seeing today)
+  const tot = parseToIntMaybe(
+    p?.score_to_par ??
+      p?.to_par ??
+      p?.total_to_par ??
+      p?.tourn_to_par ??
+      p?.total ??
+      p?.score ??
+      p?.toPar ??
+      p?.today
   );
 
-  // We don't currently have a reliable "today/round-to-par" separate value in this payload.
-  const today = null;
+  // TODAY (round-only): best-effort keys (if they exist in some DG payload variants)
+  let today = parseToIntMaybe(
+    p?.round_to_par ?? p?.r_to_par ?? p?.todays_to_par ?? p?.roundScoreToPar ?? p?.rScoreToPar
+  );
+
+  // If we couldn't find a round-only score, but it's R1, TODAY == TOT
+  if (today === null && round === 1 && tot !== null) {
+    today = tot;
+  }
 
   const thru = toStringMaybe(
     p?.thru ?? p?.holes_completed ?? p?.holes ?? p?.thru_hole ?? p?.thruToday ?? p?.holes_thru
-  );
-
-  const round = parseToIntMaybe(
-    p?.round ?? p?.current_round ?? p?.rnd ?? p?.event_round
   );
 
   const strokes = parseToIntMaybe(p?.strokes ?? p?.total_strokes ?? p?.totalStrokes);
@@ -187,9 +209,9 @@ function normalizePlayerRow(p, weekNumber, nowIso) {
     week_number: Number(weekNumber),
     player_ext_id: String(ext),
     position,
-    score_to_par,
+    score_to_par: tot, // TOT
     thru,
-    today,
+    today,            // TODAY
     round,
     strokes,
     status,
@@ -219,7 +241,10 @@ exports.handler = async (event) => {
     if (q.week_id || q.week_number) {
       const wk = Number(q.week_id ?? q.week_number);
       if (!Number.isFinite(wk)) return json(400, { ok: false, error: "Invalid week_id" });
-      const rows = await sb("GET", `weeks?select=week_number,start_date,end_date,tournament_name,tourn_id,org_id&week_number=eq.${wk}&limit=1`);
+      const rows = await sb(
+        "GET",
+        `weeks?select=week_number,start_date,end_date,tournament_name,tourn_id,org_id&week_number=eq.${wk}&limit=1`
+      );
       weekRow = Array.isArray(rows) ? rows[0] : null;
     } else {
       weekRow = await determineCurrentWeekRowET();
@@ -229,7 +254,7 @@ exports.handler = async (event) => {
 
     const today = todayInET();
     const start = String(weekRow.start_date || "").slice(0, 10);
-    const end   = String(weekRow.end_date || "").slice(0, 10);
+    const end = String(weekRow.end_date || "").slice(0, 10);
 
     const inWindow = start && end && today >= start && today <= end;
     if (!inWindow && isScheduled) {
@@ -251,13 +276,14 @@ exports.handler = async (event) => {
     const players = pickPlayers(payload);
 
     console.log("[sync-pro-leaderboard] week_number:", weekRow.week_number);
-    console.log("[sync-pro-leaderboard] datagolf top-level keys:",
+    console.log(
+      "[sync-pro-leaderboard] datagolf top-level keys:",
       payload && typeof payload === "object" && !Array.isArray(payload) ? Object.keys(payload) : typeof payload
     );
     console.log("[sync-pro-leaderboard] players found:", Array.isArray(players) ? players.length : 0);
 
     const rows = [];
-    for (const p of (players || [])) {
+    for (const p of players || []) {
       const norm = normalizePlayerRow(p, weekRow.week_number, nowIso);
       if (norm) rows.push(norm);
     }
@@ -281,38 +307,38 @@ exports.handler = async (event) => {
       );
     }
 
-    await sb("POST", "pro_leaderboard_snapshots", {
-      week_number: Number(weekRow.week_number),
-      fetched_at: nowIso,
-      tour: "pga",
-      tourn_id: payload?.tourn_id ? String(payload.tourn_id) : null,
-      event_name: payload?.event_name ?? payload?.tournament_name ?? weekRow.tournament_name ?? null,
-      round: parseToIntMaybe(payload?.stat_round ?? payload?.round ?? payload?.current_round),
-      cut_line_to_par: cutLine,
-      is_in_progress: inWindow ? true : null,
-      source: "datagolf:live-tournament-stats",
-      raw: safeTrimRaw(payload),
-    }, "return=minimal");
+    await sb(
+      "POST",
+      "pro_leaderboard_snapshots",
+      {
+        week_number: Number(weekRow.week_number),
+        fetched_at: nowIso,
+        tour: "pga",
+        tourn_id: payload?.tourn_id ? String(payload.tourn_id) : null,
+        event_name: payload?.event_name ?? payload?.tournament_name ?? weekRow.tournament_name ?? null,
+        round: parseToIntMaybe(payload?.stat_round ?? payload?.round ?? payload?.current_round),
+        cut_line_to_par: cutLine,
+        is_in_progress: inWindow ? true : null,
+        source: "datagolf:live-tournament-stats",
+        raw: safeTrimRaw(payload),
+      },
+      "return=minimal"
+    );
 
     const status = inWindow ? "live" : "pre";
-    await sb(
-      "PATCH",
-      `weeks?week_number=eq.${Number(weekRow.week_number)}`,
-      {
-        leaderboard_last_synced_at: nowIso,
-        pro_leaderboard_cut_line_to_par: cutLine,
-        pro_leaderboard_status: status
-      }
-    );
+    await sb("PATCH", `weeks?week_number=eq.${Number(weekRow.week_number)}`, {
+      leaderboard_last_synced_at: nowIso,
+      pro_leaderboard_cut_line_to_par: cutLine,
+      pro_leaderboard_status: status,
+    });
 
     return json(200, {
       ok: true,
       week_number: weekRow.week_number,
       rows_upserted: rows.length,
       cut_line_to_par: cutLine,
-      scheduled: isScheduled
+      scheduled: isScheduled,
     });
-
   } catch (err) {
     console.log("[sync-pro-leaderboard] error:", err);
     return json(500, { ok: false, error: err.message });
