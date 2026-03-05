@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Week Leaderboard • Wellman Golf Club Pro-Am League</title>
+  <title>Week Leaderboard • Wellman Golf Club</title>
   <link rel="stylesheet" href="./styles.css">
 </head>
 
@@ -25,11 +25,10 @@
   <main class="wrap">
     <section class="hero">
       <div class="heroLeft">
-        <div class="eyebrow">PGA TOUR • Live scoring</div>
+        <div class="eyebrow">PGA TOUR • Live leaderboard</div>
         <h1 id="tournamentName" class="h1">Week Leaderboard</h1>
         <div id="tournamentDates" class="sub">—</div>
         <div class="metaRow">
-          <span id="cutBadge" class="badge gray" style="display:none;">CUT: —</span>
           <span id="lastUpdatedBadge" class="badge gray">Updated: —</span>
         </div>
       </div>
@@ -41,8 +40,8 @@
     <section class="card">
       <div class="cardHead">
         <div>
-          <div class="cardTitle">Current Tournament Leaderboard</div>
-          <div class="cardSub">POS • PLAYER • TOT • TODAY • THRU</div>
+          <div class="cardTitle">Pro Leaderboard</div>
+          <div class="cardSub">POS • PLAYER • TOT</div>
         </div>
         <div id="lbMsg" class="msg" style="display:none;"></div>
       </div>
@@ -51,15 +50,13 @@
         <table class="tbl">
           <thead>
             <tr>
-              <th class="center" style="width:84px;">Pos</th>
+              <th class="center" style="width:90px;">Pos</th>
               <th>Player</th>
-              <th class="center" style="width:110px;">Tot</th>
-              <th class="center" style="width:110px;">Today</th>
-              <th class="center" style="width:110px;">Thru</th>
+              <th class="center" style="width:120px;">Tot</th>
             </tr>
           </thead>
           <tbody id="lbBody">
-            <tr><td colspan="5" style="color:rgba(233,241,255,.45);">Loading…</td></tr>
+            <tr><td colspan="3" style="color:rgba(233,241,255,.45);">Loading…</td></tr>
           </tbody>
         </table>
       </div>
@@ -67,10 +64,7 @@
   </main>
 
   <script>
-    const API = {
-      proLeaderboard: "/api/pro-leaderboard",
-    };
-
+    const API = { proLeaderboard: "/api/pro-leaderboard" };
     const $ = (id) => document.getElementById(id);
 
     function showMsg(el, text, kind="bad"){
@@ -90,14 +84,6 @@
       return await res.json();
     }
 
-    function fmtToPar(n){
-      if(n === null || n === undefined || n === "") return "—";
-      const num = Number(n);
-      if(!Number.isFinite(num)) return String(n);
-      if(num > 0) return "+" + num;
-      return String(num);
-    }
-
     function setHero(week){
       $("tournamentName").textContent = week?.tournament_name || "Week Leaderboard";
       const s = week?.start_date ? String(week.start_date).slice(0,10) : "";
@@ -114,72 +100,27 @@
       }
     }
 
-    function renderCutBadge(cutLine){
-      const el = $("cutBadge");
-      if(cutLine === null || cutLine === undefined) {
-        el.style.display = "none";
-        return;
-      }
-      el.style.display = "inline-flex";
-      el.textContent = "CUT: " + fmtToPar(cutLine);
-      el.className = "badge gray";
-    }
-
     function updateLastUpdated(ts){
       const el = $("lastUpdatedBadge");
       const d = ts ? new Date(ts) : new Date();
       el.textContent = "Updated: " + d.toLocaleTimeString();
     }
 
-    function insertCutSeparatorIfNeeded(cutLine, scoreToPar, cutInserted){
-      if(cutLine === null || cutLine === undefined) return { cutRowHtml:"", cutInserted };
-      if(cutInserted) return { cutRowHtml:"", cutInserted };
-      if(scoreToPar === null || scoreToPar === undefined) return { cutRowHtml:"", cutInserted };
-
-      const n = Number(scoreToPar);
-      if(!Number.isFinite(n)) return { cutRowHtml:"", cutInserted };
-
-      if(n > Number(cutLine)){
-        return {
-          cutInserted: true,
-          cutRowHtml: `
-            <tr>
-              <td colspan="5" style="padding:10px 12px; color:rgba(233,241,255,.65); font-weight:800; border-top:1px solid rgba(255,255,255,.14);">
-                CUT LINE: ${fmtToPar(cutLine)}
-              </td>
-            </tr>
-          `
-        };
-      }
-
-      return { cutRowHtml:"", cutInserted };
-    }
-
-    function renderRows(rows, cutLine){
+    function renderRows(rows){
       if(!Array.isArray(rows) || rows.length === 0){
-        $("lbBody").innerHTML = `<tr><td colspan="5" style="color:rgba(233,241,255,.45);">No live leaderboard rows yet.</td></tr>`;
+        $("lbBody").innerHTML = `<tr><td colspan="3" style="color:rgba(233,241,255,.45);">No live leaderboard rows yet.</td></tr>`;
         return;
       }
-
-      let cutInserted = false;
 
       $("lbBody").innerHTML = rows.map((r) => {
         const pos = r.position || "—";
         const name = r.player_name || "—";
-        const tot = fmtToPar(r.score_to_par);
-        const today = fmtToPar((r.today !== null && r.today !== undefined) ? r.today : ((r.round === 1 || r.round === '1') ? r.score_to_par : null));
-        const thru = (r.thru === null || r.thru === undefined || r.thru === "") ? "—" : String(r.thru);
-
-        const cutSep = insertCutSeparatorIfNeeded(cutLine, r.score_to_par, cutInserted);
-        cutInserted = cutSep.cutInserted;
-
-        return cutSep.cutRowHtml + `
+        const tot = r.tot_display || "—";
+        return `
           <tr>
             <td class="mono center"><span class="rankPill">${pos}</span></td>
             <td class="playerCell">${name}</td>
             <td class="mono center"><span class="totalPill">${tot}</span></td>
-            <td class="mono center">${today}</td>
-            <td class="mono center">${thru}</td>
           </tr>
         `;
       }).join("");
@@ -187,37 +128,34 @@
 
     async function load(){
       hideMsg($("lbMsg"));
-      $("lbBody").innerHTML = `<tr><td colspan="5" style="color:rgba(233,241,255,.45);">Loading…</td></tr>`;
+      $("lbBody").innerHTML = `<tr><td colspan="3" style="color:rgba(233,241,255,.45);">Loading…</td></tr>`;
 
       try {
         const data = await getJSON(API.proLeaderboard);
         const week = data.week;
 
         if(!week){
-          $("lbBody").innerHTML = `<tr><td colspan="5" style="color:rgba(233,241,255,.45);">No current week found.</td></tr>`;
+          $("lbBody").innerHTML = `<tr><td colspan="3" style="color:rgba(233,241,255,.45);">No current week found.</td></tr>`;
           return;
         }
 
         setHero(week);
-        renderCutBadge(data.cut_line_to_par);
-
-        renderRows(data.rows || [], data.cut_line_to_par);
+        renderRows(data.rows || []);
         updateLastUpdated(week.leaderboard_last_synced_at || null);
 
-        // client refresh
+        // refresh while live
         const status = (week.pro_leaderboard_status || "").toLowerCase();
         if(status === "live"){
           setInterval(async () => {
             try {
               const fresh = await getJSON(API.proLeaderboard);
-              renderCutBadge(fresh.cut_line_to_par);
-              renderRows(fresh.rows || [], fresh.cut_line_to_par);
+              renderRows(fresh.rows || []);
               updateLastUpdated(fresh.week?.leaderboard_last_synced_at || null);
             } catch(e) {}
           }, 60_000);
         }
       } catch(e) {
-        $("lbBody").innerHTML = `<tr><td colspan="5" style="color:rgba(233,241,255,.45);">Couldn’t load leaderboard.</td></tr>`;
+        $("lbBody").innerHTML = `<tr><td colspan="3" style="color:rgba(233,241,255,.45);">Couldn’t load leaderboard.</td></tr>`;
         showMsg($("lbMsg"), "Week Leaderboard error: " + e.message, "bad");
       }
     }
