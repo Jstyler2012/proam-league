@@ -1,29 +1,5 @@
 'use strict';
 
-/**
- * sync-pro-leaderboard (DataGolf -> Supabase)
- *
- * Your UI wants columns like the PGA site:
- *   POS | PLAYER | TOT | TODAY | THRU
- *
- * DB fields:
- *   score_to_par  -> TOT
- *   today         -> TODAY (current round to-par)
- *   thru          -> THRU
- *
- * DataGolf note:
- * - The /preds/live-tournament-stats endpoint is primarily a *stats* feed. In the payload shape
- *   we're seeing, the only reliable "to-par" number per player is in a field commonly named `today`.
- *   During R1, that value equals both TOT and TODAY. In later rounds, this feed may not include a
- *   separate round-only score. (DataGolf has stated they cannot provide true hole-by-hole scoring via API.)
- *
- * Mapping strategy:
- * - TOT: use the best available tournament to-par field (try multiple keys; fall back to p.today).
- * - TODAY: use a best-effort round-to-par field if present; otherwise:
- *      - if round == 1 and TOT exists, set TODAY = TOT (because they're the same in R1)
- *      - else TODAY = null
- */
-
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const DATAGOLF_API_KEY = process.env.DATAGOLF_API_KEY;
@@ -52,9 +28,9 @@ async function sb(method, path, body, prefer = "return=minimal") {
       apikey: SERVICE_KEY,
       Authorization: `Bearer ${SERVICE_KEY}`,
       "content-type": "application/json",
-      Prefer: prefer,
+      Prefer: prefer
     },
-    body: body ? JSON.stringify(body) : undefined,
+    body: body ? JSON.stringify(body) : undefined
   });
 
   const txt = await res.text();
@@ -69,8 +45,7 @@ function todayInET() {
 }
 
 async function determineCurrentWeekRowET() {
-  const weeks = await sb(
-    "GET",
+  const weeks = await sb("GET",
     "weeks?select=week_number,start_date,end_date,tournament_name,tourn_id,org_id,season_year&order=week_number.asc"
   );
   if (!Array.isArray(weeks) || !weeks.length) return null;
@@ -84,6 +59,7 @@ async function determineCurrentWeekRowET() {
 
   if (inRange) return inRange;
 
+  // fallback: before first → first, after last → last
   const first = weeks[0];
   if (first?.start_date && today < String(first.start_date).slice(0, 10)) return first;
   return weeks[weeks.length - 1];
@@ -93,36 +69,41 @@ function parseToIntMaybe(v) {
   if (v === null || v === undefined) return null;
   const s = String(v).trim();
   if (!s) return null;
-  if (/^(e|even)$/i.test(s)) return 0;
   const n = Number(s.replace(/[^\d\-+]/g, ""));
   return Number.isFinite(n) ? n : null;
 }
 
-function toStringMaybe(v) {
-  if (v === null || v === undefined) return null;
-  const s = String(v).trim();
-  return s ? s : null;
-}
-
+/**
+ * DataGolf response shapes can vary:
+ * - sometimes players are at payload.players
+ * - sometimes payload.data / payload.results
+ * - sometimes the entire payload IS the array
+ * - sometimes it's nested under some key we don't know
+ *
+ * This tries the obvious keys first, then scans top-level keys for
+ * "an array of objects that looks like player rows".
+ */
 function pickPlayers(payload) {
   if (!payload) return [];
   if (Array.isArray(payload)) return payload;
 
-  const directKeys = ["live_stats", "players", "leaderboard", "data", "results", "rows"];
+  const directKeys = ["players", "leaderboard", "data", "results", "rows"];
   for (const k of directKeys) {
     if (Array.isArray(payload[k])) return payload[k];
   }
 
+  // scan top-level: find the first array of objects that contains dg_id/player_id/id
   for (const [k, v] of Object.entries(payload)) {
     if (!Array.isArray(v) || !v.length) continue;
     const first = v[0];
-    if (!first || typeof first !== "object") continue;
-    const hasId =
-      ("dg_id" in first) ||
-      ("player_id" in first) ||
-      ("id" in first) ||
-      (first.player && typeof first.player === "object" && ("dg_id" in first.player));
-    if (hasId) return v;
+    if (first && typeof first === "object") {
+      const hasId =
+        ("dg_id" in first) ||
+        ("player_id" in first) ||
+        ("id" in first) ||
+        (first.player && typeof first.player === "object" && ("dg_id" in first.player));
+      if (hasId) return v;
+    }
   }
 
   return [];
@@ -139,25 +120,24 @@ function computeCutLine(payload, rows) {
   const directInt = parseToIntMaybe(direct);
   if (directInt !== null) return directInt;
 
-  const cutRows = rows.filter((r) => {
+  const cutRows = rows.filter(r => {
     const pos = (r.position || "").toLowerCase();
-    const st = (r.status || "").toLowerCase();
+    const st  = (r.status || "").toLowerCase();
     return pos.includes("cut") || pos === "mc" || st === "mc" || st === "cut";
   });
 
-  const mcScores = cutRows.map((r) => r.score_to_par).filter((n) => n !== null);
+  const mcScores = cutRows.map(r => r.score_to_par).filter(n => n !== null);
   if (mcScores.length) return Math.min(...mcScores);
 
   return null;
 }
 
 function safeTrimRaw(payload) {
+  // avoid storing multi-MB blobs if DG ever changes format
+  // keep top-level keys + first 3 player rows
   try {
     const players = pickPlayers(payload);
-    const trimmed =
-      payload && typeof payload === "object" && !Array.isArray(payload)
-        ? { ...payload }
-        : { payload_type: typeof payload };
+    const trimmed = { ...payload };
     if (Array.isArray(players) && players.length) {
       trimmed.__players_preview = players.slice(0, 3);
       trimmed.__players_count = players.length;
@@ -166,58 +146,6 @@ function safeTrimRaw(payload) {
   } catch {
     return payload;
   }
-}
-
-function normalizePlayerRow(p, weekNumber, nowIso) {
-  const ext = p?.dg_id ?? p?.player_id ?? p?.id ?? p?.player?.dg_id ?? null;
-  if (!ext) return null;
-
-  const position = toStringMaybe(p?.position ?? p?.pos ?? p?.place ?? p?.rank ?? p?.finish_position);
-
-  const round = parseToIntMaybe(p?.round ?? p?.current_round ?? p?.rnd ?? p?.event_round);
-
-  // TOT: try common tournament-to-par keys first; fall back to p.today (what you're seeing today)
-  const tot = parseToIntMaybe(
-    p?.score_to_par ??
-      p?.to_par ??
-      p?.total_to_par ??
-      p?.tourn_to_par ??
-      p?.total ??
-      p?.score ??
-      p?.toPar ??
-      p?.today
-  );
-
-  // TODAY (round-only): best-effort keys (if they exist in some DG payload variants)
-  let today = parseToIntMaybe(
-    p?.round_to_par ?? p?.r_to_par ?? p?.todays_to_par ?? p?.roundScoreToPar ?? p?.rScoreToPar
-  );
-
-  // If we couldn't find a round-only score, but it's R1, TODAY == TOT
-  if (today === null && round === 1 && tot !== null) {
-    today = tot;
-  }
-
-  const thru = toStringMaybe(
-    p?.thru ?? p?.holes_completed ?? p?.holes ?? p?.thru_hole ?? p?.thruToday ?? p?.holes_thru
-  );
-
-  const strokes = parseToIntMaybe(p?.strokes ?? p?.total_strokes ?? p?.totalStrokes);
-  const status = toStringMaybe(p?.status ?? p?.player_status ?? p?.result_status);
-
-  return {
-    week_number: Number(weekNumber),
-    player_ext_id: String(ext),
-    position,
-    score_to_par: tot, // TOT
-    thru,
-    today,            // TODAY
-    round,
-    strokes,
-    status,
-    is_cut: null,
-    updated_at: nowIso,
-  };
 }
 
 exports.handler = async (event) => {
@@ -241,10 +169,7 @@ exports.handler = async (event) => {
     if (q.week_id || q.week_number) {
       const wk = Number(q.week_id ?? q.week_number);
       if (!Number.isFinite(wk)) return json(400, { ok: false, error: "Invalid week_id" });
-      const rows = await sb(
-        "GET",
-        `weeks?select=week_number,start_date,end_date,tournament_name,tourn_id,org_id&week_number=eq.${wk}&limit=1`
-      );
+      const rows = await sb("GET", `weeks?select=week_number,start_date,end_date,tournament_name,tourn_id,org_id&week_number=eq.${wk}&limit=1`);
       weekRow = Array.isArray(rows) ? rows[0] : null;
     } else {
       weekRow = await determineCurrentWeekRowET();
@@ -254,14 +179,12 @@ exports.handler = async (event) => {
 
     const today = todayInET();
     const start = String(weekRow.start_date || "").slice(0, 10);
-    const end = String(weekRow.end_date || "").slice(0, 10);
+    const end   = String(weekRow.end_date || "").slice(0, 10);
 
     const inWindow = start && end && today >= start && today <= end;
     if (!inWindow && isScheduled) {
       return json(200, { ok: true, skipped: true, reason: "outside tournament window", week_number: weekRow.week_number });
     }
-
-    const nowIso = new Date().toISOString();
 
     const dgUrl =
       `https://feeds.datagolf.com/preds/live-tournament-stats` +
@@ -274,18 +197,45 @@ exports.handler = async (event) => {
 
     const payload = dg.data ?? null;
     const players = pickPlayers(payload);
+    const eventRound = parseToIntMaybe(payload?.stat_round ?? payload?.round ?? payload?.current_round);
 
     console.log("[sync-pro-leaderboard] week_number:", weekRow.week_number);
-    console.log(
-      "[sync-pro-leaderboard] datagolf top-level keys:",
-      payload && typeof payload === "object" && !Array.isArray(payload) ? Object.keys(payload) : typeof payload
-    );
+    console.log("[sync-pro-leaderboard] datagolf top-level keys:", payload && typeof payload === "object" ? Object.keys(payload) : typeof payload);
     console.log("[sync-pro-leaderboard] players found:", Array.isArray(players) ? players.length : 0);
 
+    const nowIso = new Date().toISOString();
+
     const rows = [];
-    for (const p of players || []) {
-      const norm = normalizePlayerRow(p, weekRow.week_number, nowIso);
-      if (norm) rows.push(norm);
+    for (const p of (players || [])) {
+      const ext =
+        p?.dg_id ?? p?.player_id ?? p?.id ?? p?.player?.dg_id ?? null;
+      if (!ext) continue;
+
+      const position = p?.position ?? p?.pos ?? p?.place ?? p?.finish_position ?? null;
+
+      const score_to_par = parseToIntMaybe(p?.score_to_par ?? p?.to_par ?? p?.total_to_par ?? p?.scoreToPar ?? p?.score);
+
+      const thru = p?.thru ?? p?.holes_completed ?? p?.holes ?? p?.thru_hole ?? p?.thruToday ?? null;
+      const round = parseToIntMaybe(p?.round ?? p?.current_round ?? p?.rnd);
+      const strokes = parseToIntMaybe(p?.strokes ?? p?.total_strokes);
+
+      const todayScore = parseToIntMaybe(p?.today ?? p?.round_to_par ?? p?.r_to_par);
+
+      const status = p?.status ?? p?.player_status ?? null;
+
+      rows.push({
+        week_number: Number(weekRow.week_number),
+        player_ext_id: String(ext),
+        position: position != null ? String(position) : null,
+        score_to_par,
+        thru: thru != null ? String(thru) : null,
+        today: todayScore,
+        round,
+        strokes,
+        status: status != null ? String(status) : null,
+        is_cut: null,
+        updated_at: nowIso,
+      });
     }
 
     const cutLine = computeCutLine(payload, rows);
@@ -307,38 +257,39 @@ exports.handler = async (event) => {
       );
     }
 
-    await sb(
-      "POST",
-      "pro_leaderboard_snapshots",
-      {
-        week_number: Number(weekRow.week_number),
-        fetched_at: nowIso,
-        tour: "pga",
-        tourn_id: payload?.tourn_id ? String(payload.tourn_id) : null,
-        event_name: payload?.event_name ?? payload?.tournament_name ?? weekRow.tournament_name ?? null,
-        round: parseToIntMaybe(payload?.stat_round ?? payload?.round ?? payload?.current_round),
-        cut_line_to_par: cutLine,
-        is_in_progress: inWindow ? true : null,
-        source: "datagolf:live-tournament-stats",
-        raw: safeTrimRaw(payload),
-      },
-      "return=minimal"
-    );
+    // Store a trimmed payload snapshot so we can see real DG shape in Supabase
+    await sb("POST", "pro_leaderboard_snapshots", {
+      week_number: Number(weekRow.week_number),
+      fetched_at: nowIso,
+      tour: "pga",
+      tourn_id: payload?.tourn_id ? String(payload.tourn_id) : null,
+      event_name: payload?.event_name ?? payload?.tournament_name ?? weekRow.tournament_name ?? null,
+      round: parseToIntMaybe(payload?.round ?? payload?.current_round),
+      cut_line_to_par: cutLine,
+      is_in_progress: inWindow ? true : null,
+      source: "datagolf",
+      raw: safeTrimRaw(payload),
+    }, "return=minimal");
 
     const status = inWindow ? "live" : "pre";
-    await sb("PATCH", `weeks?week_number=eq.${Number(weekRow.week_number)}`, {
-      leaderboard_last_synced_at: nowIso,
-      pro_leaderboard_cut_line_to_par: cutLine,
-      pro_leaderboard_status: status,
-    });
+    await sb(
+      "PATCH",
+      `weeks?week_number=eq.${Number(weekRow.week_number)}`,
+      {
+        leaderboard_last_synced_at: nowIso,
+        pro_leaderboard_cut_line_to_par: cutLine,
+        pro_leaderboard_status: status
+      }
+    );
 
     return json(200, {
       ok: true,
       week_number: weekRow.week_number,
       rows_upserted: rows.length,
       cut_line_to_par: cutLine,
-      scheduled: isScheduled,
+      scheduled: isScheduled
     });
+
   } catch (err) {
     console.log("[sync-pro-leaderboard] error:", err);
     return json(500, { ok: false, error: err.message });
