@@ -1,5 +1,14 @@
 'use strict';
 
+/**
+ * DataGolf has two "live" style endpoints people commonly confuse:
+ *
+ * 1) /preds/live-tournament-stats  -> live strokes-gained & traditional stats (NOT scoring)
+ * 2) /preds/in-play               -> in-play "live model" feed that includes scoring/position/thru
+ *
+ * For a true tournament leaderboard page, we want (2).
+ */
+
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const DATAGOLF_API_KEY = process.env.DATAGOLF_API_KEY;
@@ -59,7 +68,6 @@ async function determineCurrentWeekRowET() {
 
   if (inRange) return inRange;
 
-  // fallback: before first → first, after last → last
   const first = weeks[0];
   if (first?.start_date && today < String(first.start_date).slice(0, 10)) return first;
   return weeks[weeks.length - 1];
@@ -69,41 +77,50 @@ function parseToIntMaybe(v) {
   if (v === null || v === undefined) return null;
   const s = String(v).trim();
   if (!s) return null;
+
+  // common formats: -3, +2, "E", "EVEN", 0
+  if (/^(e|even)$/i.test(s)) return 0;
+
+  // if it's like "+3" or "-2" or "3"
   const n = Number(s.replace(/[^\d\-+]/g, ""));
   return Number.isFinite(n) ? n : null;
 }
 
+function toStringMaybe(v) {
+  if (v === null || v === undefined) return null;
+  const s = String(v).trim();
+  return s ? s : null;
+}
+
 /**
- * DataGolf response shapes can vary:
- * - sometimes players are at payload.players
- * - sometimes payload.data / payload.results
- * - sometimes the entire payload IS the array
- * - sometimes it's nested under some key we don't know
+ * /preds/in-play often returns:
+ * - an object with a key that contains an array (e.g. "players", "data", etc)
+ * - OR the entire payload is an array
  *
- * This tries the obvious keys first, then scans top-level keys for
- * "an array of objects that looks like player rows".
+ * We'll scan for the first "array of objects" that has an obvious player identifier.
  */
-function pickPlayers(payload) {
+function pickPlayerArray(payload) {
   if (!payload) return [];
   if (Array.isArray(payload)) return payload;
 
-  const directKeys = ["players", "leaderboard", "data", "results", "rows"];
+  const directKeys = ["players", "data", "results", "leaderboard", "rows", "in_play", "inPlay"];
   for (const k of directKeys) {
     if (Array.isArray(payload[k])) return payload[k];
   }
 
-  // scan top-level: find the first array of objects that contains dg_id/player_id/id
   for (const [k, v] of Object.entries(payload)) {
     if (!Array.isArray(v) || !v.length) continue;
     const first = v[0];
-    if (first && typeof first === "object") {
-      const hasId =
-        ("dg_id" in first) ||
-        ("player_id" in first) ||
-        ("id" in first) ||
-        (first.player && typeof first.player === "object" && ("dg_id" in first.player));
-      if (hasId) return v;
-    }
+    if (!first || typeof first !== "object") continue;
+
+    // common ID fields
+    const hasId =
+      ("dg_id" in first) ||
+      ("player_id" in first) ||
+      ("id" in first) ||
+      ("player" in first && first.player && typeof first.player === "object" && ("dg_id" in first.player));
+
+    if (hasId) return v;
   }
 
   return [];
@@ -133,19 +150,68 @@ function computeCutLine(payload, rows) {
 }
 
 function safeTrimRaw(payload) {
-  // avoid storing multi-MB blobs if DG ever changes format
-  // keep top-level keys + first 3 player rows
   try {
-    const players = pickPlayers(payload);
-    const trimmed = { ...payload };
-    if (Array.isArray(players) && players.length) {
-      trimmed.__players_preview = players.slice(0, 3);
-      trimmed.__players_count = players.length;
+    const arr = pickPlayerArray(payload);
+    const trimmed = (payload && typeof payload === "object" && !Array.isArray(payload)) ? { ...payload } : { payload_type: typeof payload };
+    if (Array.isArray(arr) && arr.length) {
+      trimmed.__players_preview = arr.slice(0, 3);
+      trimmed.__players_count = arr.length;
     }
     return trimmed;
   } catch {
     return payload;
   }
+}
+
+/**
+ * Normalize a player row from /preds/in-play into our DB shape.
+ *
+ * We don't know the exact key names across versions, so we try a set of fallbacks.
+ */
+function normalizeInPlayRow(p, weekNumber, nowIso) {
+  const ext =
+    p?.dg_id ?? p?.player_id ?? p?.id ?? p?.player?.dg_id ?? null;
+  if (!ext) return null;
+
+  const position = toStringMaybe(p?.position ?? p?.pos ?? p?.place ?? p?.rank ?? p?.finish_position);
+
+  // these are the common "to-par" fields in golf feeds
+  const score_to_par = parseToIntMaybe(
+    p?.score_to_par ?? p?.to_par ?? p?.total_to_par ?? p?.tourn_to_par ?? p?.score ?? p?.total ?? p?.toPar
+  );
+
+  // "today" / current round to-par
+  const today = parseToIntMaybe(
+    p?.today ?? p?.round_to_par ?? p?.r_to_par ?? p?.todays_to_par ?? p?.roundScoreToPar
+  );
+
+  // "thru" is usually holes completed ("F", "17", "—")
+  const thru = toStringMaybe(
+    p?.thru ?? p?.holes_completed ?? p?.holes ?? p?.thru_hole ?? p?.thruToday ?? p?.holes_thru
+  );
+
+  // actual round number (1-4) if present
+  const round = parseToIntMaybe(
+    p?.round ?? p?.current_round ?? p?.rnd ?? p?.event_round
+  );
+
+  const strokes = parseToIntMaybe(p?.strokes ?? p?.total_strokes ?? p?.totalStrokes);
+
+  const status = toStringMaybe(p?.status ?? p?.player_status ?? p?.result_status);
+
+  return {
+    week_number: Number(weekNumber),
+    player_ext_id: String(ext),
+    position,
+    score_to_par,
+    thru,
+    today,
+    round,
+    strokes,
+    status,
+    is_cut: null,
+    updated_at: nowIso,
+  };
 }
 
 exports.handler = async (event) => {
@@ -186,55 +252,43 @@ exports.handler = async (event) => {
       return json(200, { ok: true, skipped: true, reason: "outside tournament window", week_number: weekRow.week_number });
     }
 
-    const dgUrl =
-      `https://feeds.datagolf.com/preds/live-tournament-stats` +
-      `?tour=pga&file_format=json&key=${encodeURIComponent(DATAGOLF_API_KEY)}`;
-
-    const dg = await fetchJson(dgUrl);
-    if (!dg.res.ok) {
-      return json(502, { ok: false, error: `DataGolf failed (${dg.res.status})`, preview: (dg.text || "").slice(0, 800) });
-    }
-
-    const payload = dg.data ?? null;
-    const players = pickPlayers(payload);
-
-    console.log("[sync-pro-leaderboard] week_number:", weekRow.week_number);
-    console.log("[sync-pro-leaderboard] datagolf top-level keys:", payload && typeof payload === "object" ? Object.keys(payload) : typeof payload);
-    console.log("[sync-pro-leaderboard] players found:", Array.isArray(players) ? players.length : 0);
-
     const nowIso = new Date().toISOString();
 
+    // 1) Prefer /preds/in-play for actual leaderboard/scoring
+    const inPlayUrl =
+      `https://feeds.datagolf.com/preds/in-play` +
+      `?tour=pga&odds_format=decimal&file_format=json&key=${encodeURIComponent(DATAGOLF_API_KEY)}`;
+
+    let payload = null;
+    let sourceEndpoint = "in-play";
+    let dg = await fetchJson(inPlayUrl);
+
+    // 2) Fallback: if in-play fails, use live-tournament-stats (stats page)
+    if (!dg.res.ok) {
+      sourceEndpoint = "live-tournament-stats";
+      const fallbackUrl =
+        `https://feeds.datagolf.com/preds/live-tournament-stats` +
+        `?tour=pga&file_format=json&key=${encodeURIComponent(DATAGOLF_API_KEY)}`;
+
+      dg = await fetchJson(fallbackUrl);
+      if (!dg.res.ok) {
+        return json(502, { ok: false, error: `DataGolf failed (${dg.res.status})`, preview: (dg.text || "").slice(0, 800) });
+      }
+    }
+
+    payload = dg.data ?? null;
+
+    const arr = pickPlayerArray(payload);
+
+    console.log("[sync-pro-leaderboard] week_number:", weekRow.week_number);
+    console.log("[sync-pro-leaderboard] endpoint:", sourceEndpoint);
+    console.log("[sync-pro-leaderboard] datagolf top-level keys:", payload && typeof payload === "object" && !Array.isArray(payload) ? Object.keys(payload) : typeof payload);
+    console.log("[sync-pro-leaderboard] players found:", Array.isArray(arr) ? arr.length : 0);
+
     const rows = [];
-    for (const p of (players || [])) {
-      const ext =
-        p?.dg_id ?? p?.player_id ?? p?.id ?? p?.player?.dg_id ?? null;
-      if (!ext) continue;
-
-      const position = p?.position ?? p?.pos ?? p?.place ?? p?.finish_position ?? null;
-
-      const score_to_par = parseToIntMaybe(p?.score_to_par ?? p?.to_par ?? p?.total_to_par ?? p?.scoreToPar ?? p?.score);
-
-      const thru = p?.thru ?? p?.holes_completed ?? p?.holes ?? p?.thru_hole ?? p?.thruToday ?? null;
-      const round = parseToIntMaybe(p?.round ?? p?.current_round ?? p?.rnd);
-      const strokes = parseToIntMaybe(p?.strokes ?? p?.total_strokes);
-
-      const todayScore = parseToIntMaybe(p?.today ?? p?.round_to_par ?? p?.r_to_par);
-
-      const status = p?.status ?? p?.player_status ?? null;
-
-      rows.push({
-        week_number: Number(weekRow.week_number),
-        player_ext_id: String(ext),
-        position: position != null ? String(position) : null,
-        score_to_par,
-        thru: thru != null ? String(thru) : null,
-        today: todayScore,
-        round,
-        strokes,
-        status: status != null ? String(status) : null,
-        is_cut: null,
-        updated_at: nowIso,
-      });
+    for (const p of (arr || [])) {
+      const norm = normalizeInPlayRow(p, weekRow.week_number, nowIso);
+      if (norm) rows.push(norm);
     }
 
     const cutLine = computeCutLine(payload, rows);
@@ -256,17 +310,16 @@ exports.handler = async (event) => {
       );
     }
 
-    // Store a trimmed payload snapshot so we can see real DG shape in Supabase
     await sb("POST", "pro_leaderboard_snapshots", {
       week_number: Number(weekRow.week_number),
       fetched_at: nowIso,
       tour: "pga",
       tourn_id: payload?.tourn_id ? String(payload.tourn_id) : null,
       event_name: payload?.event_name ?? payload?.tournament_name ?? weekRow.tournament_name ?? null,
-      round: parseToIntMaybe(payload?.round ?? payload?.current_round),
+      round: parseToIntMaybe(payload?.round ?? payload?.current_round ?? payload?.event_round),
       cut_line_to_par: cutLine,
       is_in_progress: inWindow ? true : null,
-      source: "datagolf",
+      source: `datagolf:${sourceEndpoint}`,
       raw: safeTrimRaw(payload),
     }, "return=minimal");
 
@@ -283,6 +336,7 @@ exports.handler = async (event) => {
 
     return json(200, {
       ok: true,
+      endpoint: sourceEndpoint,
       week_number: weekRow.week_number,
       rows_upserted: rows.length,
       cut_line_to_par: cutLine,
