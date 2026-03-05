@@ -151,6 +151,99 @@ exports.handler = async (event) => {
 
       return json(200, { week });
     }
+    // -------------------------
+    // pro-leaderboard (PGA live scoring)
+    // GET /api/pro-leaderboard?week_id=7 (optional)
+    // -------------------------
+    if (route === "pro-leaderboard") {
+      const q = event.queryStringParameters || {};
+      const requestedWeek = q.week_id ? Number(q.week_id) : null;
+
+      // Determine week by date if not provided
+      let week = null;
+      if (requestedWeek && Number.isFinite(requestedWeek)) {
+        const wOut = await sbAnon(
+          SUPABASE_URL,
+          SUPABASE_ANON_KEY,
+          "GET",
+          `weeks?select=week_number,label,tournament_name,start_date,end_date,logo_url,leaderboard_last_synced_at,pro_leaderboard_cut_line_to_par,pro_leaderboard_status&week_number=eq.${requestedWeek}&limit=1`
+        );
+        if (!wOut.ok) return text(wOut.status, wOut.text);
+        week = (wOut.json || [])[0] || null;
+      } else {
+        const out = await sbAnon(
+          SUPABASE_URL,
+          SUPABASE_ANON_KEY,
+          "GET",
+          "weeks?select=week_number,label,tournament_name,start_date,end_date,logo_url,leaderboard_last_synced_at,pro_leaderboard_cut_line_to_par,pro_leaderboard_status&order=week_number.asc"
+        );
+        if (!out.ok) return text(out.status, out.text);
+
+        const weeks = out.json || [];
+        if (!weeks.length) return json(200, { week: null, rows: [] });
+
+        const today = new Date();
+
+        const inRange = weeks.find((w) => {
+          if (!w.start_date || !w.end_date) return false;
+          const s = new Date(w.start_date + "T00:00:00");
+          const e = new Date(w.end_date + "T23:59:59");
+          return today >= s && today <= e;
+        });
+
+        week =
+          inRange ||
+          (weeks[0]?.start_date && today < new Date(weeks[0].start_date + "T00:00:00")
+            ? weeks[0]
+            : weeks[weeks.length - 1]);
+      }
+
+      if (!week) return json(200, { week: null, rows: [] });
+
+      // Fetch leaderboard entries (fallback to service role if anon blocked)
+      const lbPath =
+        `pro_leaderboard_entries?select=week_number,player_ext_id,position,score_to_par,thru,today,round,strokes,status,is_cut,updated_at` +
+        `&week_number=eq.${Number(week.week_number)}` +
+        `&order=score_to_par.asc.nullslast`;
+
+      let lbOut = await sbAnon(SUPABASE_URL, SUPABASE_ANON_KEY, "GET", lbPath);
+      if (!lbOut.ok && SUPABASE_SERVICE_ROLE_KEY) {
+        lbOut = await sbService(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, "GET", lbPath);
+      }
+      if (!lbOut.ok) return text(lbOut.status, lbOut.text);
+
+      const rows = lbOut.json || [];
+
+      // Optional: hydrate player_name from week_pro_field if table exists / allowed by RLS
+      const fieldPath =
+        `week_pro_field?select=player_ext_id,player_name` +
+        `&week_number=eq.${Number(week.week_number)}`;
+
+      let fieldOut = await sbAnon(SUPABASE_URL, SUPABASE_ANON_KEY, "GET", fieldPath);
+      if (!fieldOut.ok && SUPABASE_SERVICE_ROLE_KEY) {
+        fieldOut = await sbService(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, "GET", fieldPath);
+      }
+
+      if (fieldOut.ok && Array.isArray(fieldOut.json)) {
+        const nameMap = new Map();
+        for (const r of fieldOut.json) {
+          if (r?.player_ext_id && r?.player_name) {
+            nameMap.set(String(r.player_ext_id), String(r.player_name));
+          }
+        }
+        for (const r of rows) {
+          const nm = nameMap.get(String(r.player_ext_id));
+          if (nm) r.player_name = nm;
+        }
+      }
+
+      return json(200, {
+        week,
+        cut_line_to_par: week.pro_leaderboard_cut_line_to_par ?? null,
+        rows,
+      });
+    }
+
 
    // -------------------------
 // pros (deprecated: homepage no longer needs this; keep endpoint for backwards compatibility)
