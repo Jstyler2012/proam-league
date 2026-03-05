@@ -167,7 +167,7 @@
         const pos = r.position || "—";
         const name = r.player_name || "—";
         const tot = fmtToPar(r.score_to_par);
-        const today = fmtToPar(r.today);
+        const today = fmtToPar((r.today !== null && r.today !== undefined) ? r.today : ((r.round === 1 || r.round === '1') ? r.score_to_par : null));
         const thru = (r.thru === null || r.thru === undefined || r.thru === "") ? "—" : String(r.thru);
 
         const cutSep = insertCutSeparatorIfNeeded(cutLine, r.score_to_par, cutInserted);
