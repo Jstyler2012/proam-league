@@ -1,12 +1,18 @@
 'use strict';
 
 /**
- * DataGolf has two "live" style endpoints people commonly confuse:
+ * Sync PGA live leaderboard-ish scoring into Supabase.
  *
- * 1) /preds/live-tournament-stats  -> live strokes-gained & traditional stats (NOT scoring)
- * 2) /preds/in-play               -> in-play "live model" feed that includes scoring/position/thru
+ * IMPORTANT:
+ * DataGolf /preds/live-tournament-stats is a "live stats" feed. In the payload shape we're seeing,
+ * the player "to-par" value is landing in a field that our earlier mapping treated as "round".
+ * Result: score_to_par = null and round = -5/-3/etc (which is actually to-par).
  *
- * For a true tournament leaderboard page, we want (2).
+ * This version keeps your DB schema intact and applies a robust fix:
+ * - If score_to_par is null AND round is a negative/large magnitude number, we treat that as score_to_par.
+ * - We then set round to null (unless we can confidently read a 1-4 round number).
+ *
+ * Later, if you upgrade to a true scoring leaderboard endpoint (in-play / leaderboard), you can tighten mappings.
  */
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
@@ -77,11 +83,7 @@ function parseToIntMaybe(v) {
   if (v === null || v === undefined) return null;
   const s = String(v).trim();
   if (!s) return null;
-
-  // common formats: -3, +2, "E", "EVEN", 0
   if (/^(e|even)$/i.test(s)) return 0;
-
-  // if it's like "+3" or "-2" or "3"
   const n = Number(s.replace(/[^\d\-+]/g, ""));
   return Number.isFinite(n) ? n : null;
 }
@@ -93,17 +95,15 @@ function toStringMaybe(v) {
 }
 
 /**
- * /preds/in-play often returns:
- * - an object with a key that contains an array (e.g. "players", "data", etc)
- * - OR the entire payload is an array
- *
- * We'll scan for the first "array of objects" that has an obvious player identifier.
+ * Robustly find the player array in the DataGolf payload.
+ * Our log shows top-level keys: course_name, event_name, last_updated, live_stats, stat_display, stat_round
+ * so live_stats is likely what we want.
  */
-function pickPlayerArray(payload) {
+function pickPlayers(payload) {
   if (!payload) return [];
   if (Array.isArray(payload)) return payload;
 
-  const directKeys = ["players", "data", "results", "leaderboard", "rows", "in_play", "inPlay"];
+  const directKeys = ["live_stats", "players", "leaderboard", "data", "results", "rows"];
   for (const k of directKeys) {
     if (Array.isArray(payload[k])) return payload[k];
   }
@@ -112,14 +112,8 @@ function pickPlayerArray(payload) {
     if (!Array.isArray(v) || !v.length) continue;
     const first = v[0];
     if (!first || typeof first !== "object") continue;
-
-    // common ID fields
-    const hasId =
-      ("dg_id" in first) ||
-      ("player_id" in first) ||
-      ("id" in first) ||
-      ("player" in first && first.player && typeof first.player === "object" && ("dg_id" in first.player));
-
+    const hasId = ("dg_id" in first) || ("player_id" in first) || ("id" in first) ||
+      (first.player && typeof first.player === "object" && ("dg_id" in first.player));
     if (hasId) return v;
   }
 
@@ -151,11 +145,11 @@ function computeCutLine(payload, rows) {
 
 function safeTrimRaw(payload) {
   try {
-    const arr = pickPlayerArray(payload);
+    const players = pickPlayers(payload);
     const trimmed = (payload && typeof payload === "object" && !Array.isArray(payload)) ? { ...payload } : { payload_type: typeof payload };
-    if (Array.isArray(arr) && arr.length) {
-      trimmed.__players_preview = arr.slice(0, 3);
-      trimmed.__players_count = arr.length;
+    if (Array.isArray(players) && players.length) {
+      trimmed.__players_preview = players.slice(0, 3);
+      trimmed.__players_count = players.length;
     }
     return trimmed;
   } catch {
@@ -163,41 +157,39 @@ function safeTrimRaw(payload) {
   }
 }
 
-/**
- * Normalize a player row from /preds/in-play into our DB shape.
- *
- * We don't know the exact key names across versions, so we try a set of fallbacks.
- */
-function normalizeInPlayRow(p, weekNumber, nowIso) {
-  const ext =
-    p?.dg_id ?? p?.player_id ?? p?.id ?? p?.player?.dg_id ?? null;
+function normalizePlayerRow(p, weekNumber, nowIso) {
+  const ext = p?.dg_id ?? p?.player_id ?? p?.id ?? p?.player?.dg_id ?? null;
   if (!ext) return null;
 
   const position = toStringMaybe(p?.position ?? p?.pos ?? p?.place ?? p?.rank ?? p?.finish_position);
 
-  // these are the common "to-par" fields in golf feeds
-  const score_to_par = parseToIntMaybe(
+  // What we *want* in score_to_par:
+  let score_to_par = parseToIntMaybe(
     p?.score_to_par ?? p?.to_par ?? p?.total_to_par ?? p?.tourn_to_par ?? p?.score ?? p?.total ?? p?.toPar
   );
 
-  // "today" / current round to-par
   const today = parseToIntMaybe(
     p?.today ?? p?.round_to_par ?? p?.r_to_par ?? p?.todays_to_par ?? p?.roundScoreToPar
   );
 
-  // "thru" is usually holes completed ("F", "17", "—")
   const thru = toStringMaybe(
     p?.thru ?? p?.holes_completed ?? p?.holes ?? p?.thru_hole ?? p?.thruToday ?? p?.holes_thru
   );
 
-  // actual round number (1-4) if present
-  const round = parseToIntMaybe(
+  // Some DG payloads include round number; but in your current output this field is actually the -5/-3/-2 value.
+  let round = parseToIntMaybe(
     p?.round ?? p?.current_round ?? p?.rnd ?? p?.event_round
   );
 
   const strokes = parseToIntMaybe(p?.strokes ?? p?.total_strokes ?? p?.totalStrokes);
-
   const status = toStringMaybe(p?.status ?? p?.player_status ?? p?.result_status);
+
+  // ✅ HOTFIX: if score_to_par is null but "round" looks like a to-par (negative or large magnitude), move it.
+  // Round numbers should almost always be 1-4. Anything outside [0..5] is suspicious.
+  if (score_to_par === null && round !== null && (round < 0 || round > 5)) {
+    score_to_par = round;
+    round = null;
+  }
 
   return {
     week_number: Number(weekNumber),
@@ -254,40 +246,28 @@ exports.handler = async (event) => {
 
     const nowIso = new Date().toISOString();
 
-    // 1) Prefer /preds/in-play for actual leaderboard/scoring
-    const inPlayUrl =
-      `https://feeds.datagolf.com/preds/in-play` +
-      `?tour=pga&odds_format=decimal&file_format=json&key=${encodeURIComponent(DATAGOLF_API_KEY)}`;
+    // Live stats feed (what you're using now)
+    const dgUrl =
+      `https://feeds.datagolf.com/preds/live-tournament-stats` +
+      `?tour=pga&file_format=json&key=${encodeURIComponent(DATAGOLF_API_KEY)}`;
 
-    let payload = null;
-    let sourceEndpoint = "in-play";
-    let dg = await fetchJson(inPlayUrl);
-
-    // 2) Fallback: if in-play fails, use live-tournament-stats (stats page)
+    const dg = await fetchJson(dgUrl);
     if (!dg.res.ok) {
-      sourceEndpoint = "live-tournament-stats";
-      const fallbackUrl =
-        `https://feeds.datagolf.com/preds/live-tournament-stats` +
-        `?tour=pga&file_format=json&key=${encodeURIComponent(DATAGOLF_API_KEY)}`;
-
-      dg = await fetchJson(fallbackUrl);
-      if (!dg.res.ok) {
-        return json(502, { ok: false, error: `DataGolf failed (${dg.res.status})`, preview: (dg.text || "").slice(0, 800) });
-      }
+      return json(502, { ok: false, error: `DataGolf failed (${dg.res.status})`, preview: (dg.text || "").slice(0, 800) });
     }
 
-    payload = dg.data ?? null;
-
-    const arr = pickPlayerArray(payload);
+    const payload = dg.data ?? null;
+    const players = pickPlayers(payload);
 
     console.log("[sync-pro-leaderboard] week_number:", weekRow.week_number);
-    console.log("[sync-pro-leaderboard] endpoint:", sourceEndpoint);
-    console.log("[sync-pro-leaderboard] datagolf top-level keys:", payload && typeof payload === "object" && !Array.isArray(payload) ? Object.keys(payload) : typeof payload);
-    console.log("[sync-pro-leaderboard] players found:", Array.isArray(arr) ? arr.length : 0);
+    console.log("[sync-pro-leaderboard] datagolf top-level keys:",
+      payload && typeof payload === "object" && !Array.isArray(payload) ? Object.keys(payload) : typeof payload
+    );
+    console.log("[sync-pro-leaderboard] players found:", Array.isArray(players) ? players.length : 0);
 
     const rows = [];
-    for (const p of (arr || [])) {
-      const norm = normalizeInPlayRow(p, weekRow.week_number, nowIso);
+    for (const p of (players || [])) {
+      const norm = normalizePlayerRow(p, weekRow.week_number, nowIso);
       if (norm) rows.push(norm);
     }
 
@@ -316,10 +296,10 @@ exports.handler = async (event) => {
       tour: "pga",
       tourn_id: payload?.tourn_id ? String(payload.tourn_id) : null,
       event_name: payload?.event_name ?? payload?.tournament_name ?? weekRow.tournament_name ?? null,
-      round: parseToIntMaybe(payload?.round ?? payload?.current_round ?? payload?.event_round),
+      round: parseToIntMaybe(payload?.stat_round ?? payload?.round ?? payload?.current_round),
       cut_line_to_par: cutLine,
       is_in_progress: inWindow ? true : null,
-      source: `datagolf:${sourceEndpoint}`,
+      source: "datagolf:live-tournament-stats",
       raw: safeTrimRaw(payload),
     }, "return=minimal");
 
@@ -336,7 +316,6 @@ exports.handler = async (event) => {
 
     return json(200, {
       ok: true,
-      endpoint: sourceEndpoint,
       week_number: weekRow.week_number,
       rows_upserted: rows.length,
       cut_line_to_par: cutLine,
