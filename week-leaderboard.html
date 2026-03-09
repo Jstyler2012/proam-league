@@ -140,10 +140,10 @@
 
         const data = await getJSON(`${API.proLeaderboard}?week_id=${encodeURIComponent(week.week_number)}`);
         renderRows(data.rows || []);
-        updateLastUpdated((data.week && data.week.leaderboard_last_synced_at) || week.leaderboard_last_synced_at || null);
+        updateLastUpdated(data.week?.leaderboard_last_synced_at || week.leaderboard_last_synced_at || null);
 
-        const status = ((data.week && data.week.pro_leaderboard_status) || week.pro_leaderboard_status || '').toLowerCase();
-        if(status === 'live'){
+        const status = ((data.week?.pro_leaderboard_status) || "").toLowerCase();
+        if(status === "live"){
           setInterval(async () => {
             try {
               const fresh = await getJSON(`${API.proLeaderboard}?week_id=${encodeURIComponent(week.week_number)}`);
