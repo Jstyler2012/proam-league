@@ -6,6 +6,7 @@
   <title>Week Leaderboard • Wellman Golf Club</title>
   <link rel="stylesheet" href="./styles.css">
 </head>
+
 <body>
   <header class="topbar">
     <div class="topbarInner">
@@ -16,6 +17,9 @@
       <nav class="nav">
         <a href="./index.html">Home</a>
         <a class="active" href="./week-leaderboard.html">Week Leaderboard</a>
+        <a href="./draft.html">Draft</a>
+        <a href="./rules.html">Rules</a>
+        <a href="./login.html">Log in</a>
       </nav>
     </div>
   </header>
@@ -104,6 +108,14 @@
       el.textContent = "Updated: " + d.toLocaleTimeString();
     }
 
+    function formatScore(n){
+      if(n === null || n === undefined) return null;
+      const num = Number(n);
+      if(!Number.isFinite(num)) return null;
+      if(num > 0) return "+" + num;
+      return String(num);
+    }
+
     function renderRows(rows){
       if(!Array.isArray(rows) || rows.length === 0){
         $("lbBody").innerHTML = `<tr><td colspan="3" style="color:rgba(233,241,255,.45);">No live leaderboard rows yet.</td></tr>`;
@@ -111,9 +123,26 @@
       }
 
       $("lbBody").innerHTML = rows.map((r) => {
-        const pos = (r.position_display === null || r.position_display === undefined || r.position_display === "") ? "-" : r.position_display;
+
+        // POSITION DISPLAY
+        const pos = r.position_display ?? r.position ?? "-";
+
+        // PLAYER
         const name = r.player_name || "-";
-        const tot = r.tot_display || "-";
+
+        // SCORE DISPLAY
+        let tot = r.tot_display;
+
+        if(tot === null || tot === undefined){
+          if(r.today !== null && r.today !== undefined){
+            tot = formatScore(r.today);
+          } else if(r.score_to_par !== null && r.score_to_par !== undefined){
+            tot = formatScore(r.score_to_par);
+          } else {
+            tot = "-";
+          }
+        }
+
         return `
           <tr>
             <td class="mono center"><span class="rankPill">${pos}</span></td>
@@ -131,6 +160,7 @@
       try {
         const cw = await getJSON(API.currentWeek);
         const week = cw.week;
+
         if(!week){
           $("lbBody").innerHTML = `<tr><td colspan="3" style="color:rgba(233,241,255,.45);">No current week found.</td></tr>`;
           return;
@@ -139,10 +169,13 @@
         setHero(week);
 
         const data = await getJSON(`${API.proLeaderboard}?week_id=${encodeURIComponent(week.week_number)}`);
+
         renderRows(data.rows || []);
-        updateLastUpdated(data.week?.leaderboard_last_synced_at || week.leaderboard_last_synced_at || null);
+
+        updateLastUpdated(data.week?.leaderboard_last_synced_at || null);
 
         const status = ((data.week?.pro_leaderboard_status) || "").toLowerCase();
+
         if(status === "live"){
           setInterval(async () => {
             try {
@@ -152,6 +185,7 @@
             } catch(e) {}
           }, 60000);
         }
+
       } catch(e) {
         $("lbBody").innerHTML = `<tr><td colspan="3" style="color:rgba(233,241,255,.45);">Couldn’t load leaderboard.</td></tr>`;
         showMsg($("lbMsg"), "Week Leaderboard error: " + e.message, "bad");
