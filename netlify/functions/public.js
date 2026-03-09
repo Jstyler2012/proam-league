@@ -151,7 +151,7 @@ exports.handler = async (event) => {
 
       return json(200, { week });
     }
-    // -------------------------
+        // -------------------------
     // pro-leaderboard (PGA live scoring)
     // GET /api/pro-leaderboard?week_id=7 (optional)
     // -------------------------
@@ -159,7 +159,6 @@ exports.handler = async (event) => {
       const q = event.queryStringParameters || {};
       const requestedWeek = q.week_id ? Number(q.week_id) : null;
 
-      // Determine week by date if not provided
       let week = null;
       if (requestedWeek && Number.isFinite(requestedWeek)) {
         const wOut = await sbAnon(
@@ -200,7 +199,7 @@ exports.handler = async (event) => {
       if (!week) return json(200, { week: null, rows: [] });
 
       const lbPath =
-        `pro_leaderboard_entries?select=week_number,player_ext_id,position,score_to_par,thru,status,updated_at` +
+        `pro_leaderboard_entries?select=week_number,player_ext_id,position,score_to_par,thru,today,round,strokes,status,is_cut,updated_at` +
         `&week_number=eq.${Number(week.week_number)}` +
         `&order=score_to_par.asc.nullslast`;
 
@@ -212,8 +211,9 @@ exports.handler = async (event) => {
 
       const rows = lbOut.json || [];
 
-      // Load names from week_pro_field
-      const weekNameMap = new Map();
+      // Hydrate names from week_pro_field first, then pro_players.display_name fallback.
+      const nameMap = new Map();
+
       const fieldPath =
         `week_pro_field?select=player_ext_id,player_name` +
         `&week_number=eq.${Number(week.week_number)}`;
@@ -225,69 +225,58 @@ exports.handler = async (event) => {
       if (fieldOut.ok && Array.isArray(fieldOut.json)) {
         for (const r of fieldOut.json) {
           if (r?.player_ext_id && r?.player_name) {
-            weekNameMap.set(String(r.player_ext_id), String(r.player_name));
+            nameMap.set(String(r.player_ext_id), String(r.player_name));
           }
         }
       }
 
-      // Load fallback global names from pro_players
-      const globalNameMap = new Map();
-      const prosPath = `pro_players?select=ext_id,display_name&limit=10000`;
-      let prosOut = await sbAnon(SUPABASE_URL, SUPABASE_ANON_KEY, "GET", prosPath);
-      if (!prosOut.ok && SUPABASE_SERVICE_ROLE_KEY) {
-        prosOut = await sbService(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, "GET", prosPath);
-      }
-      if (prosOut.ok && Array.isArray(prosOut.json)) {
-        for (const r of prosOut.json) {
-          if (r?.ext_id && r?.display_name) {
-            globalNameMap.set(String(r.ext_id), String(r.display_name));
+      if (nameMap.size === 0) {
+        const prosPath = `pro_players?select=ext_id,display_name&limit=10000`;
+        let prosOut = await sbAnon(SUPABASE_URL, SUPABASE_ANON_KEY, "GET", prosPath);
+        if (!prosOut.ok && SUPABASE_SERVICE_ROLE_KEY) {
+          prosOut = await sbService(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, "GET", prosPath);
+        }
+        if (prosOut.ok && Array.isArray(prosOut.json)) {
+          for (const r of prosOut.json) {
+            if (r?.ext_id && r?.display_name) {
+              nameMap.set(String(r.ext_id), String(r.display_name));
+            }
           }
         }
       }
 
-      const fmtToPar = (n) => {
+      function fmtToPar(n) {
         if (n === null || n === undefined) return null;
         const num = Number(n);
         if (!Number.isFinite(num)) return null;
-        if (num > 0) return `+${num}`;
-        return `${num}`;
-      };
-
-      const isWD = (position, status, thru) => {
-        const p = String(position || "").trim().toUpperCase();
-        const s = String(status || "").trim().toUpperCase();
-        const t = String(thru || "").trim().toUpperCase();
-        const hay = `${p} ${s} ${t}`;
-        return hay.includes("WD") || hay.includes("WITHDRAW");
-      };
-
-      const displayPos = (position, status, thru) => {
-        if (isWD(position, status, thru)) return "WD";
-        const p = String(position || "").trim().toUpperCase();
-        if (!p || p === "WAITING") return null;
-        return position;
-      };
-
-      for (const r of rows) {
-        const id = String(r.player_ext_id);
-        r.player_name = weekNameMap.get(id) || globalNameMap.get(id) || null;
-        r.position_display = displayPos(r.position, r.status, r.thru);
-        r.tot_display = isWD(r.position, r.status, r.thru) ? "WD" : (fmtToPar(r.score_to_par) || null);
+        return num > 0 ? `+${num}` : `${num}`;
       }
+      function isWD(row) {
+        const p = String(row.position || '').trim().toUpperCase();
+        const s = String(row.status || '').trim().toUpperCase();
+        const t = String(row.thru || '').trim().toUpperCase();
+        const hay = `${p} ${s} ${t}`;
+        return hay.includes('WD') || hay.includes('WITHDRAW');
+      }
+      function posDisplay(pos) {
+        const p = String(pos || '').trim().toUpperCase();
+        if (!p || p === 'WAITING') return null;
+        return pos;
+      }
+
+      const outRows = rows.map((r) => ({
+        ...r,
+        player_name: nameMap.get(String(r.player_ext_id)) || null,
+        position_display: isWD(r) ? 'WD' : posDisplay(r.position),
+        tot_display: isWD(r) ? 'WD' : fmtToPar(r.score_to_par),
+      }));
 
       return json(200, {
         week,
         cut_line_to_par: week.pro_leaderboard_cut_line_to_par ?? null,
-        rows,
+        rows: outRows,
       });
     }
-
-
-   // -------------------------
-// pros (deprecated: homepage no longer needs this; keep endpoint for backwards compatibility)
-if (route === "pros") {
-  return json(200, []);
-}
     // -------------------------
     // me (requires Authorization bearer token)
     // -------------------------
