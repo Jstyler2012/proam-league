@@ -6,7 +6,6 @@
   <title>Week Leaderboard • Wellman Golf Club</title>
   <link rel="stylesheet" href="./styles.css">
 </head>
-
 <body>
   <header class="topbar">
     <div class="topbarInner">
@@ -17,7 +16,6 @@
       <nav class="nav">
         <a href="./index.html">Home</a>
         <a class="active" href="./week-leaderboard.html">Week Leaderboard</a>
-        <a href="./admin.html">Admin</a>
       </nav>
     </div>
   </header>
@@ -113,9 +111,9 @@
       }
 
       $("lbBody").innerHTML = rows.map((r) => {
-        const pos = r.position || "—";
-        const name = r.player_name || "—";
-        const tot = r.tot_display || "—";
+        const pos = (r.position_display === null || r.position_display === undefined || r.position_display === "") ? "-" : r.position_display;
+        const name = r.player_name || "-";
+        const tot = r.tot_display || "-";
         return `
           <tr>
             <td class="mono center"><span class="rankPill">${pos}</span></td>
@@ -143,7 +141,6 @@
         renderRows(data.rows || []);
         updateLastUpdated(week.leaderboard_last_synced_at || null);
 
-        // refresh while live
         const status = (week.pro_leaderboard_status || "").toLowerCase();
         if(status === "live"){
           setInterval(async () => {
@@ -152,7 +149,7 @@
               renderRows(fresh.rows || []);
               updateLastUpdated(fresh.week?.leaderboard_last_synced_at || null);
             } catch(e) {}
-          }, 60_000);
+          }, 60000);
         }
       } catch(e) {
         $("lbBody").innerHTML = `<tr><td colspan="3" style="color:rgba(233,241,255,.45);">Couldn’t load leaderboard.</td></tr>`;
