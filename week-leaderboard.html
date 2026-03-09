@@ -5,6 +5,127 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Week Leaderboard • Wellman Golf Club</title>
   <link rel="stylesheet" href="./styles.css">
+  <style>
+    .pgaBoardCard {
+      background: rgba(8, 14, 26, 0.92);
+      border: 1px solid rgba(255,255,255,.10);
+      border-radius: 22px;
+      overflow: hidden;
+      box-shadow: 0 18px 60px rgba(0,0,0,.28);
+    }
+
+    .pgaBoardHead {
+      padding: 18px 20px 10px;
+      border-bottom: 1px solid rgba(255,255,255,.08);
+      background: linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.01));
+    }
+
+    .pgaBoardTitle {
+      font-size: 34px;
+      font-weight: 900;
+      letter-spacing: -.02em;
+      margin: 0;
+      color: #eef4ff;
+    }
+
+    .pgaBoardTableWrap {
+      overflow-x: auto;
+    }
+
+    .pgaBoardTable {
+      width: 100%;
+      min-width: 980px;
+      border-collapse: collapse;
+      table-layout: fixed;
+    }
+
+    .pgaBoardTable thead th {
+      padding: 14px 10px;
+      font-size: 14px;
+      font-weight: 800;
+      text-transform: uppercase;
+      color: rgba(233,241,255,.72);
+      border-bottom: 2px solid rgba(255,255,255,.16);
+      background: rgba(255,255,255,.02);
+      white-space: nowrap;
+    }
+
+    .pgaBoardTable tbody td {
+      padding: 13px 10px;
+      border-bottom: 1px solid rgba(255,255,255,.08);
+      color: #eef4ff;
+      font-size: 15px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .pgaBoardTable tbody tr:hover {
+      background: rgba(255,255,255,.03);
+    }
+
+    .pgaBoardTable .col-pos { width: 82px; text-align: left; }
+    .pgaBoardTable .col-player { width: 340px; text-align: left; }
+    .pgaBoardTable .col-total,
+    .pgaBoardTable .col-thru,
+    .pgaBoardTable .col-round,
+    .pgaBoardTable .col-r1,
+    .pgaBoardTable .col-r2,
+    .pgaBoardTable .col-r3,
+    .pgaBoardTable .col-r4 { width: 82px; text-align: center; }
+
+    .posPill {
+      display: inline-flex;
+      min-width: 42px;
+      justify-content: center;
+      align-items: center;
+      padding: 5px 10px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.04);
+      border: 1px solid rgba(255,255,255,.10);
+      font-weight: 800;
+      letter-spacing: -.01em;
+    }
+
+    .playerName {
+      font-weight: 700;
+      color: #eef4ff;
+    }
+
+    .scoreCell {
+      font-variant-numeric: tabular-nums;
+      font-weight: 800;
+    }
+
+    .scoreNegative { color: #7CFFB2; }
+    .scorePositive { color: #FF9B9B; }
+    .scoreEven { color: #eef4ff; opacity: .88; }
+
+    .roundBadge {
+      display: inline-flex;
+      min-width: 36px;
+      justify-content: center;
+      align-items: center;
+      padding: 4px 9px;
+      border-radius: 8px;
+      background: rgba(34, 197, 94, .18);
+      border: 1px solid rgba(34, 197, 94, .28);
+      color: #9effc4;
+      font-weight: 900;
+    }
+
+    .heroMetaRow {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 12px;
+    }
+
+    .heroMetaRow .badge {
+      display: inline-flex;
+      align-items: center;
+    }
+  </style>
 </head>
 
 <body>
@@ -30,8 +151,9 @@
         <div class="eyebrow">PGA TOUR • Live leaderboard</div>
         <h1 id="tournamentName" class="h1">Week Leaderboard</h1>
         <div id="tournamentDates" class="sub">—</div>
-        <div class="metaRow">
+        <div class="heroMetaRow">
           <span id="lastUpdatedBadge" class="badge gray">Updated: —</span>
+          <span id="roundBadge" class="badge gray">Round: —</span>
         </div>
       </div>
       <div class="heroRight">
@@ -39,26 +161,28 @@
       </div>
     </section>
 
-    <section class="card">
-      <div class="cardHead">
-        <div>
-          <div class="cardTitle">Pro Leaderboard</div>
-          <div class="cardSub">POS • PLAYER • TOT</div>
-        </div>
-        <div id="lbMsg" class="msg" style="display:none;"></div>
+    <section class="pgaBoardCard">
+      <div class="pgaBoardHead">
+        <h2 class="pgaBoardTitle">All Players</h2>
       </div>
 
-      <div class="tableWrap">
-        <table class="tbl">
+      <div class="pgaBoardTableWrap">
+        <table class="pgaBoardTable">
           <thead>
             <tr>
-              <th class="center" style="width:90px;">Pos</th>
-              <th>Player</th>
-              <th class="center" style="width:120px;">Tot</th>
+              <th class="col-pos">POS</th>
+              <th class="col-player">PLAYER</th>
+              <th class="col-total">TOTAL</th>
+              <th class="col-thru">THRU</th>
+              <th class="col-round">ROUND</th>
+              <th class="col-r1">R1</th>
+              <th class="col-r2">R2</th>
+              <th class="col-r3">R3</th>
+              <th class="col-r4">R4</th>
             </tr>
           </thead>
           <tbody id="lbBody">
-            <tr><td colspan="3" style="color:rgba(233,241,255,.45);">Loading…</td></tr>
+            <tr><td colspan="9" style="color:rgba(233,241,255,.45);">Loading…</td></tr>
           </tbody>
         </table>
       </div>
@@ -66,16 +190,17 @@
   </main>
 
   <script>
-    const API = { currentWeek: "/api/current-week", proLeaderboard: "/api/pro-leaderboard" };
+    const API = {
+      currentWeek: "/api/current-week",
+      proLeaderboard: "/api/pro-leaderboard"
+    };
+
     const $ = (id) => document.getElementById(id);
 
-    function showMsg(el, text, kind="bad"){
-      if(!el) return;
-      el.style.display = "block";
-      el.className = "msg " + (kind === "good" ? "good" : "bad");
-      el.textContent = text;
+    function showMsg(text) {
+      const body = $("lbBody");
+      body.innerHTML = `<tr><td colspan="9" style="color:rgba(233,241,255,.45);">${text}</td></tr>`;
     }
-    function hideMsg(el){ if(el) el.style.display = "none"; }
 
     async function getJSON(url){
       const res = await fetch(url, { headers: { "accept": "application/json" }});
@@ -94,10 +219,10 @@
 
       const logo = week?.logo_url;
       const img = $("tournamentLogo");
-      if(img && logo){
+      if (img && logo) {
         img.src = logo;
         img.style.display = "block";
-      } else if(img) {
+      } else if (img) {
         img.style.display = "none";
       }
     }
@@ -108,87 +233,127 @@
       el.textContent = "Updated: " + d.toLocaleTimeString();
     }
 
-    function formatScore(n){
-      if(n === null || n === undefined) return null;
+    function updateRound(rows){
+      const el = $("roundBadge");
+      const rounds = (rows || []).map(r => Number(r.round)).filter(n => Number.isFinite(n) && n > 0);
+      if (!rounds.length) {
+        el.textContent = "Round: —";
+        return;
+      }
+      const round = Math.max(...rounds);
+      el.innerHTML = `Round: <span class="roundBadge" style="margin-left:8px;">R${round}</span>`;
+    }
+
+    function formatToPar(n){
+      if (n === null || n === undefined) return "—";
       const num = Number(n);
-      if(!Number.isFinite(num)) return null;
-      if(num > 0) return "+" + num;
-      return String(num);
+      if (!Number.isFinite(num)) return "—";
+      if (num > 0) return `+${num}`;
+      return `${num}`;
+    }
+
+    function scoreClass(n){
+      if (n === null || n === undefined) return "";
+      const num = Number(n);
+      if (!Number.isFinite(num)) return "";
+      if (num < 0) return "scoreNegative";
+      if (num > 0) return "scorePositive";
+      return "scoreEven";
+    }
+
+    function displayThru(r){
+      if (r.is_wd || r.position_display === "WD") return "WD";
+      if (r.thru === null || r.thru === undefined || r.thru === "") return "—";
+      return String(r.thru);
+    }
+
+    function displayRound(r){
+      if (r.round === null || r.round === undefined || r.round === "") return "—";
+      const n = Number(r.round);
+      return Number.isFinite(n) ? `R${n}` : String(r.round);
+    }
+
+    function roundCellValue(rowRound, currentRound, today, total){
+      // We can only populate the current round cleanly from current API data.
+      // Historical round scores are not yet available from the current backend route,
+      // so non-current rounds intentionally render as em dash.
+      if (rowRound === null || rowRound === undefined) return "—";
+      if (rowRound !== currentRound) return "—";
+
+      const source = (today !== null && today !== undefined) ? today : total;
+      return formatToPar(source);
     }
 
     function renderRows(rows){
-      if(!Array.isArray(rows) || rows.length === 0){
-        $("lbBody").innerHTML = `<tr><td colspan="3" style="color:rgba(233,241,255,.45);">No live leaderboard rows yet.</td></tr>`;
+      if (!Array.isArray(rows) || rows.length === 0) {
+        showMsg("No live leaderboard rows yet.");
         return;
       }
 
+      const currentRound = Math.max(...rows.map(r => Number(r.round)).filter(n => Number.isFinite(n) && n > 0), 0);
+
       $("lbBody").innerHTML = rows.map((r) => {
-
-        // POSITION DISPLAY
-        const pos = r.position_display ?? r.position ?? "-";
-
-        // PLAYER
+        const pos = (r.position_display === null || r.position_display === undefined || r.position_display === "") ? "-" : r.position_display;
         const name = r.player_name || "-";
+        const totalScore = (r.tot !== null && r.tot !== undefined) ? r.tot : (r.today !== null && r.today !== undefined ? r.today : null);
+        const totalDisplay = r.tot_display && r.tot_display !== "-" ? r.tot_display : formatToPar(totalScore);
 
-        // SCORE DISPLAY
-        let tot = r.tot_display;
-
-        if(tot === null || tot === undefined){
-          if(r.today !== null && r.today !== undefined){
-            tot = formatScore(r.today);
-          } else if(r.score_to_par !== null && r.score_to_par !== undefined){
-            tot = formatScore(r.score_to_par);
-          } else {
-            tot = "-";
-          }
-        }
+        const r1 = roundCellValue(1, currentRound, r.today, totalScore);
+        const r2 = roundCellValue(2, currentRound, r.today, totalScore);
+        const r3 = roundCellValue(3, currentRound, r.today, totalScore);
+        const r4 = roundCellValue(4, currentRound, r.today, totalScore);
 
         return `
           <tr>
-            <td class="mono center"><span class="rankPill">${pos}</span></td>
-            <td class="playerCell">${name}</td>
-            <td class="mono center"><span class="totalPill">${tot}</span></td>
+            <td class="col-pos"><span class="posPill">${pos}</span></td>
+            <td class="col-player"><span class="playerName">${name}</span></td>
+            <td class="col-total scoreCell ${scoreClass(totalScore)}">${totalDisplay}</td>
+            <td class="col-thru">${displayThru(r)}</td>
+            <td class="col-round">${displayRound(r)}</td>
+            <td class="col-r1 scoreCell ${scoreClass(r1)}">${r1}</td>
+            <td class="col-r2 scoreCell ${scoreClass(r2)}">${r2}</td>
+            <td class="col-r3 scoreCell ${scoreClass(r3)}">${r3}</td>
+            <td class="col-r4 scoreCell ${scoreClass(r4)}">${r4}</td>
           </tr>
         `;
       }).join("");
     }
 
     async function load(){
-      hideMsg($("lbMsg"));
-      $("lbBody").innerHTML = `<tr><td colspan="3" style="color:rgba(233,241,255,.45);">Loading…</td></tr>`;
+      showMsg("Loading…");
 
       try {
         const cw = await getJSON(API.currentWeek);
         const week = cw.week;
 
-        if(!week){
-          $("lbBody").innerHTML = `<tr><td colspan="3" style="color:rgba(233,241,255,.45);">No current week found.</td></tr>`;
+        if (!week) {
+          showMsg("No current week found.");
           return;
         }
 
         setHero(week);
 
         const data = await getJSON(`${API.proLeaderboard}?week_id=${encodeURIComponent(week.week_number)}`);
+        const rows = data.rows || [];
 
-        renderRows(data.rows || []);
-
+        renderRows(rows);
+        updateRound(rows);
         updateLastUpdated(data.week?.leaderboard_last_synced_at || null);
 
         const status = ((data.week?.pro_leaderboard_status) || "").toLowerCase();
-
-        if(status === "live"){
+        if (status === "live") {
           setInterval(async () => {
             try {
               const fresh = await getJSON(`${API.proLeaderboard}?week_id=${encodeURIComponent(week.week_number)}`);
-              renderRows(fresh.rows || []);
+              const freshRows = fresh.rows || [];
+              renderRows(freshRows);
+              updateRound(freshRows);
               updateLastUpdated(fresh.week?.leaderboard_last_synced_at || null);
             } catch(e) {}
           }, 60000);
         }
-
-      } catch(e) {
-        $("lbBody").innerHTML = `<tr><td colspan="3" style="color:rgba(233,241,255,.45);">Couldn’t load leaderboard.</td></tr>`;
-        showMsg($("lbMsg"), "Week Leaderboard error: " + e.message, "bad");
+      } catch (e) {
+        showMsg("Couldn’t load leaderboard.");
       }
     }
 
