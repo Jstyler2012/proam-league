@@ -167,11 +167,12 @@ exports.handler = async (event) => {
     // -------------------------
     if (route === "pro-leaderboard") {
       const q = event.queryStringParameters || {};
-      const requestedWeek = q.week_id ? Number(q.week_id) : null;
+      const requestedWeekRaw = q.week_id ?? q.week_number ?? null;
+      const requestedWeek = requestedWeekRaw === null ? null : Number(requestedWeekRaw);
 
       // Determine week by date if not provided
       let week = null;
-      if (requestedWeek && Number.isFinite(requestedWeek)) {
+      if (requestedWeekRaw !== null && Number.isFinite(requestedWeek)) {
         const wOut = await sbAnon(
           SUPABASE_URL,
           SUPABASE_ANON_KEY,
@@ -192,20 +193,7 @@ exports.handler = async (event) => {
         const weeks = out.json || [];
         if (!weeks.length) return json(200, { week: null, rows: [] });
 
-        const today = new Date();
-
-        const inRange = weeks.find((w) => {
-          if (!w.start_date || !w.end_date) return false;
-          const s = new Date(w.start_date + "T00:00:00");
-          const e = new Date(w.end_date + "T23:59:59");
-          return today >= s && today <= e;
-        });
-
-        week =
-          inRange ||
-          (weeks[0]?.start_date && today < new Date(weeks[0].start_date + "T00:00:00")
-            ? weeks[0]
-            : weeks[weeks.length - 1]);
+        week = pickWeekByETDate(weeks);
       }
 
       if (!week) return json(200, { week: null, rows: [] });
