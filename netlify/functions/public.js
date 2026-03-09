@@ -84,6 +84,29 @@ async function getWeekUuidFromNumber(SUPABASE_URL, SUPABASE_ANON_KEY, weekNumber
   return { ok: true, id };
 }
 
+
+function todayInET() {
+  return new Date().toLocaleDateString("en-CA", { timeZone: "America/New_York" });
+}
+
+function pickWeekByETDate(weeks) {
+  if (!Array.isArray(weeks) || !weeks.length) return null;
+  const today = todayInET();
+
+  const inRange = weeks.find((w) => {
+    if (!w.start_date || !w.end_date) return false;
+    const s = String(w.start_date).slice(0, 10);
+    const e = String(w.end_date).slice(0, 10);
+    return today >= s && today <= e;
+  });
+
+  if (inRange) return inRange;
+
+  const first = weeks[0];
+  if (first?.start_date && today < String(first.start_date).slice(0, 10)) return first;
+  return weeks[weeks.length - 1];
+}
+
 exports.handler = async (event) => {
   if (event.httpMethod === "OPTIONS") {
     return { statusCode: 204, headers: corsHeaders, body: "" };
@@ -134,24 +157,11 @@ exports.handler = async (event) => {
       const weeks = out.json || [];
       if (!weeks.length) return json(200, { week: null });
 
-      const today = new Date();
-
-      const inRange = weeks.find((w) => {
-        if (!w.start_date || !w.end_date) return false;
-        const s = new Date(w.start_date + "T00:00:00");
-        const e = new Date(w.end_date + "T23:59:59");
-        return today >= s && today <= e;
-      });
-
-      const week =
-        inRange ||
-        (weeks[0]?.start_date && today < new Date(weeks[0].start_date + "T00:00:00")
-          ? weeks[0]
-          : weeks[weeks.length - 1]);
+      const week = pickWeekByETDate(weeks);
 
       return json(200, { week });
     }
-        // -------------------------
+    // -------------------------
     // pro-leaderboard (PGA live scoring)
     // GET /api/pro-leaderboard?week_id=7 (optional)
     // -------------------------
@@ -159,6 +169,7 @@ exports.handler = async (event) => {
       const q = event.queryStringParameters || {};
       const requestedWeek = q.week_id ? Number(q.week_id) : null;
 
+      // Determine week by date if not provided
       let week = null;
       if (requestedWeek && Number.isFinite(requestedWeek)) {
         const wOut = await sbAnon(
@@ -182,6 +193,7 @@ exports.handler = async (event) => {
         if (!weeks.length) return json(200, { week: null, rows: [] });
 
         const today = new Date();
+
         const inRange = weeks.find((w) => {
           if (!w.start_date || !w.end_date) return false;
           const s = new Date(w.start_date + "T00:00:00");
@@ -198,6 +210,7 @@ exports.handler = async (event) => {
 
       if (!week) return json(200, { week: null, rows: [] });
 
+      // Fetch leaderboard entries (fallback to service role if anon blocked)
       const lbPath =
         `pro_leaderboard_entries?select=week_number,player_ext_id,position,score_to_par,thru,today,round,strokes,status,is_cut,updated_at` +
         `&week_number=eq.${Number(week.week_number)}` +
@@ -211,9 +224,7 @@ exports.handler = async (event) => {
 
       const rows = lbOut.json || [];
 
-      // Hydrate names from week_pro_field first, then pro_players.display_name fallback.
-      const nameMap = new Map();
-
+      // Optional: hydrate player_name from week_pro_field if table exists / allowed by RLS
       const fieldPath =
         `week_pro_field?select=player_ext_id,player_name` +
         `&week_number=eq.${Number(week.week_number)}`;
@@ -222,61 +233,33 @@ exports.handler = async (event) => {
       if (!fieldOut.ok && SUPABASE_SERVICE_ROLE_KEY) {
         fieldOut = await sbService(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, "GET", fieldPath);
       }
+
       if (fieldOut.ok && Array.isArray(fieldOut.json)) {
+        const nameMap = new Map();
         for (const r of fieldOut.json) {
           if (r?.player_ext_id && r?.player_name) {
             nameMap.set(String(r.player_ext_id), String(r.player_name));
           }
         }
-      }
-
-      if (nameMap.size === 0) {
-        const prosPath = `pro_players?select=ext_id,display_name&limit=10000`;
-        let prosOut = await sbAnon(SUPABASE_URL, SUPABASE_ANON_KEY, "GET", prosPath);
-        if (!prosOut.ok && SUPABASE_SERVICE_ROLE_KEY) {
-          prosOut = await sbService(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, "GET", prosPath);
-        }
-        if (prosOut.ok && Array.isArray(prosOut.json)) {
-          for (const r of prosOut.json) {
-            if (r?.ext_id && r?.display_name) {
-              nameMap.set(String(r.ext_id), String(r.display_name));
-            }
-          }
+        for (const r of rows) {
+          const nm = nameMap.get(String(r.player_ext_id));
+          if (nm) r.player_name = nm;
         }
       }
-
-      function fmtToPar(n) {
-        if (n === null || n === undefined) return null;
-        const num = Number(n);
-        if (!Number.isFinite(num)) return null;
-        return num > 0 ? `+${num}` : `${num}`;
-      }
-      function isWD(row) {
-        const p = String(row.position || '').trim().toUpperCase();
-        const s = String(row.status || '').trim().toUpperCase();
-        const t = String(row.thru || '').trim().toUpperCase();
-        const hay = `${p} ${s} ${t}`;
-        return hay.includes('WD') || hay.includes('WITHDRAW');
-      }
-      function posDisplay(pos) {
-        const p = String(pos || '').trim().toUpperCase();
-        if (!p || p === 'WAITING') return null;
-        return pos;
-      }
-
-      const outRows = rows.map((r) => ({
-        ...r,
-        player_name: nameMap.get(String(r.player_ext_id)) || null,
-        position_display: isWD(r) ? 'WD' : posDisplay(r.position),
-        tot_display: isWD(r) ? 'WD' : fmtToPar(r.score_to_par),
-      }));
 
       return json(200, {
         week,
         cut_line_to_par: week.pro_leaderboard_cut_line_to_par ?? null,
-        rows: outRows,
+        rows,
       });
     }
+
+
+   // -------------------------
+// pros (deprecated: homepage no longer needs this; keep endpoint for backwards compatibility)
+if (route === "pros") {
+  return json(200, []);
+}
     // -------------------------
     // me (requires Authorization bearer token)
     // -------------------------
