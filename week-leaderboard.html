@@ -62,7 +62,7 @@
   </main>
 
   <script>
-    const API = { proLeaderboard: "/api/pro-leaderboard" };
+    const API = { currentWeek: "/api/current-week", proLeaderboard: "/api/pro-leaderboard" };
     const $ = (id) => document.getElementById(id);
 
     function showMsg(el, text, kind="bad"){
@@ -129,23 +129,24 @@
       $("lbBody").innerHTML = `<tr><td colspan="3" style="color:rgba(233,241,255,.45);">Loading…</td></tr>`;
 
       try {
-        const data = await getJSON(API.proLeaderboard);
-        const week = data.week;
-
+        const cw = await getJSON(API.currentWeek);
+        const week = cw.week;
         if(!week){
           $("lbBody").innerHTML = `<tr><td colspan="3" style="color:rgba(233,241,255,.45);">No current week found.</td></tr>`;
           return;
         }
 
         setHero(week);
-        renderRows(data.rows || []);
-        updateLastUpdated(week.leaderboard_last_synced_at || null);
 
-        const status = (week.pro_leaderboard_status || "").toLowerCase();
-        if(status === "live"){
+        const data = await getJSON(`${API.proLeaderboard}?week_id=${encodeURIComponent(week.week_number)}`);
+        renderRows(data.rows || []);
+        updateLastUpdated((data.week && data.week.leaderboard_last_synced_at) || week.leaderboard_last_synced_at || null);
+
+        const status = ((data.week && data.week.pro_leaderboard_status) || week.pro_leaderboard_status || '').toLowerCase();
+        if(status === 'live'){
           setInterval(async () => {
             try {
-              const fresh = await getJSON(API.proLeaderboard);
+              const fresh = await getJSON(`${API.proLeaderboard}?week_id=${encodeURIComponent(week.week_number)}`);
               renderRows(fresh.rows || []);
               updateLastUpdated(fresh.week?.leaderboard_last_synced_at || null);
             } catch(e) {}
